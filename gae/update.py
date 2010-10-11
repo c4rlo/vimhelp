@@ -71,7 +71,7 @@ print "Content-Type: text/html\n"
 
 count = 0
 
-for match in re.finditer(r'[^-\w]([-\w]+\.txt)[^-\w]', index):
+for match in re.finditer(r'[^-\w]([-\w]+\.txt|tags)[^-\w]', index):
     filename = match.group(1)
     if filename in filenames: continue
     filenames.add(filename)

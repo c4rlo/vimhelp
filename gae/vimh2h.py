@@ -93,8 +93,6 @@ RE_EG_START = re.compile(r'(?:.* )?>$')
 RE_EG_END   = re.compile(r'\S')
 RE_SECTION  = re.compile(r'[-A-Z .][-A-Z0-9 .()]*(?=\s+\*)')
 
-RE_EXT_TXT = re.compile(r'\.txt$')
-
 class VimH2H:
     urls = { }
 
@@ -104,7 +102,7 @@ class VimH2H:
 	    m = RE_TAGLINE.match(line)
 	    if m:
 		tag, filename = m.group(1, 2)
-		filehtml = RE_EXT_TXT.sub('.txt.html', filename)
+		filehtml = filename + '.html'
 		classattr = ''
 		m = RE_LINKWORD.match(tag)
 		if m:

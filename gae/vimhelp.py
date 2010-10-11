@@ -14,7 +14,7 @@ path_info = os.environ['PATH_INFO']
 if path_info == '/':
     filename = 'index.html'
 else:
-    m = re.match(r"/(.*?\.txt\.html)$", path_info)
+    m = re.match(r"/((?:.*?\.txt|tags)\.html)$", path_info)
     if not m: notfound("illegal url")
     filename = m.group(1)
 

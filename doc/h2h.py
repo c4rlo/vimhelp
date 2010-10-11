@@ -4,7 +4,7 @@ import sys
 import os.path
 import cProfile
 
-sys.path.append('./gae')
+sys.path.append('../gae')
 
 if os.path.basename(sys.argv[0]) == 'old_h2h.py':
     from old_vimh2h import VimH2H

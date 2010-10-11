@@ -7,7 +7,7 @@ handlers:
 - url: /update
   script: update.py
   login: admin
-- url: /(?:.*?\.txt\.html)?
+- url: /(?:(?:.*?\.txt|tags)\.html)?
   script: vimhelp.py
 - url: /(.*)
   static_files: static/\1
