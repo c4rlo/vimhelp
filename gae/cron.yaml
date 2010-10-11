@@ -1,0 +1,5 @@
+cron:
+- description: fetch and process vim docs
+  url: /update
+  schedule: every 1 hours
+

@@ -1,0 +1,15 @@
+application: vimhelp
+version: 1
+runtime: python
+api_version: 1
+
+handlers:
+- url: /update
+  script: update.py
+  login: admin
+- url: /(?:.*?\.txt\.html)?
+  script: vimhelp.py
+- url: /(.*)
+  static_files: static/\1
+  upload: static/(.*)
+

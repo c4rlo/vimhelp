@@ -1,0 +1,40 @@
+body { font-family: georgia, palatino, serif }
+
+/* hidden link
+a:link, a:visited { color: rgb(0,0,0); text-decoration: none; }
+a:active, a:hover { color: rgb(0,0,0); text-decoration: underline; }
+ */
+
+a:link { color: rgb(0,137,139); }
+a:visited { color: rgb(0,100,100); }
+a:active, a:hover { color: rgb(0,200,200); }
+
+/* title */
+.i { color: rgb(0, 137, 139); }
+
+/* tag */
+.t { color: rgb(250,0,250); }
+
+/* header */
+.h { color: rgb(164, 32, 246); }
+
+/* keystroke */
+.k { color: rgb(106, 89, 205); }
+
+/* example */
+.e { color: rgb(0, 0, 255); }
+
+/* special (used for various) */
+.s { color: rgb(106, 89, 205); }
+
+/* note */
+.n { color: blue; background-color: yellow; }
+
+/* option */
+.o { color: rgb(46, 139, 87); font-weight: bold; }
+
+/* section */
+.c { color: rgb(165, 42, 42); font-weight: bold; }
+
+/* external url */
+.u { color: rgb(250,0,250); }
