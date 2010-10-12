@@ -73,6 +73,7 @@ PAT_TITLE    = r'(?P<title>Vim version [0-9.a-z]+|VIM REFERENCE.*)'
 PAT_NOTE     = r'(?P<note>Notes?:?)'
 PAT_HEADER   = r'(?P<header>^.*~$)'
 PAT_URL      = r'(?P<url>(?:https?|ftp)://[^\'"<> \t]+[a-zA-Z0-9/])'
+PAT_WORD     = r'(?P<word>[!#-)+-{}~]+)'
 RE_LINKWORD = re.compile(
 	PAT_OPTWORD  + '|' + \
 	PAT_CTRL     + '|' + \
@@ -86,12 +87,18 @@ RE_TAGWORD = re.compile(
 	PAT_TITLE    + '|' + \
 	PAT_NOTE     + '|' + \
 	PAT_HEADER   + '|' + \
-	PAT_URL)
+	PAT_URL      + '|' + \
+	PAT_WORD)
 RE_NEWLINE  = re.compile(r'[\r\n]')
 RE_HRULE    = re.compile(r'[-=]{3,}.*[-=]{3,3}$')
 RE_EG_START = re.compile(r'(?:.* )?>$')
 RE_EG_END   = re.compile(r'\S')
 RE_SECTION  = re.compile(r'[-A-Z .][-A-Z0-9 .()]*(?=\s+\*)')
+
+class Link:
+    def __init__(self, link_pipe, link_plain):
+	self.link_pipe = link_pipe
+	self.link_plain = link_plain
 
 class VimH2H:
     urls = { }
@@ -102,23 +109,27 @@ class VimH2H:
 	    m = RE_TAGLINE.match(line)
 	    if m:
 		tag, filename = m.group(1, 2)
-		filehtml = filename + '.html'
-		classattr = ''
+		part1 = '<a href="' + filename + '.html#' + \
+			urllib.quote_plus(tag) + '"'
+		part2 = '>' + cgi.escape(tag) + '</a>'
+		link_pipe = part1 + ' class="l"' + part2
+		classattr = ' class="d"'
 		m = RE_LINKWORD.match(tag)
 		if m:
 		    opt, ctrl, special = m.group('opt', 'ctrl', 'special')
 		    if opt is not None: classattr = ' class="o"'
 		    elif ctrl is not None: classattr = ' class="k"'
 		    elif special is not None: classattr = ' class="s"'
-		self.urls[tag] = '<a href="' + filehtml + \
-			'#' + urllib.quote_plus(tag) + '"' + classattr + '>' + \
-			cgi.escape(tag) + '</a>'
+		link_plain = part1 + classattr + part2
+		self.urls[tag] = Link(link_pipe, link_plain)
 		count += 1
 	logging.debug("processed %d tags", count)
 
     def maplink(self, tag, css_class = None):
-	link = self.urls.get(tag)
-	if link is not None: return link
+	links = self.urls.get(tag)
+	if links is not None:
+	    if css_class == 'l': return links.link_pipe
+	    else: return links.link_plain
 	elif css_class is not None:
 	    return '<span class="' + css_class + '">' + cgi.escape(tag) + \
 		    '</span>'
@@ -158,11 +169,12 @@ class VimH2H:
 		if pos > lastpos:
 		    out.append(cgi.escape(line[lastpos:pos]))
 		lastpos = match.end()
-		pipeword, starword, opt, ctrl, special, title, note, header, url = \
+		pipeword, starword, opt, ctrl, special, title, note, \
+			header, url, word = \
 			match.group('pipe', 'star', 'opt', 'ctrl',
-			'special', 'title', 'note', 'header', 'url')
+			'special', 'title', 'note', 'header', 'url', 'word')
 		if pipeword is not None:
-		    out.append(self.maplink(pipeword[1:-1]))
+		    out.append(self.maplink(pipeword[1:-1], 'l'))
 		elif starword is not None:
 		    tag = starword[1:-1]
 		    out.append('<a name="' + urllib.quote_plus(tag) +
@@ -185,6 +197,8 @@ class VimH2H:
 		elif url is not None:
 		    out.append('<a class="u" href="' + url + '">' +
 			    cgi.escape(url) + '</a>')
+		elif word is not None:
+		    out.append(self.maplink(word))
 	    if lastpos < len(line):
 		out.append(cgi.escape(line[lastpos:]))
 	    out.append('\n')
