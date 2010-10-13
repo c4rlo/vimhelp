@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import logging
+import bz2
 from dbmodel import UnprocessedFile, ProcessedFile
 from google.appengine.api import urlfetch, memcache
 from vimh2h import VimH2H
@@ -42,9 +43,10 @@ def fetch(url):
 def store(filename, content, pf):
     if pf is None:
 	pf = ProcessedFile(filename = filename)
-    pf.data = content
+    compressed = bz2.compress(content)
+    pf.data = compressed
     pf.put()
-    memcache.set(filename, content)
+    memcache.set(filename, compressed)
     print "<p>Processed file", filename, "</p>"
     logging.debug("Processed file " + filename)
 

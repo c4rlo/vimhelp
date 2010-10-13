@@ -1,4 +1,4 @@
-import sys, os, re, logging
+import sys, os, re, logging, bz2
 from dbmodel import ProcessedFile
 from google.appengine.api import memcache
 
@@ -21,11 +21,11 @@ else:
 cached = memcache.get(filename)
 if cached is not None:
     print 'Content-Type: text/html\n'
-    print cached
+    print bz2.decompress(cached)
 else:
     record = ProcessedFile.all().filter('filename =', filename).get()
     if record is None: notfound("not in database")
     memcache.set(filename, record.data)
     print 'Content-Type: text/html\n'
-    print record.data
+    print bz2.decompress(record.data)
 
