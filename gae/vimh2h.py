@@ -48,13 +48,13 @@ SITESEARCH = """
 </script>
 """
 
-HEADER2 = "<pre>"
+HEADER2 = '<div style="float: left; position: relative; left: 50%">' + \
+	'<div style="float: left; position: relative; left: -50%"><pre>'
 
-FOOTER = "</pre><hr/>"
+FOOTER = '</pre></div></div><div style="clear: both"></div><hr/>'
 
 FOOTER2 = """
-<p style="font-size: 85%">This site is maintained by Carlo Teubner (<i>(my first name) dot (my last
-name) at gmail dot com</i>).</p>
+<p style="font-size: 85%">This site is maintained by Carlo Teubner (<i>(my first name) dot (my last name) at gmail dot com</i>).</p>
 </body>
 </html>
 """
