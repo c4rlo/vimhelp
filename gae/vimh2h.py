@@ -145,6 +145,8 @@ class VimH2H:
 	inexample = 0
 	for line in RE_NEWLINE.split(contents):
 	    line = line.rstrip('\r\n')
+	    line_tabs = line
+	    line = line.expandtabs()
 	    if RE_HRULE.match(line):
 		out.append('</pre><hr/><pre>\n')
 		continue
@@ -156,11 +158,11 @@ class VimH2H:
 		    out.append('<span class="e">' + cgi.escape(line) +
 			    '</span>\n')
 		    continue
-	    if RE_EG_START.match(line):
+	    if RE_EG_START.match(line_tabs):
 		inexample = 1
 		line = line[0:-1]
-	    m = RE_SECTION.match(line)
-	    if m:
+	    if RE_SECTION.match(line_tabs):
+		m = RE_SECTION.match(line)
 		out.append(m.expand(r'<span class="c">\g<0></span>'))
 		line = line[m.end():]
 	    lastpos = 0
