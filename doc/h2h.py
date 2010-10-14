@@ -29,7 +29,7 @@ def main():
     for filename in sys.argv[1:]:
 	print "Processing " + filename + "..."
 	of = open(filename + '.html', 'w')
-	of.write(h2h.to_html(filename, slurp(filename), False, False))
+	of.write(h2h.to_html(filename, slurp(filename), False))
 	of.close()
 
 main()

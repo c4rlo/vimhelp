@@ -83,18 +83,9 @@ for match in re.finditer(r'[^-\w]([-\w]+\.txt|tags)[^-\w]', index):
     f = fetch(BASEURL + filename)
     filenamehtml = filename + '.html'
     pf = pfs.get(filenamehtml)
-    if filename == 'help.txt':
-	pf2 = pfs.get('index.html')
-	if not f.modified and pf is not None and pf2 is not None:
-	    print "<p>File", filename, "is unchanged</p>"
-	    continue
-	html, startpage_html = h2h.to_html(filename, f.content, True)
-	store(filenamehtml, html, pf)
-	store('index.html', startpage_html, pf2)
+    if not f.modified and pf is not None:
+	print "<p>File", filename, "is unchanged</p>"
     else:
-	if not f.modified and pf is not None:
-	    print "<p>File", filename, "is unchanged</p>"
-	    continue
 	html = h2h.to_html(filename, f.content)
 	store(filenamehtml, html, pf)
 

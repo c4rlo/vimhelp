@@ -21,8 +21,7 @@ START_HEADER = """
 <h1>Vim help files</h1>
 <p>This is an HTML version of the <a href="http://www.vim.org/"
 target="_blank">Vim</a> help pages. They are kept up-to-date automatically from
-the <a href="http://code.google.com/p/vim/source/browse/"
-target="_blank">repository</a>.</p>
+the Vim source repository.</p>
 """
 
 SITENAVI = """
@@ -135,8 +134,7 @@ class VimH2H:
 		    '</span>'
 	else: return cgi.escape(tag)
 
-    def to_html(self, filename, contents, include_startpage = False,
-	    include_sitenavi = True):
+    def to_html(self, filename, contents, include_sitesearch = True):
 	logging.debug("to_html(" + filename + ", len = " + \
 		str(len(contents)) + ")")
 
@@ -206,14 +204,13 @@ class VimH2H:
 	    out.append('\n')
 	    if inexample == 1: inexample = 2
 
-	body = SITENAVI + SITESEARCH if include_sitenavi else ""
-	body += HEADER2 + ''.join(out) + FOOTER
-	if include_sitenavi: body += SITENAVI
-	body += FOOTER2
-
-	if include_startpage:
-	    return (HEADER1.replace('{filename}', filename) + body,
-		    HEADER1.replace('{filename}', 'help files') + START_HEADER + body)
-	else:
-	    return HEADER1.replace('{filename}', filename) + body
+	return HEADER1.replace('{filename}', filename) + \
+		(START_HEADER if filename == 'help.txt' else '') + \
+		SITENAVI + \
+		(SITESARCH if include_sitesearch else '') + \
+		HEADER2 + \
+		''.join(out) + \
+		FOOTER + \
+		SITENAVI + \
+		FOOTER2
 
