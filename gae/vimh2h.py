@@ -207,7 +207,7 @@ class VimH2H:
 	return HEADER1.replace('{filename}', filename) + \
 		(START_HEADER if filename == 'help.txt' else '') + \
 		SITENAVI + \
-		(SITESARCH if include_sitesearch else '') + \
+		(SITESEARCH if include_sitesearch else '') + \
 		HEADER2 + \
 		''.join(out) + \
 		FOOTER + \
