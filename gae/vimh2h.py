@@ -47,13 +47,19 @@ SITESEARCH = """
 </script>
 """
 
-HEADER2 = '<div style="float: left; position: relative; left: 50%">' + \
-	'<div style="float: left; position: relative; left: -50%"><pre>'
+HEADER2 = """
+<div id="d1">
+<div id="d2">
+<pre style="visibility: hidden">                                                                                </pre>
+<div id="d3">
+<pre>
+"""
 
-FOOTER = '</pre></div></div><div style="clear: both"></div><hr/>'
+FOOTER = '</pre><hr/>'
 
 FOOTER2 = """
 <p style="font-size: 85%">This site is maintained by Carlo Teubner (<i>(my first name) dot (my last name) at gmail dot com</i>).</p>
+</div></div></div>
 </body>
 </html>
 """
@@ -146,7 +152,7 @@ class VimH2H:
 	    line_tabs = line
 	    line = line.expandtabs()
 	    if RE_HRULE.match(line):
-		out.append('</pre><hr/><pre>\n')
+		out.append('<span class="h">' + line + '</span>\n')
 		continue
 	    if inexample == 2:
 		if RE_EG_END.match(line):

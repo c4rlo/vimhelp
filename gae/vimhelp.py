@@ -2,10 +2,12 @@ import sys, os, re, logging, bz2
 from dbmodel import ProcessedFile
 from google.appengine.api import memcache
 
+CONTENT_TYPE = 'Content-Type: text/html; charset=utf-8\n'
+
 def notfound(msg = None):
     logging.info("file not found, msg = " + msg)
     print "Status: 404 Not Found"
-    print 'Content-Type: text/html\n'
+    print CONTENT_TYPE
     print '<p>Not found</p>'
     if msg: print msg
     sys.exit()
@@ -20,12 +22,12 @@ else:
 
 cached = memcache.get(filename)
 if cached is not None:
-    print 'Content-Type: text/html\n'
+    print CONTENT_TYPE
     print bz2.decompress(cached)
 else:
     record = ProcessedFile.all().filter('filename =', filename).get()
     if record is None: notfound("not in database")
     memcache.set(filename, record.data)
-    print 'Content-Type: text/html\n'
+    print CONTENT_TYPE
     print bz2.decompress(record.data)
 

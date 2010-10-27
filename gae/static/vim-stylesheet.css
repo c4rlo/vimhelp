@@ -1,6 +1,10 @@
 body { font-family: georgia, palatino, serif }
 
-pre { font-size: 110% }
+pre { font-size: 11pt }
+
+#d1 { float: left; position: relative; left: 50% }
+#d2 { float: left; position: relative; left: -50% }
+#d3 { float: left; position: absolute; top: 0 }
 
 /* hidden links */
 a.d:link, a.d:visited { color: rgb(0,0,0); text-decoration: none; }
