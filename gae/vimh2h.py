@@ -4,7 +4,6 @@ import sys
 import re
 import cgi
 import urllib
-import logging
 
 
 HEADER1 = """
@@ -128,7 +127,6 @@ class VimH2H:
 		link_plain = part1 + classattr + part2
 		self.urls[tag] = Link(link_pipe, link_plain)
 		count += 1
-	logging.debug("processed %d tags", count)
 
     def maplink(self, tag, css_class = None):
 	links = self.urls.get(tag)
@@ -141,8 +139,6 @@ class VimH2H:
 	else: return cgi.escape(tag)
 
     def to_html(self, filename, contents, include_sitesearch = True):
-	logging.debug("to_html(" + filename + ", len = " + \
-		str(len(contents)) + ")")
 
 	out = [ ]
 

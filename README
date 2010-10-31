@@ -1,0 +1,6 @@
+Contents:
+
+gae/ - Google App Engine files including the source code and config files, used
+       for http://vimhelp.appspot.com
+doc/ - A copy of Vim's help files
+doc/h2h.py - A script to convert help files to html, using the vimh2h.py module from the gae/ directory
