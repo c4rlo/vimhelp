@@ -9,8 +9,9 @@ from vimh2h import VimH2H
 # scheduled run of the script can pick up where the previous one was
 # interrupted.
 
-BASEURL = 'http://vim.googlecode.com/hg/runtime/doc/'
-TAGSURL = BASEURL + 'tags'
+BASE_URL = 'http://vim.googlecode.com/hg/runtime/doc/'
+TAGS_URL = BASE_URL + 'tags'
+FAQ_URL = 'http://github.com/chrisbra/vim_faq/raw/master/doc/vim_faq.txt'
 
 is_dev = (os.environ.get('SERVER_NAME') == 'localhost')
 force = (os.environ.get('QUERY_STRING') == 'force')
@@ -73,11 +74,13 @@ def store(filename, content, pf):
     pf.put()
     log_debug("Processed file %s", filename)
 
-index = fetch(BASEURL).content
+index = fetch(BASE_URL).content
 
 print "Content-Type: text/html\n"
 
 log_info("starting update")
+
+skip_help = False
 
 m = re.search('<title>Revision (.+?): /runtime/doc</title>', index)
 if m:
@@ -86,8 +89,9 @@ if m:
     if dbreposi is not None:
 	if dbreposi.revision == rev:
 	    if not force:
-		log_info("revision %s unchanged, nothing to do", rev)
-		sys.exit()
+		log_info("revision %s unchanged, nothing to do (except for faq)", rev)
+		dbreposi = None
+		skip_help = True
 	    else:
 		log_info("revision %s unchanged, continuing anyway", rev)
 		dbreposi.delete()
@@ -101,7 +105,7 @@ if m:
 else:
     log_warning("revision not found in index page")
 
-tags = fetch(TAGSURL).content
+tags = fetch(TAGS_URL).content
 
 h2h = VimH2H(tags)
 
@@ -118,24 +122,37 @@ filenames = set()
 
 count = 0
 
-for match in re.finditer(r'[^-\w]([-\w]+\.txt|tags)[^-\w]', index):
-    filename = match.group(1)
-    if filename in filenames: continue
-    filenames.add(filename)
-    count += 1
-    #if is_dev and count < 15: continue
-    #if is_dev and count > 35: break
-    f = fetch(BASEURL + filename, False)
-    filenamehtml = filename + '.html'
-    pf = pfs.get(filenamehtml)
-    if pf is None or pf.redo or f.modified:
-	html = h2h.to_html(filename, f.content)
-	store(filenamehtml, html, pf)
-    else:
-	print "<p>File", filename, "is unchanged</p>"
-    f.write_to_cache()
+if not skip_help:
+    for match in re.finditer(r'[^-\w]([-\w]+\.txt|tags)[^-\w]', index):
+	filename = match.group(1)
+	if filename in filenames: continue
+	filenames.add(filename)
+	count += 1
+	if is_dev and count < 15: continue
+	if is_dev and count > 35: break
+	f = fetch(BASE_URL + filename, False)
+	filenamehtml = filename + '.html'
+	pf = pfs.get(filenamehtml)
+	if pf is None or pf.redo or f.modified:
+	    html = h2h.to_html(filename, f.content)
+	    store(filenamehtml, html, pf)
+	else:
+	    print "<p>File", filename, "is unchanged</p>"
+	f.write_to_cache()
 
 if dbreposi is not None: dbreposi.put()
+
+filename = 'vim_faq.txt'
+filenamehtml = filename + '.html'
+f = fetch(FAQ_URL, False)
+pf = pfs.get(filenamehtml)
+if pf is None or pf.redo or f.modified:
+    h2h.add_tags(filename, f.content)
+    html = h2h.to_html(filename, f.content)
+    store(filenamehtml, html, pf)
+    f.write_to_cache()
+else:
+    print "<p>FAQ is unchanged</p>"
 
 log_info("finished update")
 

@@ -20,7 +20,11 @@ START_HEADER = """
 <h1>Vim help files</h1>
 <p>This is an HTML version of the <a href="http://www.vim.org/"
 target="_blank">Vim</a> help pages. They are kept up-to-date automatically from
-the Vim source repository.</p>
+the <a href="http://code.google.com/p/vim/source/browse/runtime/doc"
+target="_blank" class="d">Vim source repository</a>. Also included is the <a
+href="vim_faq.txt.html">Vim FAQ</a>, kept up to date from its <a
+href="http://github.com/chrisbra/vim_faq" target="_blank" class="d">github
+repository</a>.</p>
 """
 
 SITENAVI = """
@@ -29,7 +33,8 @@ Quick links:
 <a href="/">help overview</a> &middot;
 <a href="quickref.txt.html">quick reference</a> &middot;
 <a href="usr_toc.txt.html">user manual toc</a> &middot;
-<a href="help.txt.html#reference_toc">reference manual toc</a>
+<a href="help.txt.html#reference_toc">reference manual toc</a> &middot;
+<a href="vim_faq.txt.html">faq</a>
 </p>
 """
 
@@ -62,6 +67,9 @@ FOOTER2 = """
 </body>
 </html>
 """
+
+VIM_FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">' \
+	       'vim_faq.txt</a>   Frequently Asked Questions\n'
 
 RE_TAGLINE = re.compile(r'(\S+)\s+(\S+)')
 
@@ -98,6 +106,8 @@ RE_HRULE    = re.compile(r'[-=]{3,}.*[-=]{3,3}$')
 RE_EG_START = re.compile(r'(?:.* )?>$')
 RE_EG_END   = re.compile(r'\S')
 RE_SECTION  = re.compile(r'[-A-Z .][-A-Z0-9 .()]*(?=\s+\*)')
+RE_STARTAG  = re.compile(r'\s\*([^ \t|]+)\*(?:\s|$)')
+RE_LOCAL_ADD = re.compile(r'LOCAL ADDITIONS:\s+\*local-additions\*$')
 
 class Link:
     def __init__(self, link_pipe, link_plain):
@@ -108,25 +118,31 @@ class VimH2H:
     urls = { }
 
     def __init__(self, tags):
-	count = 0
 	for line in RE_NEWLINE.split(tags):
 	    m = RE_TAGLINE.match(line)
 	    if m:
 		tag, filename = m.group(1, 2)
-		part1 = '<a href="' + filename + '.html#' + \
-			urllib.quote_plus(tag) + '"'
-		part2 = '>' + cgi.escape(tag) + '</a>'
-		link_pipe = part1 + ' class="l"' + part2
-		classattr = ' class="d"'
-		m = RE_LINKWORD.match(tag)
-		if m:
-		    opt, ctrl, special = m.group('opt', 'ctrl', 'special')
-		    if opt is not None: classattr = ' class="o"'
-		    elif ctrl is not None: classattr = ' class="k"'
-		    elif special is not None: classattr = ' class="s"'
-		link_plain = part1 + classattr + part2
-		self.urls[tag] = Link(link_pipe, link_plain)
-		count += 1
+		self.do_add_tag(filename, tag)
+
+    def add_tags(self, filename, contents):
+	for match in RE_STARTAG.finditer(contents):
+	    tag = match.group(1).replace('\\', '\\\\').replace('/', '\\/')
+	    self.do_add_tag(filename, tag)
+
+    def do_add_tag(self, filename, tag):
+	part1 = '<a href="' + filename + '.html#' + \
+		urllib.quote_plus(tag) + '"'
+	part2 = '>' + cgi.escape(tag) + '</a>'
+	link_pipe = part1 + ' class="l"' + part2
+	classattr = ' class="d"'
+	m = RE_LINKWORD.match(tag)
+	if m:
+	    opt, ctrl, special = m.group('opt', 'ctrl', 'special')
+	    if opt is not None: classattr = ' class="o"'
+	    elif ctrl is not None: classattr = ' class="k"'
+	    elif special is not None: classattr = ' class="s"'
+	link_plain = part1 + classattr + part2
+	self.urls[tag] = Link(link_pipe, link_plain)
 
     def maplink(self, tag, css_class = None):
 	links = self.urls.get(tag)
@@ -138,11 +154,13 @@ class VimH2H:
 		    '</span>'
 	else: return cgi.escape(tag)
 
-    def to_html(self, filename, contents, include_sitesearch = True):
+    def to_html(self, filename, contents, include_sitesearch = True,
+	    include_faq = True):
 
 	out = [ ]
 
 	inexample = 0
+	faq_line = False
 	for line in RE_NEWLINE.split(contents):
 	    line = line.rstrip('\r\n')
 	    line_tabs = line
@@ -165,6 +183,8 @@ class VimH2H:
 		m = RE_SECTION.match(line)
 		out.append(m.expand(r'<span class="c">\g<0></span>'))
 		line = line[m.end():]
+	    if filename == 'help.txt' and RE_LOCAL_ADD.match(line_tabs):
+		faq_line = True
 	    lastpos = 0
 	    for match in RE_TAGWORD.finditer(line):
 		pos = match.start()
@@ -205,6 +225,9 @@ class VimH2H:
 		out.append(cgi.escape(line[lastpos:]))
 	    out.append('\n')
 	    if inexample == 1: inexample = 2
+	    if faq_line:
+		out.append(VIM_FAQ_LINE)
+		faq_line = False
 
 	return HEADER1.replace('{filename}', filename) + \
 		(START_HEADER if filename == 'help.txt' else '') + \
