@@ -7,6 +7,9 @@ handlers:
 - url: /update
   script: update.py
   login: admin
+- url: /testgetfaq
+  script: testgetfaq.py
+  login: admin
 - url: /(?:(?:.*?\.txt|tags)\.html)?
   script: vimhelp.py
 - url: /(.*)

@@ -41,10 +41,10 @@ class FileFromServer:
     def write_to_cache(self):
 	if self.upf is not None: self.upf.put()
 
-def fetch(url, write_to_cache = True):
+def fetch(url, write_to_cache = True, use_etag = True):
     dbrecord = UnprocessedFile.all().filter('url =', url).get()
     headers = { }
-    if dbrecord is not None and dbrecord.etag is not None:
+    if dbrecord is not None and dbrecord.etag is not None and use_etag:
 	logging.debug("for %s, saved etag is %s", url, dbrecord.etag)
 	headers['If-None-Match'] = dbrecord.etag
     result = urlfetch.fetch(url, headers = headers, deadline = 10)
@@ -144,7 +144,7 @@ if dbreposi is not None: dbreposi.put()
 
 filename = 'vim_faq.txt'
 filenamehtml = filename + '.html'
-f = fetch(FAQ_URL, False)
+f = fetch(FAQ_URL, False, False)  # for now, don't use ETag -- causes problems here
 pf = pfs.get(filenamehtml)
 if pf is None or pf.redo or f.modified:
     h2h.add_tags(filename, f.content)
