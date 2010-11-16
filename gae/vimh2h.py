@@ -73,17 +73,18 @@ VIM_FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">' \
 
 RE_TAGLINE = re.compile(r'(\S+)\s+(\S+)')
 
+PAT_HEADER   = r'(?P<header>^.*~$)'
+PAT_GRAPHIC  = r'(?P<graphic>^.* `$)'
 PAT_PIPEWORD = r'(?P<pipe>(?<!\\)\|[#-)!+-~]+\|)'
 PAT_STARWORD = r'(?P<star>\*[#-)!+-~]+\*(?:(?=\s)|$))'
 PAT_OPTWORD  = r"(?P<opt>'(?:[a-z]{2,}|t_..)')"
-PAT_CTRL     = r'(?P<ctrl>CTRL-(?:W_)?(?:[\w\[\]^+-<>=]|<[A-Za-z]+?>)?)'
+PAT_CTRL     = r'(?P<ctrl>CTRL-(?:W_)?(?:[\w\[\]^+-<>=@]|<[A-Za-z]+?>)?)'
 PAT_SPECIAL  = r'(?P<special><.*?>|\{.*?}|' + \
 	       r'\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|' + \
 	       r'arg|arg(?:uments)|ident|addr|group)]|' + \
 	       r'\s\[[-a-z^A-Z0-9_]{2,}])'
 PAT_TITLE    = r'(?P<title>Vim version [0-9.a-z]+|VIM REFERENCE.*)'
 PAT_NOTE     = r'(?P<note>Notes?:?)'
-PAT_HEADER   = r'(?P<header>^.*~$)'
 PAT_URL      = r'(?P<url>(?:https?|ftp)://[^\'"<> \t]+[a-zA-Z0-9/])'
 PAT_WORD     = r'(?P<word>[!#-)+-{}~]+)'
 RE_LINKWORD = re.compile(
@@ -91,6 +92,8 @@ RE_LINKWORD = re.compile(
 	PAT_CTRL     + '|' + \
 	PAT_SPECIAL)
 RE_TAGWORD = re.compile(
+	PAT_HEADER   + '|' + \
+        PAT_GRAPHIC  + '|' + \
 	PAT_PIPEWORD + '|' + \
 	PAT_STARWORD + '|' + \
 	PAT_OPTWORD  + '|' + \
@@ -98,15 +101,14 @@ RE_TAGWORD = re.compile(
 	PAT_SPECIAL  + '|' + \
 	PAT_TITLE    + '|' + \
 	PAT_NOTE     + '|' + \
-	PAT_HEADER   + '|' + \
 	PAT_URL      + '|' + \
 	PAT_WORD)
-RE_NEWLINE  = re.compile(r'[\r\n]')
-RE_HRULE    = re.compile(r'[-=]{3,}.*[-=]{3,3}$')
-RE_EG_START = re.compile(r'(?:.* )?>$')
-RE_EG_END   = re.compile(r'\S')
-RE_SECTION  = re.compile(r'[-A-Z .][-A-Z0-9 .()]*(?=\s+\*)')
-RE_STARTAG  = re.compile(r'\s\*([^ \t|]+)\*(?:\s|$)')
+RE_NEWLINE   = re.compile(r'[\r\n]')
+RE_HRULE     = re.compile(r'[-=]{3,}.*[-=]{3,3}$')
+RE_EG_START  = re.compile(r'(?:.* )?>$')
+RE_EG_END    = re.compile(r'\S')
+RE_SECTION   = re.compile(r'[-A-Z .][-A-Z0-9 .()]*(?=\s+\*)')
+RE_STARTAG   = re.compile(r'\s\*([^ \t|]+)\*(?:\s|$)')
 RE_LOCAL_ADD = re.compile(r'LOCAL ADDITIONS:\s+\*local-additions\*$')
 
 class Link:
@@ -192,9 +194,9 @@ class VimH2H:
 		    out.append(cgi.escape(line[lastpos:pos]))
 		lastpos = match.end()
 		pipeword, starword, opt, ctrl, special, title, note, \
-			header, url, word = \
+			header, graphic, url, word = \
 			match.group('pipe', 'star', 'opt', 'ctrl',
-			'special', 'title', 'note', 'header', 'url', 'word')
+			'special', 'title', 'note', 'header', 'graphic', 'url', 'word')
 		if pipeword is not None:
 		    out.append(self.maplink(pipeword[1:-1], 'l'))
 		elif starword is not None:
@@ -216,6 +218,8 @@ class VimH2H:
 		elif header is not None:
 		    out.append('<span class="h">' +
 			    cgi.escape(header[:-1]) + '</span>')
+                elif graphic is not None:
+                    out.append(cgi.escape(graphic[:-2]))
 		elif url is not None:
 		    out.append('<a class="u" href="' + url + '">' +
 			    cgi.escape(url) + '</a>')
