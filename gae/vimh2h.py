@@ -54,16 +54,16 @@ SITESEARCH = """
 HEADER2 = """
 <div id="d1">
 <div id="d2">
-<pre style="visibility: hidden">                                                                                </pre>
-<div id="d3">
 <pre>
 """
 
-FOOTER = '</pre><hr/>'
+FOOTER = '</pre>'
 
 FOOTER2 = """
-<p style="font-size: 85%">This site is maintained by Carlo Teubner (<i>(my first name) dot (my last name) at gmail dot com</i>).</p>
-</div></div></div>
+<p id="footer">This site is maintained by Carlo Teubner (<i>(my first name) dot (my last name) at gmail dot com</i>).</p>
+</div>
+<pre style="visibility: hidden">                                                                                </pre>
+</div>
 </body>
 </html>
 """
