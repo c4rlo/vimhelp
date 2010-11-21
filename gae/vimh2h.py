@@ -11,7 +11,7 @@ HEADER1 = """
 <html>
 <head>
 <title>Vim: {filename}</title>
-<link rel="stylesheet" href="vim-stylesheet.css" type="text/css"/>
+<link rel="stylesheet" href="vim-stylesheet.css" type="text/css">
 </head>
 <body>
 """
