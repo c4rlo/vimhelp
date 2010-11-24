@@ -11,7 +11,12 @@ HEADER1 = """
 <html>
 <head>
 <title>Vim: {filename}</title>
-<link rel="stylesheet" href="vim-stylesheet.css" type="text/css">
+<!--[if IE]>
+<link rel="stylesheet" href="vimhelp-ie.css" type="text/css">
+<![endif]-->
+<!--[if !IE]>-->
+<link rel="stylesheet" href="vimhelp.css" type="text/css">
+<!--<![endif]-->
 </head>
 <body>
 """
@@ -53,6 +58,7 @@ SITESEARCH = """
 
 HEADER2 = """
 <div id="d1">
+<pre id="sp">                                                                                </pre>
 <div id="d2">
 <pre>
 """
@@ -62,7 +68,6 @@ FOOTER = '</pre>'
 FOOTER2 = """
 <p id="footer">This site is maintained by Carlo Teubner (<i>(my first name) dot (my last name) at gmail dot com</i>).</p>
 </div>
-<pre style="visibility: hidden">                                                                                </pre>
 </div>
 </body>
 </html>

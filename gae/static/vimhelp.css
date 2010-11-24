@@ -4,6 +4,9 @@ pre { font-size: 11pt }
 
 #d1 { position: relative; display: table; margin: 0 auto }
 #d2 { position: absolute; top: inherit }
+
+#sp { visibility: hidden; height: 1px; margin: 0 }
+
 #footer { font-size: 85%; padding-top: 1em }
 
 /* hidden links */
