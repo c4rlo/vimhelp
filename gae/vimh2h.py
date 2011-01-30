@@ -86,8 +86,8 @@ PAT_OPTWORD  = r"(?P<opt>'(?:[a-z]{2,}|t_..)')"
 PAT_CTRL     = r'(?P<ctrl>CTRL-(?:W_)?(?:[\w\[\]^+-<>=@]|<[A-Za-z]+?>)?)'
 PAT_SPECIAL  = r'(?P<special><.*?>|\{.*?}|' + \
 	       r'\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|' + \
-	       r'arg|arg(?:uments)|ident|addr|group)]|' + \
-	       r'\s\[[-a-z^A-Z0-9_]{2,}])'
+	       r'arg|arguments|ident|addr|group)]|' + \
+	       r'(?<=\s)\[[-a-z^A-Z0-9_]{2,}])'
 PAT_TITLE    = r'(?P<title>Vim version [0-9.a-z]+|VIM REFERENCE.*)'
 PAT_NOTE     = r'(?P<note>Notes?:?)'
 PAT_URL      = r'(?P<url>(?:https?|ftp)://[^\'"<> \t]+[a-zA-Z0-9/])'

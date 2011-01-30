@@ -128,8 +128,6 @@ if not skip_help:
 	if filename in filenames: continue
 	filenames.add(filename)
 	count += 1
-	if is_dev and count < 15: continue
-	if is_dev and count > 35: break
 	f = fetch(BASE_URL + filename, False)
 	filenamehtml = filename + '.html'
 	pf = pfs.get(filenamehtml)
