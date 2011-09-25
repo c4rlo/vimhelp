@@ -33,10 +33,13 @@ def log_error(msg, *args):
     do_log(msg, args, logging.error, "<h2>" + msg + "</h2>")
 
 class FileFromServer:
-    def __init__(self, content, modified, upf):
-	self.content = content
-	self.modified = modified
+    def __init__(self, upf, modified):
 	self.upf = upf
+	self.modified = modified
+
+    def content(self): return self.upf.data
+
+    def encoding(self): return self.upf.encoding
 
     def write_to_cache(self):
 	if self.upf is not None: self.upf.put()
@@ -50,7 +53,7 @@ def fetch(url, write_to_cache = True, use_etag = True):
     result = urlfetch.fetch(url, headers = headers, deadline = 10)
     if result.status_code == 304 and dbrecord is not None:
 	logging.debug("url %s is unchanged", url)
-	return FileFromServer(dbrecord.data, False, None)
+	return FileFromServer(dbrecord, False)
     elif result.status_code != 200:
 	log_error("bad HTTP response %d when fetching url %s",
 		result.status_code, url)
@@ -59,10 +62,15 @@ def fetch(url, write_to_cache = True, use_etag = True):
 	dbrecord = UnprocessedFile(url = url)
     dbrecord.data = result.content
     dbrecord.etag = result.headers.get('ETag')
+    dbrecord.encoding = "UTF-8"
+    try:
+        result.content.decode("UTF-8")
+    except UnicodeError:
+        dbrecord.encoding = "ISO-8859-1"
     if write_to_cache:
 	dbrecord.put()
     logging.debug("fetched %s", url)
-    return FileFromServer(result.content, True, dbrecord)
+    return FileFromServer(dbrecord, True)
 
 def store(filename, content, pf):
     if pf is None:
@@ -74,7 +82,7 @@ def store(filename, content, pf):
     pf.put()
     log_debug("Processed file %s", filename)
 
-index = fetch(BASE_URL).content
+index = fetch(BASE_URL).content()
 
 print "Content-Type: text/html\n"
 
@@ -105,7 +113,7 @@ if m:
 else:
     log_warning("revision not found in index page")
 
-tags = fetch(TAGS_URL).content
+tags = fetch(TAGS_URL).content()
 
 h2h = VimH2H(tags)
 
@@ -128,11 +136,12 @@ if not skip_help:
 	if filename in filenames: continue
 	filenames.add(filename)
 	count += 1
+        # Only write back to datastore once we're done
 	f = fetch(BASE_URL + filename, False)
 	filenamehtml = filename + '.html'
 	pf = pfs.get(filenamehtml)
-	if pf is None or pf.redo or f.modified:
-	    html = h2h.to_html(filename, f.content)
+	if pf is None or pf.redo or f.modified():
+	    html = h2h.to_html(filename, f.content(), f.encoding())
 	    store(filenamehtml, html, pf)
 	else:
 	    print "<p>File", filename, "is unchanged</p>"
@@ -142,11 +151,12 @@ if dbreposi is not None: dbreposi.put()
 
 filename = 'vim_faq.txt'
 filenamehtml = filename + '.html'
+# Only write back to datastore once we're done
 f = fetch(FAQ_URL, False, False)  # for now, don't use ETag -- causes problems here
 pf = pfs.get(filenamehtml)
-if pf is None or pf.redo or f.modified:
-    h2h.add_tags(filename, f.content)
-    html = h2h.to_html(filename, f.content)
+if pf is None or pf.redo or f.modified():
+    h2h.add_tags(filename, f.content())
+    html = h2h.to_html(filename, f.content(), f.encoding())
     store(filenamehtml, html, pf)
     f.write_to_cache()
 else:

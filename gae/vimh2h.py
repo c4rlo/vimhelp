@@ -5,8 +5,9 @@ import re
 import cgi
 import urllib
 
+CONTENT_TYPE = "Content-Type: text/html; charset={charset}\n\n"
 
-HEADER1 = """
+HEADER1 = """\
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
@@ -161,8 +162,8 @@ class VimH2H:
 		    '</span>'
 	else: return cgi.escape(tag)
 
-    def to_html(self, filename, contents, include_sitesearch = True,
-	    include_faq = True):
+    def to_html(self, filename, contents, encoding = None,
+            include_sitesearch = True, include_faq = True):
 
 	out = [ ]
 
@@ -238,7 +239,9 @@ class VimH2H:
 		out.append(VIM_FAQ_LINE)
 		faq_line = False
 
-	return HEADER1.replace('{filename}', filename) + \
+        return (CONTENT_TYPE.replace('{charset}', encoding) if encoding else '') + \
+	        HEADER1.replace('{filename}', filename). \
+                       replace('{charset}', encoding) + \
 		(START_HEADER if filename == 'help.txt' else '') + \
 		SITENAVI + \
 		(SITESEARCH if include_sitesearch else '') + \
