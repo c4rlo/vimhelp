@@ -140,7 +140,7 @@ if not skip_help:
 	f = fetch(BASE_URL + filename, False)
 	filenamehtml = filename + '.html'
 	pf = pfs.get(filenamehtml)
-	if pf is None or pf.redo or f.modified():
+	if pf is None or pf.redo or f.modified:
 	    html = h2h.to_html(filename, f.content(), f.encoding())
 	    store(filenamehtml, html, pf)
 	else:
@@ -154,7 +154,7 @@ filenamehtml = filename + '.html'
 # Only write back to datastore once we're done
 f = fetch(FAQ_URL, False, False)  # for now, don't use ETag -- causes problems here
 pf = pfs.get(filenamehtml)
-if pf is None or pf.redo or f.modified():
+if pf is None or pf.redo or f.modified:
     h2h.add_tags(filename, f.content())
     html = h2h.to_html(filename, f.content(), f.encoding())
     store(filenamehtml, html, pf)
