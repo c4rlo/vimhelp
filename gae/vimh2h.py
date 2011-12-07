@@ -240,8 +240,7 @@ class VimH2H:
 		faq_line = False
 
         return (CONTENT_TYPE.replace('{charset}', encoding) if encoding else '') + \
-	        HEADER1.replace('{filename}', filename). \
-                       replace('{charset}', encoding) + \
+	        HEADER1.replace('{filename}', filename) + \
 		(START_HEADER if filename == 'help.txt' else '') + \
 		SITENAVI + \
 		(SITESEARCH if include_sitesearch else '') + \
