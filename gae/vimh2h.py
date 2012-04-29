@@ -4,6 +4,7 @@ import sys
 import re
 import cgi
 import urllib
+from itertools import chain
 
 CONTENT_TYPE = "Content-Type: text/html; charset={charset}\n\n"
 
@@ -168,6 +169,7 @@ class VimH2H:
 	out = [ ]
 
 	inexample = 0
+        is_help_txt = (filename == 'help.txt')
 	faq_line = False
 	for line in RE_NEWLINE.split(contents):
 	    line = line.rstrip('\r\n')
@@ -191,7 +193,7 @@ class VimH2H:
 		m = RE_SECTION.match(line)
 		out.append(m.expand(r'<span class="c">\g<0></span>'))
 		line = line[m.end():]
-	    if filename == 'help.txt' and RE_LOCAL_ADD.match(line_tabs):
+	    if is_help_txt and RE_LOCAL_ADD.match(line_tabs):
 		faq_line = True
 	    lastpos = 0
 	    for match in RE_TAGWORD.finditer(line):
@@ -239,15 +241,15 @@ class VimH2H:
 		out.append(VIM_FAQ_LINE)
 		faq_line = False
 
-        return (CONTENT_TYPE.replace('{charset}', encoding) if encoding else '') + \
-	        HEADER1.replace('{filename}', filename). \
-                       replace('{charset}', encoding) + \
-		(START_HEADER if filename == 'help.txt' else '') + \
-		SITENAVI + \
-		(SITESEARCH if include_sitesearch else '') + \
-		HEADER2 + \
-		''.join(out) + \
-		FOOTER + \
-		SITENAVI + \
-		FOOTER2
+        header = []
+        if encoding is not None:
+            header.append(CONTENT_TYPE.replace('{charset}', encoding))
+        header.append(HEADER1.replace('{filename}', filename))
+        if is_help_txt:
+            header.append(START_HEADER)
+        header.append(SITENAVI)
+        if include_sitesearch:
+            header.append(SITESEARCH)
+        header.append(HEADER2)
+        return ''.join(chain(header, out, (FOOTER, SITENAVI, FOOTER2)))
 

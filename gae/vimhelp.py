@@ -1,28 +1,47 @@
-import sys, os, re, logging, bz2
+import sys, os, re, logging, zlib
 from dbmodel import ProcessedFile
 from google.appengine.api import memcache
 
 def notfound(msg = None):
     logging.info("file not found, msg = " + msg)
-    print "Status: 404 Not Found"
+    print "Status: 404 Not Found\n"
     print '<p>Not found</p>'
     if msg: print msg
     sys.exit()
 
-path_info = os.environ['PATH_INFO']
-if path_info == '/':
-    filename = 'help.txt.html'
-else:
-    m = re.match(r"/((?:.*?\.txt|tags)\.html)$", path_info)
-    if not m: notfound("illegal url")
-    filename = m.group(1)
+def accepts_gzip():
+    logging.info(os.environ)
+    return 'gzip' in re.split(', *', os.environ.get('HTTP_ACCEPT_ENCODING', ''))
 
-cached = memcache.get(filename)
-if cached is not None:
-    print bz2.decompress(cached)
-else:
-    record = ProcessedFile.all().filter('filename =', filename).get()
-    if record is None: notfound("not in database")
-    memcache.set(filename, record.data)
-    print bz2.decompress(record.data)
+def reply(data):
+    if not accepts_gzip():
+        logging.info("writing decompressed data")
+        data = zlib.decompress(data)
+    else:
+        logging.info("writing compressed data")
+        print 'Content-Encoding: gzip'
+    print "Content-Type: text/html\n"
+    sys.stdout.write(data)
 
+FILENAME_RE = re.compile(r"/((?:.*?\.txt|tags)\.html)$")
+
+def main():
+    path_info = os.environ['PATH_INFO']
+    if path_info == '/':
+        filename = 'help.txt.html'
+    else:
+        m = FILENAME_RE.match(path_info)
+        if not m: notfound("illegal url")
+        filename = m.group(1)
+
+    cached = memcache.get(filename)
+    if cached is not None:
+        reply(cached)
+    else:
+        record = ProcessedFile.all().filter('filename =', filename).get()
+        if record is None: notfound("not in database")
+        memcache.set(filename, record.data)
+        reply(record.data)
+
+if __name__ == '__main__':
+    main()

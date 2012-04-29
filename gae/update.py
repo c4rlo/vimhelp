@@ -1,4 +1,4 @@
-import os, re, sys, logging, bz2
+import os, re, sys, logging, zlib
 from dbmodel import *
 from google.appengine.api import urlfetch, memcache
 from vimh2h import VimH2H
@@ -41,17 +41,19 @@ class FileFromServer:
 
     def encoding(self): return self.upf.encoding
 
-    def write_to_cache(self):
+    def write_to_db(self):
 	if self.upf is not None: self.upf.put()
 
-def fetch(url, write_to_cache = True, use_etag = True):
-    dbrecord = UnprocessedFile.all().filter('url =', url).get()
+def fetch(url, write_to_db = True, use_etag = True):
+    dbrecord = None
     headers = { }
-    if dbrecord is not None and dbrecord.etag is not None and use_etag:
-	logging.debug("for %s, saved etag is %s", url, dbrecord.etag)
-	headers['If-None-Match'] = dbrecord.etag
+    if use_etag:
+        dbrecord = UnprocessedFile.all().filter('url =', url).get()
+        if dbrecord is not None and dbrecord.etag is not None:
+            headers['If-None-Match'] = dbrecord.etag
+            logging.debug("for %s, saved etag is %s", url, dbrecord.etag)
     result = urlfetch.fetch(url, headers = headers, deadline = 10)
-    if result.status_code == 304 and dbrecord is not None:
+    if dbrecord is not None and result.status_code == 304:
 	logging.debug("url %s is unchanged", url)
 	return FileFromServer(dbrecord, False)
     elif result.status_code != 200:
@@ -67,7 +69,7 @@ def fetch(url, write_to_cache = True, use_etag = True):
         result.content.decode("UTF-8")
     except UnicodeError:
         dbrecord.encoding = "ISO-8859-1"
-    if write_to_cache:
+    if write_to_db:
 	dbrecord.put()
     logging.debug("fetched %s", url)
     return FileFromServer(dbrecord, True)
@@ -75,7 +77,7 @@ def fetch(url, write_to_cache = True, use_etag = True):
 def store(filename, content, pf):
     if pf is None:
 	pf = ProcessedFile(filename = filename)
-    compressed = bz2.compress(content)
+    compressed = zlib.compress(content, 1)
     pf.data = compressed
     pf.redo = False
     memcache.set(filename, compressed)
@@ -137,7 +139,7 @@ if not skip_help:
 	filenames.add(filename)
 	count += 1
         # Only write back to datastore once we're done
-	f = fetch(BASE_URL + filename, False)
+	f = fetch(BASE_URL + filename, write_to_db=False)
 	filenamehtml = filename + '.html'
 	pf = pfs.get(filenamehtml)
 	if pf is None or pf.redo or f.modified:
@@ -145,20 +147,21 @@ if not skip_help:
 	    store(filenamehtml, html, pf)
 	else:
 	    print "<p>File", filename, "is unchanged</p>"
-	f.write_to_cache()
+	f.write_to_db()
 
 if dbreposi is not None: dbreposi.put()
 
 filename = 'vim_faq.txt'
 filenamehtml = filename + '.html'
 # Only write back to datastore once we're done
-f = fetch(FAQ_URL, False, False)  # for now, don't use ETag -- causes problems here
+# for now, don't use ETag -- causes problems here
+f = fetch(FAQ_URL, write_to_db=False, use_etag=False)
 pf = pfs.get(filenamehtml)
 if pf is None or pf.redo or f.modified:
     h2h.add_tags(filename, f.content())
     html = h2h.to_html(filename, f.content(), f.encoding())
     store(filenamehtml, html, pf)
-    f.write_to_cache()
+    f.write_to_db()
 else:
     print "<p>FAQ is unchanged</p>"
 
