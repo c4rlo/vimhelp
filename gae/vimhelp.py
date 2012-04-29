@@ -10,7 +10,7 @@ def notfound(msg = None):
     sys.exit()
 
 def accepts_gzip():
-    logging.info(os.environ)
+    return False  # for now
     return 'gzip' in re.split(', *', os.environ.get('HTTP_ACCEPT_ENCODING', ''))
 
 def reply(data):
@@ -20,7 +20,6 @@ def reply(data):
     else:
         logging.info("writing compressed data")
         print 'Content-Encoding: gzip'
-    print "Content-Type: text/html\n"
     sys.stdout.write(data)
 
 FILENAME_RE = re.compile(r"/((?:.*?\.txt|tags)\.html)$")

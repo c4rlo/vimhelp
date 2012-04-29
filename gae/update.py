@@ -39,7 +39,10 @@ class FileFromServer:
 
     def content(self): return self.upf.data
 
-    def encoding(self): return self.upf.encoding
+    def encoding(self):
+        # encode the _name_ of the encoding, i.e.
+        # unicode('UTF-8') -> str('UTF-8')
+        return self.upf.encoding.encode()
 
     def write_to_db(self):
 	if self.upf is not None: self.upf.put()
