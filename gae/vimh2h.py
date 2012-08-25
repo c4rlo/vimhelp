@@ -252,4 +252,3 @@ class VimH2H:
             header.append(SITESEARCH)
         header.append(HEADER2)
         return ''.join(chain(header, out, (FOOTER, SITENAVI, FOOTER2)))
-
