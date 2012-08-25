@@ -48,23 +48,21 @@ class FileFromServer:
 	if self.upf is not None: self.upf.put()
 
 def fetch(url, write_to_db = True, use_etag = True):
-    dbrecord = None
     headers = { }
+    dbrecord = UnprocessedFile.all().filter('url =', url).get() or \
+            UnprocessedFile(url = url)
+    if not dbrecord.etag: use_etag = False
     if use_etag:
-        dbrecord = UnprocessedFile.all().filter('url =', url).get()
-        if dbrecord is not None and dbrecord.etag is not None:
-            headers['If-None-Match'] = dbrecord.etag
-            logging.debug("for %s, saved etag is %s", url, dbrecord.etag)
+        headers['If-None-Match'] = dbrecord.etag
+        logging.debug("for %s, saved etag is %s", url, dbrecord.etag)
     result = urlfetch.fetch(url, headers = headers, deadline = 10)
-    if dbrecord is not None and result.status_code == 304:
+    if use_etag and result.status_code == 304:
 	logging.debug("url %s is unchanged", url)
 	return FileFromServer(dbrecord, False)
     elif result.status_code != 200:
 	log_error("bad HTTP response %d when fetching url %s",
 		result.status_code, url)
 	sys.exit()
-    if dbrecord is None:
-	dbrecord = UnprocessedFile(url = url)
     dbrecord.data = result.content
     dbrecord.etag = result.headers.get('ETag')
     dbrecord.encoding = "UTF-8"
@@ -160,13 +158,10 @@ filenamehtml = filename + '.html'
 # for now, don't use ETag -- causes problems here
 f = fetch(FAQ_URL, write_to_db=False, use_etag=False)
 pf = pfs.get(filenamehtml)
-if pf is None or pf.redo or f.modified:
-    h2h.add_tags(filename, f.content())
-    html = h2h.to_html(filename, f.content(), f.encoding())
-    store(filenamehtml, html, pf)
-    f.write_to_db()
-else:
-    print "<p>FAQ is unchanged</p>"
+h2h.add_tags(filename, f.content())
+html = h2h.to_html(filename, f.content(), f.encoding())
+store(filenamehtml, html, pf)
+f.write_to_db()
 
 log_info("finished update")
 
