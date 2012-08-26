@@ -9,18 +9,9 @@ def notfound(msg = None):
     if msg: print msg
     sys.exit()
 
-def accepts_gzip():
-    return False  # for now
-    return 'gzip' in re.split(', *', os.environ.get('HTTP_ACCEPT_ENCODING', ''))
-
 def reply(data):
-    if not accepts_gzip():
-        logging.info("writing decompressed data")
-        data = zlib.decompress(data)
-    else:
-        logging.info("writing compressed data")
-        print 'Content-Encoding: gzip'
-    sys.stdout.write(data)
+    logging.info("writing response")
+    sys.stdout.write(zlib.decompress(data))
 
 FILENAME_RE = re.compile(r"/((?:.*?\.txt|tags)\.html)$")
 
