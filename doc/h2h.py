@@ -6,10 +6,7 @@ import cProfile
 
 sys.path.append('../gae')
 
-if os.path.basename(sys.argv[0]) == 'old_h2h.py':
-    from old_vimh2h import VimH2H
-else:
-    from vimh2h import VimH2H
+from vimh2h import VimH2H
 
 def slurp(filename):
     f = open(filename)
@@ -33,6 +30,5 @@ def main():
             include_sitesearch=False))
 	of.close()
 
-main()
-
+#main()
 cProfile.run('main()')

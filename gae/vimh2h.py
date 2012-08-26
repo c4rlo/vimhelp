@@ -2,7 +2,6 @@
 
 import sys
 import re
-import cgi
 import urllib
 from itertools import chain
 
@@ -141,7 +140,7 @@ class VimH2H:
     def do_add_tag(self, filename, tag):
 	part1 = '<a href="' + filename + '.html#' + \
 		urllib.quote_plus(tag) + '"'
-	part2 = '>' + cgi.escape(tag) + '</a>'
+	part2 = '>' + html_escape(tag) + '</a>'
 	link_pipe = part1 + ' class="l"' + part2
 	classattr = ' class="d"'
 	m = RE_LINKWORD.match(tag)
@@ -159,9 +158,9 @@ class VimH2H:
 	    if css_class == 'l': return links.link_pipe
 	    else: return links.link_plain
 	elif css_class is not None:
-	    return '<span class="' + css_class + '">' + cgi.escape(tag) + \
+	    return '<span class="' + css_class + '">' + html_escape(tag) + \
 		    '</span>'
-	else: return cgi.escape(tag)
+	else: return html_escape(tag)
 
     def to_html(self, filename, contents, encoding = None,
             include_sitesearch = True, include_faq = True):
@@ -183,7 +182,7 @@ class VimH2H:
 		    inexample = 0
 		    if line[0] == '<': line = line[1:]
 		else:
-		    out.append('<span class="e">' + cgi.escape(line) +
+		    out.append('<span class="e">' + html_escape(line) +
 			    '</span>\n')
 		    continue
 	    if RE_EG_START.match(line_tabs):
@@ -199,7 +198,7 @@ class VimH2H:
 	    for match in RE_TAGWORD.finditer(line):
 		pos = match.start()
 		if pos > lastpos:
-		    out.append(cgi.escape(line[lastpos:pos]))
+		    out.append(html_escape(line[lastpos:pos]))
 		lastpos = match.end()
 		pipeword, starword, opt, ctrl, special, title, note, \
 			header, graphic, url, word = \
@@ -210,7 +209,7 @@ class VimH2H:
 		elif starword is not None:
 		    tag = starword[1:-1]
 		    out.append('<a name="' + urllib.quote_plus(tag) +
-			    '" class="t">' + cgi.escape(tag) + '</a>')
+			    '" class="t">' + html_escape(tag) + '</a>')
 		elif opt is not None:
 		    out.append(self.maplink(opt, 'o'))
 		elif ctrl is not None:
@@ -219,22 +218,22 @@ class VimH2H:
 		    out.append(self.maplink(special, 's'))
 		elif title is not None:
 		    out.append('<span class="i">' +
-			    cgi.escape(title) + '</span>')
+			    html_escape(title) + '</span>')
 		elif note is not None:
 		    out.append('<span class="n">' +
-			    cgi.escape(note) + '</span>')
+			    html_escape(note) + '</span>')
 		elif header is not None:
 		    out.append('<span class="h">' +
-			    cgi.escape(header[:-1]) + '</span>')
+			    html_escape(header[:-1]) + '</span>')
                 elif graphic is not None:
-                    out.append(cgi.escape(graphic[:-2]))
+                    out.append(html_escape(graphic[:-2]))
 		elif url is not None:
 		    out.append('<a class="u" href="' + url + '">' +
-			    cgi.escape(url) + '</a>')
+			    html_escape(url) + '</a>')
 		elif word is not None:
 		    out.append(self.maplink(word))
 	    if lastpos < len(line):
-		out.append(cgi.escape(line[lastpos:]))
+		out.append(html_escape(line[lastpos:]))
 	    out.append('\n')
 	    if inexample == 1: inexample = 2
 	    if faq_line:
@@ -252,3 +251,16 @@ class VimH2H:
             header.append(SITESEARCH)
         header.append(HEADER2)
         return ''.join(chain(header, out, (FOOTER, SITENAVI, FOOTER2)))
+
+class HtmlEscCache(dict):
+    def __missing__(self, key):
+        r = key.replace('&', '&amp;') \
+               .replace('<', '&lt;') \
+               .replace('>', '&gt;')
+        self[key] = r
+        return r
+
+html_esc_cache = HtmlEscCache()
+
+def html_escape(s):
+    return html_esc_cache[s]
