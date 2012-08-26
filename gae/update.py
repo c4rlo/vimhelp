@@ -11,26 +11,38 @@ from vimh2h import VimH2H
 
 BASE_URL = 'http://vim.googlecode.com/hg/runtime/doc/'
 TAGS_URL = BASE_URL + 'tags'
-FAQ_URL = 'http://github.com/chrisbra/vim_faq/raw/master/doc/vim_faq.txt'
+FAQ_URL = 'https://raw.github.com/chrisbra/vim_faq/master/doc/vim_faq.txt'
 
 is_dev = (os.environ.get('SERVER_NAME') == 'localhost')
 force = (os.environ.get('QUERY_STRING') == 'force')
 
+
+# Set up logging
+
 if is_dev:
     logging.getLogger().setLevel(logging.DEBUG)
 
-def do_log(msg, args, logfunc, html_msg = None):
-    msg = msg % args
-    logfunc(msg)
-    if html_msg is None: html_msg = "<p>" + msg + "</p>"
-    print html_msg
+class HtmlLogFormatter(logging.Formatter):
+    def __init__(self):
+        return super(HtmlLogFormatter, self).__init__()
 
-def log_debug(msg, *args): do_log(msg, args, logging.debug)
-def log_info(msg, *args): do_log(msg, args, logging.info)
-def log_warning(msg, *args):
-    do_log(msg, args, logging.info, "<p><b>" + msg + "</b></p>")
-def log_error(msg, *args):
-    do_log(msg, args, logging.error, "<h2>" + msg + "</h2>")
+    def format(self, record):
+        fmsg = super(HtmlLogFormatter, self).format(record)
+        if record.levelno >= logging.ERROR:
+            return '<h2>' + fmsg + '</h2>'
+        elif record.levelno >= logging.WARNING:
+            return '<p><b>' + fmsg + '</b></p>'
+        elif record.levelno >= logging.INFO:
+            return '<p>' + fmsg + '</p>'
+        else:
+            return '<p style="color: gray">' + fmsg + '</p>'
+
+htmlLogHandler = logging.StreamHandler(sys.stdout)
+htmlLogHandler.setLevel(logging.DEBUG)
+htmlLogHandler.setFormatter(HtmlLogFormatter())
+
+logging.getLogger().addHandler(htmlLogHandler)
+
 
 class FileFromServer:
     def __init__(self, upf, modified):
@@ -60,7 +72,7 @@ def fetch(url, write_to_db = True, use_etag = True):
 	logging.debug("url %s is unchanged", url)
 	return FileFromServer(dbrecord, False)
     elif result.status_code != 200:
-	log_error("bad HTTP response %d when fetching url %s",
+	logging.error("bad HTTP response %d when fetching url %s",
 		result.status_code, url)
 	sys.exit()
     dbrecord.data = result.content
@@ -83,13 +95,13 @@ def store(filename, content, pf):
     pf.redo = False
     memcache.set(filename, compressed)
     pf.put()
-    log_debug("Processed file %s", filename)
-
-index = fetch(BASE_URL).content()
+    logging.info("processed file %s", filename)
 
 print "Content-Type: text/html\n"
 
-log_info("starting update")
+index = fetch(BASE_URL).content()
+
+logging.info("starting update")
 
 skip_help = False
 
@@ -100,27 +112,27 @@ if m:
     if dbreposi is not None:
 	if dbreposi.revision == rev:
 	    if not force:
-		log_info("revision %s unchanged, nothing to do (except for faq)", rev)
+		logging.info("revision %s unchanged, nothing to do (except for faq)", rev)
 		dbreposi = None
 		skip_help = True
 	    else:
-		log_info("revision %s unchanged, continuing anyway", rev)
+		logging.info("revision %s unchanged, continuing anyway", rev)
 		dbreposi.delete()
 		dbreposi = VimRepositoryInfo(revision = rev)
 	else:
-	    log_info("new revision %s (old %s)", rev, dbreposi.revision)
+	    logging.info("new revision %s (old %s)", rev, dbreposi.revision)
 	    dbreposi.revision = rev
     else:
-	log_info("encountered revision %s, none in db", rev)
+	logging.info("encountered revision %s, none in db", rev)
 	dbreposi = VimRepositoryInfo(revision = rev)
 else:
-    log_warning("revision not found in index page")
+    logging.warning("revision not found in index page")
 
 tags = fetch(TAGS_URL).content()
 
 h2h = VimH2H(tags)
 
-log_debug("processed tags")
+logging.info("processed tags file")
 
 pfs = { }
 for pf in ProcessedFile.all():
@@ -147,7 +159,7 @@ if not skip_help:
 	    html = h2h.to_html(filename, f.content(), f.encoding())
 	    store(filenamehtml, html, pf)
 	else:
-	    print "<p>File", filename, "is unchanged</p>"
+            logging.info("%s is unchanged", filename)
 	f.write_to_db()
 
 if dbreposi is not None: dbreposi.put()
@@ -155,13 +167,15 @@ if dbreposi is not None: dbreposi.put()
 filename = 'vim_faq.txt'
 filenamehtml = filename + '.html'
 # Only write back to datastore once we're done
-# for now, don't use ETag -- causes problems here
-f = fetch(FAQ_URL, write_to_db=False, use_etag=False)
+f = fetch(FAQ_URL, write_to_db=False)
 pf = pfs.get(filenamehtml)
-h2h.add_tags(filename, f.content())
-html = h2h.to_html(filename, f.content(), f.encoding())
-store(filenamehtml, html, pf)
+if pf is None or pf.redo or f.modified:
+    h2h.add_tags(filename, f.content())
+    html = h2h.to_html(filename, f.content(), f.encoding())
+    store(filenamehtml, html, pf)
+else:
+    logging.info('faq is unchanged')
 f.write_to_db()
 
-log_info("finished update")
+logging.info("finished update")
 
