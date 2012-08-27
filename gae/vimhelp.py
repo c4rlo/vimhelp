@@ -1,10 +1,14 @@
 import sys, os, re, logging, zlib
 import webapp2
 from webob.exc import HTTPNotFound
-from dbmodel import ProcessedFile, MemcacheProcessedFile
+from dbmodel import *
 from google.appengine.api import memcache
 
 class PageHandler(webapp2.RequestHandler):
+    def initialize(self, request, response):
+        super(PageHandler, self).initialize(request, response)
+        set_namespace()
+
     def get(self, filename):
         if not filename: filename = 'help.txt.html'
         cached = memcache.get(filename)
