@@ -11,6 +11,9 @@ handlers:
 - url: /testgetfaq
   script: testgetfaq.py
   login: admin
+- url: /dumpenv
+  script: dumpenv.py
+  login: admin
 - url: /(?:(?:.*?\.txt|tags)\.html)?
   script: vimhelp.py
 - url: /(.*)
