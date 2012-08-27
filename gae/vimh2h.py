@@ -260,7 +260,7 @@ class HtmlEscCache(dict):
         self[key] = r
         return r
 
-html_esc_cache = HtmlEscCache()
+    def __call__(self, key):
+        return self[key]
 
-def html_escape(s):
-    return html_esc_cache[s]
+html_escape = HtmlEscCache()
