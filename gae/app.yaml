@@ -15,7 +15,7 @@ handlers:
   script: dumpenv.py
   login: admin
 - url: /(?:(?:.*?\.txt|tags)\.html)?
-  script: vimhelp.py
+  script: vimhelp.app
 - url: /(.*)
   static_files: static/\1
   upload: static/(.*)

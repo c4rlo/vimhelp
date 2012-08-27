@@ -1,4 +1,4 @@
-import os, re, sys, logging, zlib
+import os, re, sys, logging, zlib, hashlib, base64
 from dbmodel import *
 from google.appengine.api import urlfetch, memcache
 from google.appengine.ext import db
@@ -84,7 +84,7 @@ def main():
     print "</body></html>"
     logging.getLogger().removeHandler(htmlLogHandler)
 
-class Processor:
+class Processor(object):
     def __init__(self, redo):
         self._pfs = { }
         logging.debug("getting processed files")
@@ -107,13 +107,18 @@ class Processor:
             if add_tags:
                 logging.debug("adding tags for %s", filename)
                 h2h.add_tags(filename, f.content())
-            html = h2h.to_html(filename, f.content(), f.encoding())
+            html = h2h.to_html(filename, f.content())
             if pf is None:
                 pf = ProcessedFile(filename = filenamehtml)
             compressed = zlib.compress(html, 1)
             pf.data = compressed
+            pf.encoding = f.encoding()
             pf.redo = False
-            memcache.set(filenamehtml, compressed)
+            sha1 = hashlib.sha1()
+            sha1.update(pf.encoding)
+            sha1.update(pf.data)
+            pf.etag = base64.b64encode(sha1.digest())
+            memcache.set(filenamehtml, MemcacheProcessedFile(pf))
             pf.put()
             logging.info("processed %s", filenamehtml)
         else:
@@ -152,12 +157,12 @@ def fetch(url, write_to_db=True, use_etag=True):
         dbrecord.encoding = "ISO-8859-1"
     if write_to_db:
 	dbrecord.put()
-        logging.debug("fetched %s and written to db")
+        logging.debug("fetched %s and written to db", url)
     else:
         logging.debug("fetched %s, not written to db", url)
     return FileFromServer(dbrecord, True)
 
-class FileFromServer:
+class FileFromServer(object):
     def __init__(self, upf, modified):
 	self.upf = upf
 	self.modified = modified

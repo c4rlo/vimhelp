@@ -1,37 +1,36 @@
 import sys, os, re, logging, zlib
-from dbmodel import ProcessedFile
+import webapp2
+from webob.exc import HTTPNotFound
+from dbmodel import ProcessedFile, MemcacheProcessedFile
 from google.appengine.api import memcache
 
-def notfound(msg = None):
-    logging.info("file not found, msg = " + msg)
-    print "Status: 404 Not Found\n"
-    print '<p>Not found</p>'
-    if msg: print msg
-    sys.exit()
+class PageHandler(webapp2.RequestHandler):
+    def get(self, filename):
+        if not filename: filename = 'help.txt.html'
+        cached = memcache.get(filename)
+        if cached is not None:
+            self._reply(cached)
+        else:
+            record = ProcessedFile.all().filter('filename =', filename).get()
+            if record is not None:
+                cached = MemcacheProcessedFile(record)
+                memcache.set(filename, cached)
+                self._reply(cached)
+            else:
+                return HTTPNotFound()
 
-def reply(data):
-    logging.info("writing response")
-    sys.stdout.write(zlib.decompress(data))
+    def _reply(self, item):
+        self.response.etag = item.etag
+        if item.etag in webapp2.get_request().if_none_match:
+            logging.info("etag %s matched", item.etag)
+            self.response.status = 304
+        else:
+            logging.info("writing response")
+            self.response.content_type = 'text/html'
+            self.response.charset = item.encoding
+            self.response.write(zlib.decompress(item.data))
 
-FILENAME_RE = re.compile(r"/((?:.*?\.txt|tags)\.html)$")
 
-def main():
-    path_info = os.environ['PATH_INFO']
-    if path_info == '/':
-        filename = 'help.txt.html'
-    else:
-        m = FILENAME_RE.match(path_info)
-        if not m: notfound("illegal url")
-        filename = m.group(1)
-
-    cached = memcache.get(filename)
-    if cached is not None:
-        reply(cached)
-    else:
-        record = ProcessedFile.all().filter('filename =', filename).get()
-        if record is None: notfound("not in database")
-        memcache.set(filename, record.data)
-        reply(record.data)
-
-if __name__ == '__main__':
-    main()
+app = webapp2.WSGIApplication([
+    (r'/((?:.*?\.txt|tags)\.html)?', PageHandler)
+])

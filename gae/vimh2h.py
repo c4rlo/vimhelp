@@ -5,8 +5,6 @@ import re
 import urllib
 from itertools import chain
 
-CONTENT_TYPE = "Content-Type: text/html; charset={charset}\n\n"
-
 HEADER1 = """\
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
@@ -117,15 +115,14 @@ RE_SECTION   = re.compile(r'[-A-Z .][-A-Z0-9 .()]*(?=\s+\*)')
 RE_STARTAG   = re.compile(r'\s\*([^ \t|]+)\*(?:\s|$)')
 RE_LOCAL_ADD = re.compile(r'LOCAL ADDITIONS:\s+\*local-additions\*$')
 
-class Link:
+class Link(object):
     def __init__(self, link_pipe, link_plain):
 	self.link_pipe = link_pipe
 	self.link_plain = link_plain
 
-class VimH2H:
-    urls = { }
-
+class VimH2H(object):
     def __init__(self, tags):
+        self.urls = { }
 	for line in RE_NEWLINE.split(tags):
 	    m = RE_TAGLINE.match(line)
 	    if m:
@@ -162,7 +159,7 @@ class VimH2H:
 		    '</span>'
 	else: return html_escape(tag)
 
-    def to_html(self, filename, contents, encoding = None,
+    def to_html(self, filename, contents,
             include_sitesearch = True, include_faq = True):
 
 	out = [ ]
@@ -241,8 +238,6 @@ class VimH2H:
 		faq_line = False
 
         header = []
-        if encoding is not None:
-            header.append(CONTENT_TYPE.replace('{charset}', encoding))
         header.append(HEADER1.replace('{filename}', filename))
         if is_help_txt:
             header.append(START_HEADER)
