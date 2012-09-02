@@ -14,33 +14,42 @@ BASE_URL = 'http://vim.googlecode.com/hg/runtime/doc/'
 TAGS_NAME = 'tags'
 FAQ_BASE_URL = 'https://raw.github.com/chrisbra/vim_faq/master/doc/'
 FAQ_NAME = 'vim_faq.txt'
-JOB_INTERVAL = datetime.timedelta(minutes=119)  # really two hours; be conservative
+
+EXPIRYMINS_RE = re.compile(r'expirymins=(\d+)')
+REVISION_RE = re.compile(r'<title>Revision (.+?): /runtime/doc</title>')
+ITEM_RE = re.compile(r'[^-\w]([-\w]+\.txt|tags)[^-\w]')
 
 def main():
     # Set up logging
 
     query_string = os.environ.get('QUERY_STRING', '')
-    debuglog = ('debug' in query_string)
+    html_logging = ('no_html_log' not in query_string)
 
-    is_dev = (os.environ.get('SERVER_NAME') == 'localhost')
-    if is_dev: logging.getLogger().setLevel(logging.DEBUG)
+    if html_logging:
+        debuglog = ('debug' in query_string)
+        is_dev = (os.environ.get('SERVER_NAME') == 'localhost')
+        if is_dev: logging.getLogger().setLevel(logging.DEBUG)
 
-    htmlLogHandler = logging.StreamHandler(sys.stdout)
-    htmlLogHandler.setLevel(logging.DEBUG if debuglog else logging.INFO)
-    htmlLogHandler.setFormatter(HtmlLogFormatter())
+        htmlLogHandler = logging.StreamHandler(sys.stdout)
+        htmlLogHandler.setLevel(logging.DEBUG if debuglog else logging.INFO)
+        htmlLogHandler.setFormatter(HtmlLogFormatter())
 
-    logging.getLogger().addHandler(htmlLogHandler)
+        logging.getLogger().addHandler(htmlLogHandler)
 
     try:
-        update('force' in query_string)
+        update(query_string)
     finally:
         # it's important we always remove the log handler, otherwise it will be
         # in place for other requests, including to vimhelp.py, where class
         # HtmlLogFormatter won't exist
-        logging.getLogger().removeHandler(htmlLogHandler)
+        if html_logging:
+            logging.getLogger().removeHandler(htmlLogHandler)
 
-def update(force):
-    expires = datetime.datetime.now() + JOB_INTERVAL
+def update(query_string):
+    force = 'force' in query_string
+    expm = EXPIRYMINS_RE.match(query_string)
+    expires = datetime.datetime.now() + \
+            datetime.timedelta(minutes=int(expm.group(1))) if expm else None
 
     print "Content-Type: text/html\n"
     print "<html><body>"
@@ -51,7 +60,7 @@ def update(force):
 
     skip_help = False
 
-    m = re.search('<title>Revision (.+?): /runtime/doc</title>', index)
+    m = REVISION_RE.search(index)
     if m:
         rev = m.group(1)
         dbreposi = VimRepositoryInfo.all().get()
@@ -81,7 +90,7 @@ def update(force):
     filenames = set()
 
     if not skip_help:
-        for match in re.finditer(r'[^-\w]([-\w]+\.txt|tags)[^-\w]', index):
+        for match in ITEM_RE.finditer(index):
             filename = match.group(1)
             if filename not in filenames:
                 filenames.add(filename)
@@ -100,11 +109,13 @@ class Processor(object):
         logging.debug("getting processed files")
         for pf in ProcessedFile.all():
             if redo: pf.redo = True
+            if expires: pf.expires = expires
             self._pfs[pf.filename] = pf
-        if redo:
-            logging.debug("setting redo flag on all processed files")
+        if redo or expires:
+            logging.info("setting %s on all processed files",
+                          ' and '.join(
+                              [ x for x in ('redo', 'expires') if locals()[x] ]))
             db.put(self._pfs.itervalues())
-        self._expires = expires
         self._h2h = None
 
     def process(self, base_url, filename, add_tags=False):
@@ -124,7 +135,6 @@ class Processor(object):
             compressed = zlib.compress(html, 1)
             pf.data = compressed
             pf.encoding = f.encoding()
-            pf.expires = self._expires
             pf.redo = False
             sha1 = hashlib.sha1()
             sha1.update(pf.data)
@@ -151,9 +161,11 @@ def fetch(url, write_to_db=True, use_etag=True):
     if use_etag:
         headers['If-None-Match'] = dbrecord.etag
         logging.debug("for %s, saved etag is %s", url, dbrecord.etag)
-    result = urlfetch.fetch(url, headers = headers, deadline = 10)
-    # TODO handle DownloadError
-    # TODO callers must handle this as well as bad response codes
+    try:
+        result = urlfetch.fetch(url, headers = headers, deadline = 10)
+    except urlfetch.Error as e:
+        logging.error("%s", e)
+        return None
     if use_etag and result.status_code == 304:
 	logging.debug("url %s is unchanged", url)
 	return FileFromServer(dbrecord, False)

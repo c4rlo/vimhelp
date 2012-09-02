@@ -1,5 +1,5 @@
 cron:
 - description: fetch and process vim docs
-  url: /update
+  url: /update?expirymins=119;no_html_log
   schedule: every 2 hours
 
