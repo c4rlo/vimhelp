@@ -4,7 +4,7 @@ from google.appengine.api import urlfetch, memcache
 from google.appengine.ext import db
 from vimh2h import VimH2H
 
-# Once we have consumed about 30 seconds of CPU time, Google will throw us a
+# Once we have consumed about 60 seconds of CPU time, Google will throw us a
 # DeadlineExceededError and our script terminates. Therefore, we must be careful
 # with the order of operations, to ensure that after this has happened, the next
 # scheduled run of the script can pick up where the previous one was
@@ -17,14 +17,12 @@ FAQ_NAME = 'vim_faq.txt'
 JOB_INTERVAL = datetime.timedelta(minutes=119)  # really two hours; be conservative
 
 def main():
-    is_dev = (os.environ.get('SERVER_NAME') == 'localhost')
-    query_string = os.environ.get('QUERY_STRING', '')
-    force = ('force' in query_string)
-    debuglog = ('debug' in query_string)
-    expires = datetime.datetime.now() + JOB_INTERVAL
-
     # Set up logging
 
+    query_string = os.environ.get('QUERY_STRING', '')
+    debuglog = ('debug' in query_string)
+
+    is_dev = (os.environ.get('SERVER_NAME') == 'localhost')
     if is_dev: logging.getLogger().setLevel(logging.DEBUG)
 
     htmlLogHandler = logging.StreamHandler(sys.stdout)
@@ -32,6 +30,17 @@ def main():
     htmlLogHandler.setFormatter(HtmlLogFormatter())
 
     logging.getLogger().addHandler(htmlLogHandler)
+
+    try:
+        update('force' in query_string)
+    finally:
+        # it's important we always remove the log handler, otherwise it will be
+        # in place for other requests, including to vimhelp.py, where class
+        # HtmlLogFormatter won't exist
+        logging.getLogger().removeHandler(htmlLogHandler)
+
+def update(force):
+    expires = datetime.datetime.now() + JOB_INTERVAL
 
     print "Content-Type: text/html\n"
     print "<html><body>"
@@ -84,7 +93,6 @@ def main():
 
     logging.info("finished update")
     print "</body></html>"
-    logging.getLogger().removeHandler(htmlLogHandler)
 
 class Processor(object):
     def __init__(self, expires, redo):
