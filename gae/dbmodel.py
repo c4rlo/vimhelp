@@ -1,14 +1,4 @@
 from google.appengine.ext import db
-from google.appengine.api import namespace_manager
-import os
-
-def set_namespace():
-    major = os.environ['CURRENT_VERSION_ID'].split('.', 1)[0]
-    if major == '1':
-        ns = ''
-    else:
-        ns = 'v' + major
-    namespace_manager.set_namespace(ns)
 
 class UnprocessedFile(db.Model):
     url = db.StringProperty()

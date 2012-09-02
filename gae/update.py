@@ -21,8 +21,6 @@ def main():
     force = ('force' in query_string)
     debuglog = ('debug' in query_string)
 
-    set_namespace()
-
     # Set up logging
 
     if is_dev: logging.getLogger().setLevel(logging.DEBUG)
