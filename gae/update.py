@@ -1,4 +1,4 @@
-import os, re, sys, logging, zlib, hashlib, base64
+import os, re, sys, datetime, logging, zlib, hashlib, base64
 from dbmodel import *
 from google.appengine.api import urlfetch, memcache
 from google.appengine.ext import db
@@ -14,12 +14,14 @@ BASE_URL = 'http://vim.googlecode.com/hg/runtime/doc/'
 TAGS_NAME = 'tags'
 FAQ_BASE_URL = 'https://raw.github.com/chrisbra/vim_faq/master/doc/'
 FAQ_NAME = 'vim_faq.txt'
+JOB_INTERVAL = datetime.timedelta(minutes=119)  # really two hours; be conservative
 
 def main():
     is_dev = (os.environ.get('SERVER_NAME') == 'localhost')
     query_string = os.environ.get('QUERY_STRING', '')
     force = ('force' in query_string)
     debuglog = ('debug' in query_string)
+    expires = datetime.datetime.now() + JOB_INTERVAL
 
     # Set up logging
 
@@ -63,7 +65,7 @@ def main():
     else:
         logging.warning("revision not found in index page")
 
-    proc = Processor(redo=force)
+    proc = Processor(expires=expires, redo=force)
 
     logging.debug("processing files")
 
@@ -85,7 +87,7 @@ def main():
     logging.getLogger().removeHandler(htmlLogHandler)
 
 class Processor(object):
-    def __init__(self, redo):
+    def __init__(self, expires, redo):
         self._pfs = { }
         logging.debug("getting processed files")
         for pf in ProcessedFile.all():
@@ -94,6 +96,7 @@ class Processor(object):
         if redo:
             logging.debug("setting redo flag on all processed files")
             db.put(self._pfs.itervalues())
+        self._expires = expires
         self._h2h = None
 
     def process(self, base_url, filename, add_tags=False):
@@ -113,9 +116,9 @@ class Processor(object):
             compressed = zlib.compress(html, 1)
             pf.data = compressed
             pf.encoding = f.encoding()
+            pf.expires = self._expires
             pf.redo = False
             sha1 = hashlib.sha1()
-            sha1.update(pf.encoding)
             sha1.update(pf.data)
             pf.etag = base64.b64encode(sha1.digest())
             memcache.set(filenamehtml, MemcacheProcessedFile(pf))
@@ -141,6 +144,8 @@ def fetch(url, write_to_db=True, use_etag=True):
         headers['If-None-Match'] = dbrecord.etag
         logging.debug("for %s, saved etag is %s", url, dbrecord.etag)
     result = urlfetch.fetch(url, headers = headers, deadline = 10)
+    # TODO handle DownloadError
+    # TODO callers must handle this as well as bad response codes
     if use_etag and result.status_code == 304:
 	logging.debug("url %s is unchanged", url)
 	return FileFromServer(dbrecord, False)
@@ -169,10 +174,7 @@ class FileFromServer(object):
 
     def content(self): return self.upf.data
 
-    def encoding(self):
-        # encode the _name_ of the encoding, i.e.
-        # unicode('UTF-8') -> str('UTF-8')
-        return self.upf.encoding.encode()
+    def encoding(self): return self.upf.encoding
 
     def write_to_db(self):
 	if self.upf is not None: self.upf.put()

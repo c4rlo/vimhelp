@@ -26,13 +26,15 @@ class PageHandler(webapp2.RequestHandler):
     def _reply(self, item, msg_extra = ""):
         if hasattr(item, 'encoding'):
             self.response.etag = item.etag
+            self.response.expires = item.expires
+            del self.response.cache_control
             if item.etag in webapp2.get_request().if_none_match:
                 logging.info("etag %s matched%s", item.etag, msg_extra)
                 self.response.status = 304
             else:
                 logging.info("writing response%s", msg_extra)
                 self.response.content_type = 'text/html'
-                self.response.charset = item.encoding
+                self.response.charset = item.encoding.encode()  # unicode -> str
                 self.response.write(zlib.decompress(item.data))
         else:
             # old-style item
