@@ -1,8 +1,10 @@
-import logging, zlib
+import logging, zlib, re
 import webapp2
 from webob.exc import HTTPNotFound
 from google.appengine.api import memcache
 from dbmodel import *
+
+HEADERS_CHARSET_RE = re.compile(r'Content-Type: text/html; charset=(.+)$')
 
 class PageHandler(webapp2.RequestHandler):
     def get(self, filename):
@@ -13,10 +15,12 @@ class PageHandler(webapp2.RequestHandler):
         else:
             record = ProcessedFile.all().filter('filename =', filename).get()
             if record is not None:
-                if hasattr(record, 'encoding'):
+                if record.encoding is not None:
+                    logging.info("got new-style record")
                     cached = MemcacheProcessedFile(record)
                     memcache.set(filename, cached)
                 else:
+                    logging.info("got old-style record")
                     # support old-style records, but don't memcache them
                     cached = record.data
                 self._reply(cached)
@@ -24,7 +28,7 @@ class PageHandler(webapp2.RequestHandler):
                 return HTTPNotFound()
 
     def _reply(self, item, msg_extra = ""):
-        if hasattr(item, 'encoding'):
+        if isinstance(item, MemcacheProcessedFile):
             self.response.etag = item.etag
             self.response.expires = item.expires
             del self.response.cache_control
@@ -39,7 +43,13 @@ class PageHandler(webapp2.RequestHandler):
         else:
             # old-style item
             logging.info("writing old-style response%s", msg_extra)
-            self.response.write(zlib.decompress(item))
+            data = zlib.decompress(item)
+            headers, body = data.split('\n\n', 1)
+            charset = HEADERS_CHARSET_RE.match(headers).group(1)
+            logging.info("charset: %s", charset)
+            self.response.content_type = 'text/html'
+            self.response.charset = charset
+            self.response.write(body)
 
 
 app = webapp2.WSGIApplication([
