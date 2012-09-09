@@ -32,6 +32,9 @@ HTTP_HDR_IF_NONE_MATCH = 'If-None-Match'
 # Response header name
 HTTP_HDR_ETAG = 'ETag'
 
+# HTTP Status
+HTTP_OK = 200
+HTTP_NOT_MOD = 304
 
 class PageHandler(webapp2.RequestHandler):
     def __init__(self):
@@ -90,9 +93,9 @@ class PageHandler(webapp2.RequestHandler):
 
         index_etag = g.index_etag if not force else None
         resp = self._sync_urlfetch(BASE_URL, index_etag)
-        if index_etag and resp.status_code == 304:  # Not Modified
+        if index_etag and resp.status_code == HTTP_NOT_MOD:
             index_changed = False
-        elif resp.status_code == 200:  # OK
+        elif resp.status_code == HTTP_OK:
             g_changed = True
             g.index_etag = resp.headers.get(HTTP_HDR_ETAG)
             index_html = resp.content
@@ -135,7 +138,7 @@ class PageHandler(webapp2.RequestHandler):
 
         if index_changed:
             resp = self._sync_urlfetch(HGTAGS_URL, g.hgtags_etag)
-            if resp.status_code == 200:
+            if resp.status_code == HTTP_OK:
                 data = resp.contents
                 nlpos = next(data.rindex('\n', 0, i)
                            for i in xrange(len(data), 1, -1)
@@ -145,7 +148,7 @@ class PageHandler(webapp2.RequestHandler):
                 g.hgtags_etag = resp.headers.get(HTTP_HDR_ETAG)
                 g_changed = True
                 self._is_new_vim_version = True
-            elif g.hgtags_etag and resp.status_code == 304:
+            elif g.hgtags_etag and resp.status_code == HTTP_NOT_MOD:
                 pass
             else:
                 pass # TODO log error
@@ -169,7 +172,7 @@ class PageHandler(webapp2.RequestHandler):
 
     def _process_and_put(self, rinfo, result, need_h2h=True):
         filename = rinfo.key().name()
-        if result.status_code == 200:
+        if result.status_code == HTTP_OK:
             rinfo.redo = False
             rinfo.etag = result.headers.get(HTTP_HDR_ETAG)
             rdata = RawFileData(key_name=filename, data=result.content)
@@ -181,7 +184,7 @@ class PageHandler(webapp2.RequestHandler):
                 rdata.encoding = 'UTF-8'
             phead, ppart = self._process(filename, rdata)
             self._save(rinfo, rdata, phead, ppart)
-        elif rinfo.etag and result.status_code == 304:
+        elif rinfo.etag and result.status_code == HTTP_NOT_MOD:
             if rinfo.redo or \
                (filename == HELP_NAME and self._is_new_vim_version):
                 rinfo.redo = False
