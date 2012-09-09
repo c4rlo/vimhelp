@@ -6,7 +6,8 @@ import urllib
 from itertools import chain
 
 HEADER1 = """\
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+    "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
 <title>Vim: {filename}</title>
@@ -23,13 +24,17 @@ HEADER1 = """\
 START_HEADER = """
 <h1>Vim help files</h1>
 <p>This is an HTML version of the <a href="http://www.vim.org/"
-target="_blank">Vim</a> help pages. They are kept up-to-date automatically from
-the <a href="http://code.google.com/p/vim/source/browse/runtime/doc"
-target="_blank" class="d">Vim source repository</a>. Also included is the <a
+target="_blank">Vim</a> help pages{vers-note}. They are kept up-to-date <a
+href="https://github.com/c4rlo/vimhelp" target="_blank"
+class="d">automatically</a> from the <a
+href="http://code.google.com/p/vim/source/browse/runtime/doc" target="_blank"
+class="d">Vim source repository</a>. Also included is the <a
 href="vim_faq.txt.html">Vim FAQ</a>, kept up to date from its <a
-href="http://github.com/chrisbra/vim_faq" target="_blank" class="d">github
+href="https://github.com/chrisbra/vim_faq" target="_blank" class="d">github
 repository</a>.</p>
 """
+
+VERSION_NOTE = ", current as of Vim {version}"
 
 SITENAVI = """
 <p>
@@ -121,8 +126,9 @@ class Link(object):
 	self.link_plain = link_plain
 
 class VimH2H(object):
-    def __init__(self, tags):
+    def __init__(self, tags, version=None):
         self.urls = { }
+        self.version = version
 	for line in RE_NEWLINE.split(tags):
 	    m = RE_TAGLINE.match(line)
 	    if m:
@@ -159,9 +165,7 @@ class VimH2H(object):
 		    '</span>'
 	else: return html_escape(tag)
 
-    def to_html(self, filename, contents,
-            include_sitesearch = True, include_faq = True):
-
+    def to_html(self, filename, contents, web_version=True):
 	out = [ ]
 
 	inexample = 0
@@ -239,10 +243,12 @@ class VimH2H(object):
 
         header = []
         header.append(HEADER1.replace('{filename}', filename))
-        if is_help_txt:
-            header.append(START_HEADER)
+        if web_version and is_help_txt:
+            vers_note = VERSION_NOTE.replace('{version}', self.version) \
+                    if self.version else ''
+            header.append(START_HEADER.replace('{vers-note}', vers_note))
         header.append(SITENAVI)
-        if include_sitesearch:
+        if web_version:
             header.append(SITESEARCH)
         header.append(HEADER2)
         return ''.join(chain(header, out, (FOOTER, SITENAVI, FOOTER2)))

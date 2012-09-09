@@ -12,12 +12,14 @@ from vimh2h import VimH2H
 
 BASE_URL = 'http://vim.googlecode.com/hg/runtime/doc/'
 TAGS_NAME = 'tags'
+HGTAGS_URL = 'http://vim.googlecode.com/hg/.hgtags'
 FAQ_BASE_URL = 'https://raw.github.com/chrisbra/vim_faq/master/doc/'
 FAQ_NAME = 'vim_faq.txt'
 
 EXPIRYMINS_RE = re.compile(r'expirymins=(\d+)')
 REVISION_RE = re.compile(r'<title>Revision (.+?): /runtime/doc</title>')
 ITEM_RE = re.compile(r'[^-\w]([-\w]+\.txt|tags)[^-\w]')
+HGTAG_RE = re.compile(r'^[0-9A-Fa-f]+ v(\d+)-(\d+)-(\d+)$')
 
 def main():
     # Set up logging
@@ -56,6 +58,20 @@ def update(query_string):
 
     logging.info("starting update")
 
+    try:
+        hgtags = fetch(HGTAGS_URL)
+        new_version = hgtags.modified
+        data = hgtags.content()
+        end = next(data.rindex('\n', 0, i) for i in xrange(len(data), 1, -1)
+                   if data[i-1] != '\n')
+        vers = HGTAG_RE.match(data[(nlpos+1):]).groups()
+        version = '.'.join(vers)
+        logging.info("current version is %s", version)
+    except Exception as e:
+        logging.warning("%s", e)
+        version = None
+        new_version = False
+
     index = fetch(BASE_URL).content()
 
     skip_help = False
@@ -67,7 +83,7 @@ def update(query_string):
         if dbreposi is not None:
             if dbreposi.revision == rev:
                 if not force:
-                    logging.info("revision %s unchanged, nothing to do (except for faq)", rev)
+                    logging.info("revision %s unchanged", rev)
                     dbreposi = None
                     skip_help = True
                 else:
@@ -83,18 +99,22 @@ def update(query_string):
     else:
         logging.warning("revision not found in index page")
 
-    proc = Processor(expires=expires, redo=force)
-
-    logging.debug("processing files")
+    proc = Processor(expires=expires, redo=force, version=version)
 
     filenames = set()
 
     if not skip_help:
+        logging.info("processing help files")
         for match in ITEM_RE.finditer(index):
             filename = match.group(1)
             if filename not in filenames:
                 filenames.add(filename)
                 proc.process(BASE_URL, filename)
+    elif new_version:
+        logging.info("skipping help files, except help.txt to update version")
+        proc.process(BASE_URL, 'help.txt')
+    else:
+        logging.info("skipping help files")
 
     if dbreposi is not None: dbreposi.put()
 
@@ -104,8 +124,9 @@ def update(query_string):
     print "</body></html>"
 
 class Processor(object):
-    def __init__(self, expires, redo):
+    def __init__(self, expires, redo, version):
         self._pfs = { }
+        self._version = version
         logging.debug("getting processed files")
         for pf in ProcessedFile.all():
             if redo: pf.redo = True
@@ -149,7 +170,7 @@ class Processor(object):
     def _get_h2h(self):
         if self._h2h is None:
             tags = fetch(BASE_URL + TAGS_NAME)
-            self._h2h = VimH2H(tags.content())
+            self._h2h = VimH2H(tags.content(), self._version)
             logging.info("processed tags file")
         return self._h2h
 
