@@ -3,7 +3,6 @@ import threading
 import webapp2
 from google.appengine.api import urlfetch, memcache
 from google.appengine.ext import db
-from google.appengine.runtime import DeadlineExceededError
 from dbmodel import *
 from vimh2h import VimH2H
 
@@ -59,12 +58,8 @@ class PageHandler(webapp2.RequestHandler):
 
             logging.getLogger().addHandler(htmlLogHandler)
 
-        deadline_exceeded = False
-
         try:
             _update(self, query_string)
-        except DeadlineExceededError:
-            deadline_exceeded = True
         except Exception as e:
             logging.error("%s", e)
         finally:
@@ -73,10 +68,6 @@ class PageHandler(webapp2.RequestHandler):
             # class HtmlLogFormatter won't exist
             if html_logging:
                 logging.getLogger().removeHandler(htmlLogHandler)
-            for thr in self._bg_threads: thr.join()
-            if deadline_exceeded:
-                pass
-                # TODO: set expired on all rinfo's we haven't processed yet
 
     def _update(self, query_string):
         force = 'force' in query_string
@@ -88,20 +79,19 @@ class PageHandler(webapp2.RequestHandler):
 
         logging.info("starting update")
 
-        write_redo_flags = None
         if force:
-            rinfo = RawFileInfo.all().fetch(None)
-            for r in rinfo: r.redo = True
-            write_redo_flags = db.put_async(rinfo)
+            rfis = RawFileInfo.all().fetch(None)
+            for r in rfis: r.redo = True
+            db.put(rfis)
 
         g = GlobalInfo.get_by_key_name('global') or \
                 GlobalInfo(key_name='global')
         g_changed = False
-        index_changed = False
 
-        resp = self._sync_urlfetch(BASE_URL, g.index_etag)
-        if g.index_etag and resp.status_code == 304:  # Not Modified
-            pass
+        index_etag = g.index_etag if not force else None
+        resp = self._sync_urlfetch(BASE_URL, index_etag)
+        if index_etag and resp.status_code == 304:  # Not Modified
+            index_changed = False
         elif resp.status_code == 200:  # OK
             g_changed = True
             g.index_etag = resp.headers.get(HTTP_HDR_ETAG)
@@ -114,46 +104,33 @@ class PageHandler(webapp2.RequestHandler):
                     index_changed = False
                 else:
                     g.hgrev = hgrev_new
-        elif g.index_etag:
-            # we can still go on: we have the previous etag, which implies that
-            # we have at least some of the raw file info in the db
-            index_changed = False
-            logging.warn("bad status %d when getting index", resp.status_code)
         else:
             raise VimhelpError("bad status %d when getting index",
                                resp.status_code)
 
-        if write_redo_flags:
-            write_redo_flags.get_result()
-            # already have rinfo
-        elif index_changed:
-            rinfo = RawFileInfo.get_by_key_name([ m.group(1) for m in
-                                               ITEM_RE.finditer(index_html) ]) \
-                    or ()
-        else:
-            rinfo = ()
-
-        # when we iterate over the rinfo:
-        # - make sure this includes the FAQ
-        # - exclude the tags, since these are handled specially
         def gen_rinfo():
-            got_faq = False
-            for r in rinfo:
-                key_name = r.key().name()
-                if key_name == TAGS_NAME:
-                    self._tags_rinfo = r
-                else:
-                    if key_name == FAQ_NAME:
-                        got_faq = True
-                    yield r
-            if not got_faq:
-                faq_r = RawFileInfo.get_by_key_name(FAQ_NAME) or \
-                        RawFileInfo(key_name=FAQ_NAME)
-                yield faq_r
+            if index_changed:
+                filenames = { m.group(1) for m in ITEM_RE.finditer(index_html) }
+                for rinfo in RawFileInfo.all():
+                    filename = rinfo.key().name()
+                    if filename not in filenames: continue
+                    if filename == TAGS_NAME:
+                        self._tags_rinfo = r
+                    else:
+                        yield rinfo
+                    filenames.remove(filename)
+                for filename in filenames:
+                    yield RawFileInfo(key_name=filename)
+            faq_rinfo = RawFileInfo.get_by_key_name(FAQ_NAME) or \
+                    RawFileInfo(key_name=FAQ_NAME)
+            yield faq_rinfo
 
         urlfetches = []
-        for r in gen_rinfo():
-            rpc = self._make_urlfetch_rpc(r, _make_urlfetch_callback)
+        for rinfo in gen_rinfo():
+            rpc = urlfetch.create_rpc()
+            rpc.callback = lambda: self._process_and_put(self, rinfo,
+                                                         rpc.get_result())
+            urlfetch.make_fetch_call(rpc, **self._urlfetch_args(rinfo))
             urlfetches.append(rpc)
 
         if index_changed:
@@ -183,21 +160,12 @@ class PageHandler(webapp2.RequestHandler):
         if not self._h2h:
             self._process_tags(need_h2h=False)
 
+        for thr in self._bg_threads: thr.join()
+
         if g_changed: g.put()
 
         logging.info("finished update")
         self.response.write("</body></html>")
-
-    def _make_urlfetch_rpc(self, rinfo, make_callback):
-        rpc = urlfetch.create_rpc()
-        rpc.callback = make_callback(self, rinfo, rpc)
-        headers = { }
-        if rinfo.etag: headers['If-None-Match'] = rinfo.etag
-        urlfetch.make_fetch_call(rpc, **self._urlfetch_args(rinfo))
-        return rpc
-
-    def _make_urlfetch_callback(self, rinfo, rpc):
-        return lambda: self._process_and_put(self, rinfo, rpc.get_result())
 
     def _process_and_put(self, rinfo, result, need_h2h=True):
         filename = rinfo.key().name()
