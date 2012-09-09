@@ -11,6 +11,7 @@ class RawFileInfo(db.Model):
     # key name is basename e.g. "help.txt"
     etag = db.ByteStringProperty(indexed=False)
     redo = db.BooleanProperty(indexed=False)
+    memcache_genid = db.IntegerProperty(indexed=False)
 
 class RawFileData(db.Model):
     # key name is as for RawFileInfo
@@ -18,19 +19,19 @@ class RawFileData(db.Model):
     encoding = db.ByteStringProperty(indexed=False)
 
 class ProcessedFileHead(db.Model):
-    # key name is basename e.g. "help.txt.html"
+    # key name is basename e.g. "help.txt"
     etag = db.ByteStringProperty(indexed=False)
     encoding = db.ByteStringProperty(indexed=False)
     expires = db.ByteStringProperty(indexed=False)
     numparts = db.IntegerProperty(indexed=False)
     data0 = db.BlobProperty()
 
-class ProcessedFileDataPart(db.Model):
-    # key name is basename + ":" + partnum (1-based), e.g. "help.txt.html:1"
+class ProcessedFilePart(db.Model):
+    # key name is basename + ":" + partnum (1-based), e.g. "help.txt:1"
     data = db.BlobProperty()
 
 class MemcacheHead(object):
-    # stored in memcache with a name like "help.txt.html"
+    # stored in memcache with a name like "help.txt"
     def __init__(self, head):
         # head is ProcessedFileInfo
         self.etag = head.etag
@@ -40,11 +41,13 @@ class MemcacheHead(object):
         self.data0 = head.data0
 
 class MemcachePart(object):
-    # stored in memcache with a name like "help.txt.html:1"
+    # stored in memcache with a name like "0:help.txt:1"
     def __init__(self, part):
         # part is ProcessedFileDataPart
         self.data = part.data
 
+def memcache_part_name(filename, genid, partnum):
+    return '{}:{}:{}'.format(genid, filename, partnum)
 
 # old:
 
