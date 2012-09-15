@@ -66,7 +66,7 @@ class UpdateHandler(webapp2.RequestHandler):
 
         try:
             self._update(query_string)
-        except BaseException as e:
+        except:
             logging.exception("exception caught")
             # TODO set bad HTTP status code so the job gets retried?
         finally:
@@ -405,9 +405,6 @@ class VimhelpError(Exception):
         return self.msg % args
 
 class HtmlLogFormatter(logging.Formatter):
-    def __init__(self):
-        return super(HtmlLogFormatter, self).__init__()
-
     def format(self, record):
         fmsg = super(HtmlLogFormatter, self).format(record). \
                 replace('&', '&amp;').replace(' ', '&nbsp;'). \

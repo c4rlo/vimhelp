@@ -119,6 +119,8 @@ RE_STARTAG   = re.compile(r'\s\*([^ \t|]+)\*(?:\s|$)')
 RE_LOCAL_ADD = re.compile(r'LOCAL ADDITIONS:\s+\*local-additions\*$')
 
 class Link(object):
+    __slots__ = 'link_pipe', 'link_plain'
+
     def __init__(self, link_pipe, link_plain):
 	self.link_pipe = link_pipe
 	self.link_plain = link_plain

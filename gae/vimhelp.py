@@ -4,22 +4,24 @@ from webob.exc import HTTPNotFound
 from google.appengine.api import memcache, taskqueue
 from dbmodel import *
 
-TASKNAME_INVALID_CHARS_RE = re.compile(r'[^0-9a-zA-Z_-]')
+HTTP_NOT_MOD = 304
 
 class PageHandler(webapp2.RequestHandler):
     def get(self, filename):
         if not filename: filename = 'help.txt'
-        success = self._reply_from_memcache(filename)
-        if success: return
-        success = self._reply_from_db(filename)
-        if success:
+        ok = self._reply_from_memcache(filename)
+        if ok: return
+        ok = self._reply_from_db(filename)
+        if ok:
             logging.info("enqueueing memcache add")
-            taskqueue.add(queue_name='memcache', url='/memcache_add',
-                          params={ 'filename': filename })
+            try:
+                taskqueue.add(queue_name='memcache', url='/memcache_add',
+                              params={ 'filename': filename })
+            except:
+                logging.exception("caught exception")
             return
-        success = self._reply_legacy(filename + '.html')
-        if success: return
-        return HTTPNotFound()
+        ok = self._reply_legacy(filename + '.html')
+        if not ok: return HTTPNotFound()
 
     def _reply_from_memcache(self, filename):
         head = memcache.get(filename)
@@ -48,7 +50,7 @@ class PageHandler(webapp2.RequestHandler):
         del resp.cache_control
         if head.etag in self.request.if_none_match:
             logging.info("matched etag (from %s)", srcname)
-            resp.status = 304
+            resp.status = HTTP_NOT_MOD
         else:
             logging.info("writing %d-part response (from %s)",
                          1 + len(parts), srcname)
@@ -69,7 +71,7 @@ class PageHandler(webapp2.RequestHandler):
         del self.response.cache_control
         if item.etag in self.request.if_none_match:
             logging.info("LEGACY: etag matched")
-            self.response.status = 304
+            self.response.status = HTTP_NOT_MOD
         else:
             logging.info("LEGACY: writing response")
             self.response.content_type = 'text/html'

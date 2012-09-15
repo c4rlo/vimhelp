@@ -5,17 +5,17 @@ api_version: 1
 threadsafe: true
 
 handlers:
+- url: /(?:(?:.*?\.txt|tags)\.html)?
+  script: vimhelp.app
+- url: /memcache_add
+  script: vimhelp.app
+  login: admin
 - url: /update
   script: update.app
   login: admin
 - url: /enqueue_update
   script: update.app
   login: admin
-- url: /memcache_add
-  script: vimhelp.app
-  login: admin
-- url: /(?:(?:.*?\.txt|tags)\.html)?
-  script: vimhelp.app
 - url: /(.*)
   static_files: static/\1
   upload: static/(.*)
