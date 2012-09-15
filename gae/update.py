@@ -86,6 +86,7 @@ class UpdateHandler(webapp2.RequestHandler):
             rfis = RawFileInfo.all().fetch(None)
             for r in rfis: r.redo = True
             db.put(rfis)
+            db.delete(db.Key.from_path('GlobalInfo', 'global'))
             logging.info("set redo flag on %d items", len(rfis))
 
         g = GlobalInfo.get_by_key_name('global') or \
@@ -96,7 +97,7 @@ class UpdateHandler(webapp2.RequestHandler):
                       ", ".join("{} = {}".format(n, getattr(g, n)) for n in
                                 g.properties().iterkeys()))
 
-        index_etag = g.index_etag if not force else None
+        index_etag = g.index_etag
         resp = self._sync_urlfetch(BASE_URL, index_etag)
         if index_etag and resp.status_code == HTTP_NOT_MOD:
             logging.info("index page not modified")
