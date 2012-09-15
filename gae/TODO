@@ -1,17 +1,4 @@
-* Consider splitting ProcessedFile and UnprocessedFile objects in two:
-  ProcessedFileInfo and ProcessedFileData (and similarly for UnprocessedFile).
-  This makes it cheaper to update things like expires in update.py, without
-  having to read and write the actual data.
-  - Perhaps use ancestor relationship
-  - Alternatively, use projection queries
-* Compress ProcessedFile data only if necessary due to size
-  - Alternatively, never compress and split up
 * Add download link to github: https://github.com/b4winckler/vim
   - Check whether it actually represents the same version as us
-* Change to using task queues?
-  - Alternatively, is it sufficient to set the "this is cron" header on the
-    request to get the 10 min (instead of 1 min) timeout?
-* Store the vim version directly in the db, not the whole .hgtags (~100K)
-* Use async urlfetch?
 * Use mapreduce?
 * favicon.ico
