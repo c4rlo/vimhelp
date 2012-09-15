@@ -1,8 +1,6 @@
 # converts vim documentation to html
 
-import sys
-import re
-import urllib
+import re, urllib
 from itertools import chain
 
 HEADER1 = """\
@@ -129,6 +127,8 @@ class VimH2H(object):
     def __init__(self, tags, version=None):
         self.urls = { }
         self.version = version
+        self.tr = False
+        self.w = False
 	for line in RE_NEWLINE.split(tags):
 	    m = RE_TAGLINE.match(line)
 	    if m:
@@ -138,7 +138,7 @@ class VimH2H(object):
     def add_tags(self, filename, contents):
 	for match in RE_STARTAG.finditer(contents):
 	    tag = match.group(1).replace('\\', '\\\\').replace('/', '\\/')
-	    self.do_add_tag(filename, tag)
+	    self.do_add_tag(str(filename), tag)
 
     def do_add_tag(self, filename, tag):
 	part1 = '<a href="' + filename + '.html#' + \
@@ -155,7 +155,7 @@ class VimH2H(object):
 	link_plain = part1 + classattr + part2
 	self.urls[tag] = Link(link_pipe, link_plain)
 
-    def maplink(self, tag, css_class = None):
+    def maplink(self, tag, css_class=None):
 	links = self.urls.get(tag)
 	if links is not None:
 	    if css_class == 'l': return links.link_pipe
@@ -169,6 +169,7 @@ class VimH2H(object):
 	out = [ ]
 
 	inexample = 0
+        filename = str(filename)
         is_help_txt = (filename == 'help.txt')
 	faq_line = False
 	for line in RE_NEWLINE.split(contents):

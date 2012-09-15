@@ -2,23 +2,20 @@ application: vimhelp-hrd
 version: 1
 runtime: python27
 api_version: 1
-threadsafe: false
+threadsafe: true
 
 handlers:
 - url: /update
-  script: update.py
+  script: update.app
   login: admin
-- url: /testgetfaq
-  script: testgetfaq.py
+- url: /enqueue_update
+  script: update.app
   login: admin
-- url: /dumpenv
-  script: dumpenv.py
+- url: /memcache_add
+  script: vimhelp.app
   login: admin
 - url: /(?:(?:.*?\.txt|tags)\.html)?
   script: vimhelp.app
 - url: /(.*)
   static_files: static/\1
   upload: static/(.*)
-
-builtins:
-- deferred: on

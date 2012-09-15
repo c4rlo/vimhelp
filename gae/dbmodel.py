@@ -22,7 +22,7 @@ class ProcessedFileHead(db.Model):
     # key name is basename e.g. "help.txt"
     etag = db.ByteStringProperty(indexed=False)
     encoding = db.ByteStringProperty(indexed=False)
-    expires = db.ByteStringProperty(indexed=False)
+    expires = db.DateTimeProperty(indexed=False)
     numparts = db.IntegerProperty(indexed=False)
     data0 = db.BlobProperty()
 
@@ -32,13 +32,14 @@ class ProcessedFilePart(db.Model):
 
 class MemcacheHead(object):
     # stored in memcache with a name like "help.txt"
-    def __init__(self, head):
+    def __init__(self, head, genid):
         # head is ProcessedFileInfo
         self.etag = head.etag
         self.encoding = head.encoding
         self.expires = head.expires
         self.numparts = head.numparts
         self.data0 = head.data0
+        self.genid = genid
 
 class MemcachePart(object):
     # stored in memcache with a name like "0:help.txt:1"

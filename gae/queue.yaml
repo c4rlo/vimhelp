@@ -1,0 +1,10 @@
+total_storage_limit: 20M
+queue:
+- name: update
+  rate: 5/h
+  bucket_size: 1
+  max_concurrent_requests: 1
+- name: memcache
+  rate: 10/s
+  bucket_size: 30
+  max_concurrent_requests: 5
