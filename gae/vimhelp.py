@@ -12,16 +12,13 @@ class PageHandler(webapp2.RequestHandler):
         ok = self._reply_from_memcache(filename)
         if ok: return
         ok = self._reply_from_db(filename)
-        if ok:
-            logging.info("enqueueing memcache add")
-            try:
-                taskqueue.add(queue_name='memcache', url='/memcache_add',
-                              params={ 'filename': filename })
-            except:
-                logging.exception("caught exception")
-            return
-        ok = self._reply_legacy(filename + '.html')
         if not ok: return HTTPNotFound()
+        logging.info("enqueueing memcache add")
+        try:
+            taskqueue.add(queue_name='memcache', url='/memcache_add',
+                          params={ 'filename': filename })
+        except:
+            logging.exception("caught exception")
 
     def _reply_from_memcache(self, filename):
         head = memcache.get(filename)
@@ -59,25 +56,6 @@ class PageHandler(webapp2.RequestHandler):
             resp.write(head.data0)
             for part in parts:
                 resp.write(part.data)
-
-    def _reply_legacy(self, filename):
-        item = ProcessedFile.all().filter('filename =', filename).get()
-        if not item:
-            logging.warn("LEGACY: file %s not found", filename)
-            return False
-        self.response.etag = item.etag
-        if item.expires:
-            self.response.expires = item.expires
-        del self.response.cache_control
-        if item.etag in self.request.if_none_match:
-            logging.info("LEGACY: etag matched")
-            self.response.status = HTTP_NOT_MOD
-        else:
-            logging.info("LEGACY: writing response")
-            self.response.content_type = 'text/html'
-            self.response.charset = item.encoding.encode()  # unicode -> str
-            self.response.write(zlib.decompress(item.data))
-        return True
 
 class MemcacheAddHandler(webapp2.RequestHandler):
     def post(self):

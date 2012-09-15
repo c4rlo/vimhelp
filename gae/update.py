@@ -39,7 +39,7 @@ HTTP_NOT_MOD = 304
 class UpdateHandler(webapp2.RequestHandler):
     def __init__(self, request, response):
         self.initialize(request, response)
-        self._bg_threads = []
+        self._save_threads = []
         self._tags_rinfo = None
         self._h2h = None
         self._vim_version = None
@@ -226,9 +226,9 @@ class UpdateHandler(webapp2.RequestHandler):
             logging.debug("tags file was skipped, processing it now")
             self._process_tags(need_h2h=False)
 
-        if self._bg_threads:
-            logging.info("joining %d background threads", len(self._bg_threads))
-            for thr in self._bg_threads: thr.join()
+        if self._save_threads:
+            logging.info("joining %d save threads", len(self._save_threads))
+            for thr in self._save_threads: thr.join()
 
         if g_changed:
             logging.info("finished update, writing global info")
@@ -365,7 +365,7 @@ class UpdateHandler(webapp2.RequestHandler):
         logging.debug("starting new thread to save %s", phead.key().name())
         thr = threading.Thread(target=save, args=(rinfo, rdata, phead, ppart))
         thr.start()
-        self._bg_threads.append(thr)
+        self._save_threads.append(thr)
 
     @classmethod
     def _urlfetch_args(cls, rinfo):
