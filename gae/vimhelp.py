@@ -40,17 +40,29 @@ class PageHandler(webapp2.RequestHandler):
         return True
 
     def _reply(self, head, parts, srcname):
+        req = self.request
         resp = self.response
         resp.etag = head.etag
-        if head.expires:
-            resp.expires = head.expires
+        # set expires to next exact half hour, i.e. :30:00 or :00:00
+        expires = datetime.datetime.utcnow().replace(second=0, microsecond=0)
+        expires += datetime.timedelta(minutes=(30 - (expires.minute % 30)))
+        resp.expires = expires
+        resp.last_modified = head.modified
         del resp.cache_control
-        if head.etag in self.request.if_none_match:
-            logging.info("matched etag (from %s)", srcname)
+        if head.etag in req.if_none_match:
+            logging.info("matched etag, modified %s, expires %s, from %s",
+                         resp.last_modified, expires, srcname)
+            resp.status = HTTP_NOT_MOD
+        elif not req.if_none_match and req.if_modified_since and \
+                req.if_modified_since >= resp.last_modified:
+            logging.info("not modified since %s, modified %s, expires %s," \
+                         " from %s", req.if_modified_since, resp.last_modified,
+                         expires, srcname)
             resp.status = HTTP_NOT_MOD
         else:
-            logging.info("writing %d-part response (from %s)",
-                         1 + len(parts), srcname)
+            logging.info("writing %d-part response, modified %s, expires %s," \
+                         " from %s", 1 + len(parts), resp.last_modified,
+                         expires, srcname)
             resp.content_type = 'text/html'
             resp.charset = head.encoding
             resp.write(head.data0)
@@ -65,10 +77,6 @@ class MemcacheAddHandler(webapp2.RequestHandler):
             result = get_from_db(filename)
             if not result: return
             head, parts = result
-            if not head.expires or head.expires < datetime.datetime.now():
-                logging.info("expiry (%s) is in the past, bailing out",
-                             head.expires)
-                return
             if head.numparts == 1:
                 memcache.add(filename, MemcacheHead(head, None))
                 logging.info("added to memcache (single part)")

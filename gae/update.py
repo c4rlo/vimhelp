@@ -1,5 +1,5 @@
-import os, re, datetime, logging, hashlib, base64
-import threading
+import os, re, logging, hashlib, base64, threading
+from datetime import datetime
 import webapp2
 from google.appengine.api import urlfetch, memcache, taskqueue
 from google.appengine.ext import db
@@ -19,7 +19,6 @@ FAQ_BASE_URL = 'https://raw.github.com/chrisbra/vim_faq/master/doc/'
 FAQ_NAME = 'vim_faq.txt'
 HELP_NAME = 'help.txt'
 
-EXPIRYMINS_RE = re.compile(r'expirymins=(\d+)')
 REVISION_RE = re.compile(r'<title>Revision (.+?): /runtime/doc</title>')
 ITEM_RE = re.compile(r'[^-\w]([-\w]+\.txt|tags)[^-\w]')
 HGTAG_RE = re.compile(r'^[0-9A-Fa-f]+ v(\d+-\d+-\d+)$')
@@ -78,14 +77,10 @@ class UpdateHandler(webapp2.RequestHandler):
 
     def _update(self, query_string):
         force = 'force' in query_string
-        expm = EXPIRYMINS_RE.search(query_string)
-        self._expires = datetime.datetime.now() + \
-                datetime.timedelta(minutes=int(expm.group(1))) if expm else None
 
         self.response.write("<html><body>")
 
-        logging.info("starting %supdate (expires = %s)",
-                     'forced ' if force else '', self._expires)
+        logging.info("starting %supdate", 'forced ' if force else '')
 
         if force:
             rfis = RawFileInfo.all().fetch(None)
@@ -290,7 +285,7 @@ class UpdateHandler(webapp2.RequestHandler):
         etag = base64.b64encode(sha1.digest())
         datalen = len(html)
         phead = ProcessedFileHead(key_name=filename, encoding=rdata.encoding,
-                                expires=self._expires, etag=etag)
+                                modified=datetime.utcnow(), etag=etag)
         ppart = [ ]
         if datalen > PFD_MAX_PART_LEN:
             phead.numparts = 0

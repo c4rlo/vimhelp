@@ -3,7 +3,7 @@
 import re, urllib
 from itertools import chain
 
-HEADER1 = """\
+HEAD = """\
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
     "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -15,11 +15,22 @@ HEADER1 = """\
 <!--[if !IE]>-->
 <link rel="stylesheet" href="vimhelp.css" type="text/css">
 <!--<![endif]-->
-</head>
-<body>
 """
 
-START_HEADER = """
+SEARCH_SCRIPT = """
+<script>
+  (function() {
+    var gcse = document.createElement('script'); gcse.type = 'text/javascript'; gcse.async = true;
+    gcse.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') +
+        '//www.google.co.uk/cse/cse.js?cx=007529716539815883269:a71bug8rd0k';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(gcse, s);
+  })();
+</script>
+"""
+
+HEAD_END = '</head><body>'
+
+INTRO = """
 <h1>Vim help files</h1>
 <p>This is an HTML version of the <a href="http://www.vim.org/"
 target="_blank">Vim</a> help pages{vers-note}. They are kept up-to-date <a
@@ -45,20 +56,9 @@ Quick links:
 </p>
 """
 
-SITESEARCH = """
-<div id="cse" style="width: 100%;">Loading Google custom search</div>
-<script src="http://www.google.com/jsapi" type="text/javascript"></script>
-<script type="text/javascript">
-  google.load('search', '1', {language : 'en'});
-  google.setOnLoadCallback(function() {
-    var customSearchControl = new google.search.CustomSearchControl('007529716539815883269:a71bug8rd0k');
-    customSearchControl.setResultSetSize(google.search.Search.FILTERED_CSE_RESULTSET);
-    customSearchControl.draw('cse');
-  }, true);
-</script>
-"""
+SEARCH_BODY = '<gcse:search></gcse:search>'
 
-HEADER2 = """
+TEXTSTART = """
 <div id="d1">
 <pre id="sp">                                                                                </pre>
 <div id="d2">
@@ -86,29 +86,29 @@ PAT_PIPEWORD = r'(?P<pipe>(?<!\\)\|[#-)!+-~]+\|)'
 PAT_STARWORD = r'(?P<star>\*[#-)!+-~]+\*(?:(?=\s)|$))'
 PAT_OPTWORD  = r"(?P<opt>'(?:[a-z]{2,}|t_..)')"
 PAT_CTRL     = r'(?P<ctrl>CTRL-(?:W_)?(?:[\w\[\]^+-<>=@]|<[A-Za-z]+?>)?)'
-PAT_SPECIAL  = r'(?P<special><.*?>|\{.*?}|' + \
-	       r'\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|' + \
-	       r'arg|arguments|ident|addr|group)]|' + \
+PAT_SPECIAL  = r'(?P<special><.*?>|\{.*?}|' \
+	       r'\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|' \
+	       r'arg|arguments|ident|addr|group)]|' \
 	       r'(?<=\s)\[[-a-z^A-Z0-9_]{2,}])'
 PAT_TITLE    = r'(?P<title>Vim version [0-9.a-z]+|VIM REFERENCE.*)'
 PAT_NOTE     = r'(?P<note>Notes?:?)'
 PAT_URL      = r'(?P<url>(?:https?|ftp)://[^\'"<> \t]+[a-zA-Z0-9/])'
 PAT_WORD     = r'(?P<word>[!#-)+-{}~]+)'
 RE_LINKWORD = re.compile(
-	PAT_OPTWORD  + '|' + \
-	PAT_CTRL     + '|' + \
+	PAT_OPTWORD  + '|' +
+	PAT_CTRL     + '|' +
 	PAT_SPECIAL)
 RE_TAGWORD = re.compile(
-	PAT_HEADER   + '|' + \
-        PAT_GRAPHIC  + '|' + \
-	PAT_PIPEWORD + '|' + \
-	PAT_STARWORD + '|' + \
-	PAT_OPTWORD  + '|' + \
-	PAT_CTRL     + '|' + \
-	PAT_SPECIAL  + '|' + \
-	PAT_TITLE    + '|' + \
-	PAT_NOTE     + '|' + \
-	PAT_URL      + '|' + \
+	PAT_HEADER   + '|' +
+        PAT_GRAPHIC  + '|' +
+	PAT_PIPEWORD + '|' +
+	PAT_STARWORD + '|' +
+	PAT_OPTWORD  + '|' +
+	PAT_CTRL     + '|' +
+	PAT_SPECIAL  + '|' +
+	PAT_TITLE    + '|' +
+	PAT_NOTE     + '|' +
+	PAT_URL      + '|' +
 	PAT_WORD)
 RE_NEWLINE   = re.compile(r'[\r\n]')
 RE_HRULE     = re.compile(r'[-=]{3,}.*[-=]{3,3}$')
@@ -245,15 +245,18 @@ class VimH2H(object):
 		faq_line = False
 
         header = []
-        header.append(HEADER1.replace('{filename}', filename))
+        header.append(HEAD.replace('{filename}', filename))
+        if web_version:
+            header.append(SEARCH_SCRIPT)
+        header.append(HEAD_END)
         if web_version and is_help_txt:
             vers_note = VERSION_NOTE.replace('{version}', self.version) \
                     if self.version else ''
-            header.append(START_HEADER.replace('{vers-note}', vers_note))
+            header.append(INTRO.replace('{vers-note}', vers_note))
         header.append(SITENAVI)
         if web_version:
-            header.append(SITESEARCH)
-        header.append(HEADER2)
+            header.append(SEARCH_BODY)
+        header.append(TEXTSTART)
         return ''.join(chain(header, out, (FOOTER, SITENAVI, FOOTER2)))
 
 class HtmlEscCache(dict):

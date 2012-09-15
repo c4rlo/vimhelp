@@ -22,7 +22,7 @@ class ProcessedFileHead(db.Model):
     # key name is basename e.g. "help.txt"
     etag = db.ByteStringProperty(indexed=False)
     encoding = db.ByteStringProperty(indexed=False)
-    expires = db.DateTimeProperty(indexed=False)
+    modified = db.DateTimeProperty(indexed=False)
     numparts = db.IntegerProperty(indexed=False)
     data0 = db.BlobProperty()
 
@@ -36,7 +36,7 @@ class MemcacheHead(object):
         # head is ProcessedFileInfo
         self.etag = head.etag
         self.encoding = head.encoding
-        self.expires = head.expires
+        self.modified = head.modified
         self.numparts = head.numparts
         self.data0 = head.data0
         self.genid = genid
