@@ -47,7 +47,10 @@ class PageHandler(webapp2.RequestHandler):
         expires = datetime.datetime.utcnow().replace(second=0, microsecond=0)
         expires += datetime.timedelta(minutes=(30 - (expires.minute % 30)))
         resp.expires = expires
-        resp.last_modified = head.modified
+        try:
+            resp.last_modified = head.modified
+        except AttributeError:
+            logging.info("'modified' attribute does not exist, never mind")
         del resp.cache_control
         if head.etag in req.if_none_match:
             logging.info("matched etag, modified %s, expires %s, from %s",
