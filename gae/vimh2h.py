@@ -80,20 +80,20 @@ VIM_FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">' \
 
 RE_TAGLINE = re.compile(r'(\S+)\s+(\S+)')
 
-PAT_HEADER   = r'(?P<header>^.*~$)'
-PAT_GRAPHIC  = r'(?P<graphic>^.* `$)'
-PAT_PIPEWORD = r'(?P<pipe>(?<!\\)\|[#-)!+-~]+\|)'
-PAT_STARWORD = r'(?P<star>\*[#-)!+-~]+\*(?:(?=\s)|$))'
-PAT_OPTWORD  = r"(?P<opt>'(?:[a-z]{2,}|t_..)')"
-PAT_CTRL     = r'(?P<ctrl>CTRL-(?:W_)?(?:[\w\[\]^+-<>=@]|<[A-Za-z]+?>)?)'
-PAT_SPECIAL  = r'(?P<special><.*?>|\{.*?}|' \
+PAT_HEADER   = r'(^.*~$)'
+PAT_GRAPHIC  = r'(^.* `$)'
+PAT_PIPEWORD = r'((?<!\\)\|[#-)!+-~]+\|)'
+PAT_STARWORD = r'(\*[#-)!+-~]+\*(?:(?=\s)|$))'
+PAT_OPTWORD  = r"('(?:[a-z]{2,}|t_..)')"
+PAT_CTRL     = r'(CTRL-(?:W_)?(?:[\w\[\]^+-<>=@]|<[A-Za-z]+?>)?)'
+PAT_SPECIAL  = r'(<.*?>|\{.*?}|' \
 	       r'\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|' \
 	       r'arg|arguments|ident|addr|group)]|' \
 	       r'(?<=\s)\[[-a-z^A-Z0-9_]{2,}])'
-PAT_TITLE    = r'(?P<title>Vim version [0-9.a-z]+|VIM REFERENCE.*)'
-PAT_NOTE     = r'(?P<note>Notes?:?)'
-PAT_URL      = r'(?P<url>(?:https?|ftp)://[^\'"<> \t]+[a-zA-Z0-9/])'
-PAT_WORD     = r'(?P<word>[!#-)+-{}~]+)'
+PAT_TITLE    = r'(Vim version [0-9.a-z]+|VIM REFERENCE.*)'
+PAT_NOTE     = r'(Notes?:?)'
+PAT_URL      = r'((?:https?|ftp)://[^\'"<> \t]+[a-zA-Z0-9/])'
+PAT_WORD     = r'([!#-)+-{}~]+)'
 RE_LINKWORD = re.compile(
 	PAT_OPTWORD  + '|' +
 	PAT_CTRL     + '|' +
@@ -150,7 +150,7 @@ class VimH2H(object):
 	classattr = ' class="d"'
 	m = RE_LINKWORD.match(tag)
 	if m:
-	    opt, ctrl, special = m.group('opt', 'ctrl', 'special')
+	    opt, ctrl, special = m.groups()
 	    if opt is not None: classattr = ' class="o"'
 	    elif ctrl is not None: classattr = ' class="k"'
 	    elif special is not None: classattr = ' class="s"'
@@ -204,10 +204,8 @@ class VimH2H(object):
 		if pos > lastpos:
 		    out.append(html_escape(line[lastpos:pos]))
 		lastpos = match.end()
-		pipeword, starword, opt, ctrl, special, title, note, \
-			header, graphic, url, word = \
-			match.group('pipe', 'star', 'opt', 'ctrl',
-			'special', 'title', 'note', 'header', 'graphic', 'url', 'word')
+                header, graphic, pipeword, starword, opt, ctrl, special, \
+                        title, note, url, word = match.groups()
 		if pipeword is not None:
 		    out.append(self.maplink(pipeword[1:-1], 'l'))
 		elif starword is not None:

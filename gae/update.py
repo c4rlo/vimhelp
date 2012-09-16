@@ -403,9 +403,9 @@ class VimhelpError(Exception):
 class HtmlLogFormatter(logging.Formatter):
     def format(self, record):
         fmsg = super(HtmlLogFormatter, self).format(record). \
-                replace('&', '&amp;').replace(' ', '&nbsp;'). \
+                replace('&', '&amp;'). \
                 replace('<', '&lt;').replace('>', '&gt;'). \
-                replace('\n', '<br/>')
+                replace(' ', '&nbsp;<wbr/>').replace('\n', '<br/>')
         if record.levelno >= logging.ERROR:
             fmsg = 'ERROR: ' + fmsg
         if record.levelno >= logging.WARNING:
