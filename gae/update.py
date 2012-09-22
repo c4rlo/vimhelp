@@ -280,7 +280,7 @@ class UpdateHandler(webapp2.RequestHandler):
         if filename == FAQ_NAME:
             logging.debug("adding tags for faq")
             h2h.add_tags(filename, rdata.data)
-        html = h2h.to_html(filename, rdata.data)
+        html = h2h.to_html(filename, rdata.data, rdata.encoding)
         sha1 = hashlib.sha1()
         sha1.update(html)
         etag = base64.b64encode(sha1.digest())

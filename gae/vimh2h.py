@@ -8,6 +8,7 @@ HEAD = """\
     "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
+<meta http-equiv="Content-type" content="text/html; charset={encoding}"/>
 <title>Vim: {filename}</title>
 <!--[if IE]>
 <link rel="stylesheet" href="vimhelp-ie.css" type="text/css">
@@ -45,18 +46,20 @@ repository</a>.</p>
 
 VERSION_NOTE = ", current as of Vim {version}"
 
-SITENAVI = """
-<p>
+SITENAVI_LINKS = """
 Quick links:
 <a href="/">help overview</a> &middot;
 <a href="quickref.txt.html">quick reference</a> &middot;
 <a href="usr_toc.txt.html">user manual toc</a> &middot;
 <a href="help.txt.html#reference_toc">reference manual toc</a> &middot;
 <a href="vim_faq.txt.html">faq</a>
-</p>
 """
 
-SEARCH_BODY = '<gcse:search></gcse:search>'
+SITENAVI_PLAIN = '<p>' + SITENAVI_LINKS + '</p>'
+
+SITENAVI_SEARCH = '<table width="100%"><tbody><tr><td>' + SITENAVI_LINKS + \
+'</td><td align="right"><div class="gcse-searchbox"></div></td></tr></tbody></table>' \
+'<div class="gcse-searchresults"></div>'
 
 TEXTSTART = """
 <div id="d1">
@@ -129,8 +132,6 @@ class VimH2H(object):
     def __init__(self, tags, version=None):
         self.urls = { }
         self.version = version
-        self.tr = False
-        self.w = False
 	for line in RE_NEWLINE.split(tags):
 	    m = RE_TAGLINE.match(line)
 	    if m:
@@ -167,7 +168,7 @@ class VimH2H(object):
 		    '</span>'
 	else: return html_escape(tag)
 
-    def to_html(self, filename, contents, web_version=True):
+    def to_html(self, filename, contents, encoding, web_version=True):
 	out = [ ]
 
 	inexample = 0
@@ -243,7 +244,7 @@ class VimH2H(object):
 		faq_line = False
 
         header = []
-        header.append(HEAD.replace('{filename}', filename))
+        header.append(HEAD.format(encoding=encoding, filename=filename))
         if web_version:
             header.append(SEARCH_SCRIPT)
         header.append(HEAD_END)
@@ -251,11 +252,12 @@ class VimH2H(object):
             vers_note = VERSION_NOTE.replace('{version}', self.version) \
                     if self.version else ''
             header.append(INTRO.replace('{vers-note}', vers_note))
-        header.append(SITENAVI)
         if web_version:
-            header.append(SEARCH_BODY)
+            header.append(SITENAVI_SEARCH)
+        else:
+            header.append(SITENAVI_PLAIN)
         header.append(TEXTSTART)
-        return ''.join(chain(header, out, (FOOTER, SITENAVI, FOOTER2)))
+        return ''.join(chain(header, out, (FOOTER, SITENAVI_PLAIN, FOOTER2)))
 
 class HtmlEscCache(dict):
     def __missing__(self, key):

@@ -24,10 +24,18 @@ def main():
     h2h = VimH2H(slurp('tags'))
 
     for filename in sys.argv[1:]:
-	print "Processing " + filename + "..."
-	of = open(filename + '.html', 'w')
-	of.write(h2h.to_html(filename, slurp(filename), web_version=False))
-	of.close()
+        print "Processing " + filename + "..."
+        text = slurp(filename)
+        try:
+            text.decode('UTF-8')
+        except UnicodeError:
+            encoding = 'ISO-8859-1'
+        else:
+            encoding = 'UTF-8'
+        of = open(filename + '.html', 'w')
+        of.write(h2h.to_html(filename, slurp(filename), encoding,
+                             web_version=False))
+        of.close()
 
 #main()
 cProfile.run('main()')
