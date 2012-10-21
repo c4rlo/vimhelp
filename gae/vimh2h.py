@@ -10,6 +10,7 @@ HEAD = """\
 <head>
 <meta http-equiv="Content-type" content="text/html; charset={encoding}"/>
 <title>Vim: {filename}</title>
+<link rel="shortcut icon" href="favicon.ico">
 <!--[if IE]>
 <link rel="stylesheet" href="vimhelp-ie.css" type="text/css">
 <![endif]-->
