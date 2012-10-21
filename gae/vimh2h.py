@@ -85,6 +85,8 @@ VIM_FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">' \
 
 RE_TAGLINE = re.compile(r'(\S+)\s+(\S+)')
 
+PAT_WORDCHAR = '[!#-)+-{}~\xC0-\xFF]'
+
 PAT_HEADER   = r'(^.*~$)'
 PAT_GRAPHIC  = r'(^.* `$)'
 PAT_PIPEWORD = r'((?<!\\)\|[#-)!+-~]+\|)'
@@ -96,9 +98,12 @@ PAT_SPECIAL  = r'(<.*?>|\{.*?}|' \
 	       r'arg|arguments|ident|addr|group)]|' \
 	       r'(?<=\s)\[[-a-z^A-Z0-9_]{2,}])'
 PAT_TITLE    = r'(Vim version [0-9.a-z]+|VIM REFERENCE.*)'
-PAT_NOTE     = r'(Notes?:?)'
+PAT_NOTE     = r'((?<!' + PAT_WORDCHAR + r')(?:note|NOTE|Notes?):?' \
+                 r'(?!' + PAT_WORDCHAR + r'))'
 PAT_URL      = r'((?:https?|ftp)://[^\'"<> \t]+[a-zA-Z0-9/])'
-PAT_WORD     = r'([!#-)+-{}~]+)'
+PAT_WORD     = r'((?<!' + PAT_WORDCHAR + r')' + PAT_WORDCHAR + r'+' \
+                 r'(?!' + PAT_WORDCHAR + r'))'
+
 RE_LINKWORD = re.compile(
 	PAT_OPTWORD  + '|' +
 	PAT_CTRL     + '|' +
@@ -132,8 +137,8 @@ class Link(object):
 
 class VimH2H(object):
     def __init__(self, tags, version=None):
-        self.urls = { }
-        self.version = version
+        self._urls = { }
+        self._version = version
 	for line in RE_NEWLINE.split(tags):
 	    m = RE_TAGLINE.match(line)
 	    if m:
@@ -158,10 +163,10 @@ class VimH2H(object):
 	    elif ctrl is not None: classattr = ' class="k"'
 	    elif special is not None: classattr = ' class="s"'
 	link_plain = part1 + classattr + part2
-	self.urls[tag] = Link(link_pipe, link_plain)
+	self._urls[tag] = Link(link_pipe, link_plain)
 
     def maplink(self, tag, css_class=None):
-	links = self.urls.get(tag)
+	links = self._urls.get(tag)
 	if links is not None:
 	    if css_class == 'l': return links.link_pipe
 	    else: return links.link_plain
@@ -251,8 +256,8 @@ class VimH2H(object):
             header.append(SEARCH_SCRIPT)
         header.append(HEAD_END)
         if web_version and is_help_txt:
-            vers_note = VERSION_NOTE.replace('{version}', self.version) \
-                    if self.version else ''
+            vers_note = VERSION_NOTE.replace('{version}', self._version) \
+                    if self._version else ''
             header.append(INTRO.replace('{vers-note}', vers_note))
         if web_version:
             header.append(SITENAVI_SEARCH)
