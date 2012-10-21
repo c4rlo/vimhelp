@@ -11,6 +11,7 @@ HEAD = """\
 <meta http-equiv="Content-type" content="text/html; charset={encoding}"/>
 <title>Vim: {filename}</title>
 <link rel="shortcut icon" href="favicon.ico">
+<!-- favicon is based on http://amnoid.de/tmp/vim_solidbright_512.png and is used with permission by its author -->
 <!--[if IE]>
 <link rel="stylesheet" href="vimhelp-ie.css" type="text/css">
 <![endif]-->
