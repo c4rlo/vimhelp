@@ -89,8 +89,8 @@ PAT_WORDCHAR = '[!#-)+-{}~\xC0-\xFF]'
 
 PAT_HEADER   = r'(^.*~$)'
 PAT_GRAPHIC  = r'(^.* `$)'
-PAT_PIPEWORD = r'((?<!\\)\|[#-)!+-~]+\|)'
-PAT_STARWORD = r'(\*[#-)!+-~]+\*(?:(?=\s)|$))'
+PAT_PIPEWORD = r'(?<!\\)\|([#-)!+-~]+)\|'
+PAT_STARWORD = r'\*([#-)!+-~]+)\*(?:(?=\s)|$)'
 PAT_OPTWORD  = r"('(?:[a-z]{2,}|t_..)')"
 PAT_CTRL     = r'(CTRL-(?:W_)?(?:[\w\[\]^+-<>=@]|<[A-Za-z]+?>)?)'
 PAT_SPECIAL  = r'(<.*?>|\{.*?}|' \
@@ -215,11 +215,10 @@ class VimH2H(object):
                 header, graphic, pipeword, starword, opt, ctrl, special, \
                         title, note, url, word = match.groups()
 		if pipeword is not None:
-		    out.append(self.maplink(pipeword[1:-1], 'l'))
+		    out.append(self.maplink(pipeword, 'l'))
 		elif starword is not None:
-		    tag = starword[1:-1]
-		    out.extend(('<a name="', urllib.quote_plus(tag),
-			    '" class="t">', html_escape[tag], '</a>'))
+		    out.extend(('<a name="', urllib.quote_plus(starword),
+			    '" class="t">', html_escape[starword], '</a>'))
 		elif opt is not None:
 		    out.append(self.maplink(opt, 'o'))
 		elif ctrl is not None:
