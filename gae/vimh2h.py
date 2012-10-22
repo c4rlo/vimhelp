@@ -153,7 +153,7 @@ class VimH2H(object):
     def do_add_tag(self, filename, tag):
 	part1 = '<a href="' + filename + '.html#' + \
 		urllib.quote_plus(tag) + '"'
-	part2 = '>' + html_escape(tag) + '</a>'
+	part2 = '>' + html_escape[tag] + '</a>'
 	link_pipe = part1 + ' class="l"' + part2
 	classattr = ' class="d"'
 	m = RE_LINKWORD.match(tag)
@@ -171,9 +171,9 @@ class VimH2H(object):
 	    if css_class == 'l': return links.link_pipe
 	    else: return links.link_plain
 	elif css_class is not None:
-	    return '<span class="' + css_class + '">' + html_escape(tag) + \
+	    return '<span class="' + css_class + '">' + html_escape[tag] + \
 		    '</span>'
-	else: return html_escape(tag)
+	else: return html_escape[tag]
 
     def to_html(self, filename, contents, encoding, web_version=True):
 	out = [ ]
@@ -187,22 +187,22 @@ class VimH2H(object):
 	    line_tabs = line
 	    line = line.expandtabs()
 	    if RE_HRULE.match(line):
-		out.append('<span class="h">' + line + '</span>\n')
+		out.extend(('<span class="h">', line, '</span>\n'))
 		continue
 	    if inexample == 2:
 		if RE_EG_END.match(line):
 		    inexample = 0
 		    if line[0] == '<': line = line[1:]
 		else:
-		    out.append('<span class="e">' + html_escape(line) +
-			    '</span>\n')
+                    out.extend(('<span class="e">', html_escape[line],
+                               '</span>\n'))
 		    continue
 	    if RE_EG_START.match(line_tabs):
 		inexample = 1
 		line = line[0:-1]
 	    if RE_SECTION.match(line_tabs):
 		m = RE_SECTION.match(line)
-		out.append(m.expand(r'<span class="c">\g<0></span>'))
+                out.extend((r'<span class="c>"', m.group(0), r'</span>'))
 		line = line[m.end():]
 	    if is_help_txt and RE_LOCAL_ADD.match(line_tabs):
 		faq_line = True
@@ -210,7 +210,7 @@ class VimH2H(object):
 	    for match in RE_TAGWORD.finditer(line):
 		pos = match.start()
 		if pos > lastpos:
-		    out.append(html_escape(line[lastpos:pos]))
+		    out.append(html_escape[line[lastpos:pos]])
 		lastpos = match.end()
                 header, graphic, pipeword, starword, opt, ctrl, special, \
                         title, note, url, word = match.groups()
@@ -218,8 +218,8 @@ class VimH2H(object):
 		    out.append(self.maplink(pipeword[1:-1], 'l'))
 		elif starword is not None:
 		    tag = starword[1:-1]
-		    out.append('<a name="' + urllib.quote_plus(tag) +
-			    '" class="t">' + html_escape(tag) + '</a>')
+		    out.extend(('<a name="', urllib.quote_plus(tag),
+			    '" class="t">', html_escape[tag], '</a>'))
 		elif opt is not None:
 		    out.append(self.maplink(opt, 'o'))
 		elif ctrl is not None:
@@ -227,23 +227,23 @@ class VimH2H(object):
 		elif special is not None:
 		    out.append(self.maplink(special, 's'))
 		elif title is not None:
-		    out.append('<span class="i">' +
-			    html_escape(title) + '</span>')
+                    out.extend(('<span class="i">', html_escape[title],
+                                '</span>'))
 		elif note is not None:
-		    out.append('<span class="n">' +
-			    html_escape(note) + '</span>')
+                    out.extend(('<span class="n">', html_escape[note],
+                                '</span>'))
 		elif header is not None:
-		    out.append('<span class="h">' +
-			    html_escape(header[:-1]) + '</span>')
+                    out.extend(('<span class="h">', html_escape[header[:-1]],
+                                '</span>'))
                 elif graphic is not None:
-                    out.append(html_escape(graphic[:-2]))
+                    out.append(html_escape[graphic[:-2]])
 		elif url is not None:
-		    out.append('<a class="u" href="' + url + '">' +
-			    html_escape(url) + '</a>')
+                    out.extend(('<a class="u" href="', url, '">' +
+                                html_escape[url], '</a>'))
 		elif word is not None:
 		    out.append(self.maplink(word))
 	    if lastpos < len(line):
-		out.append(html_escape(line[lastpos:]))
+		out.append(html_escape[line[lastpos:]])
 	    out.append('\n')
 	    if inexample == 1: inexample = 2
 	    if faq_line:
@@ -273,8 +273,5 @@ class HtmlEscCache(dict):
                .replace('>', '&gt;')
         self[key] = r
         return r
-
-    def __call__(self, key):
-        return self[key]
 
 html_escape = HtmlEscCache()
