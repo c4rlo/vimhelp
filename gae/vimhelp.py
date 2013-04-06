@@ -1,3 +1,6 @@
+# Retrieve a help page from memcache, with fallback to data store, and present
+# to the user
+
 import logging, re, zlib, datetime
 import webapp2
 from webob.exc import HTTPNotFound

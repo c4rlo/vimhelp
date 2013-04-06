@@ -1,3 +1,5 @@
+# Regularly scheduled update: check which files need updating and process them
+
 import os, re, logging, hashlib, base64, threading
 from datetime import datetime
 import webapp2
@@ -91,14 +93,18 @@ class UpdateHandler(webapp2.RequestHandler):
 
         g = GlobalInfo.get_by_key_name('global') or \
                 GlobalInfo(key_name='global')
-        g_changed = False
+        g_changed = False  # track any changes we make to 'g'
 
         logging.debug("global info: %s",
                       ", ".join("{} = {}".format(n, getattr(g, n)) for n in
                                 g.properties().iterkeys()))
 
+        # Start by getting the index page of the 'runtime/doc/' directory in the
+        # remote Mercurial repository for Vim
+
         index_etag = g.index_etag
         resp = self._sync_urlfetch(BASE_URL, index_etag)
+
         if index_etag and resp.status_code == HTTP_NOT_MOD:
             logging.info("index page not modified")
             index_changed = False
@@ -107,6 +113,8 @@ class UpdateHandler(webapp2.RequestHandler):
             g.index_etag = resp.headers.get(HTTP_HDR_ETAG)
             logging.debug("got index etag %s", g.index_etag)
             index_html = resp.content
+            # extract Mercurial revision of this directory from the retrieved
+            # HTML page
             hgrev_m = REVISION_RE.search(index_html)
             index_changed = True
             if hgrev_m:
