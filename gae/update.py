@@ -7,6 +7,7 @@ from google.appengine.api import urlfetch, memcache, taskqueue
 from google.appengine.ext import db
 from dbmodel import *
 from vimh2h import VimH2H
+from google.appengine.api.urlfetch import DownloadError, ResponseTooLargeError
 
 # Once we have consumed about ten minutes of CPU time, Google will throw us a
 # DeadlineExceededError and our script terminates. Therefore, we must be careful
@@ -136,10 +137,17 @@ class UpdateHandler(webapp2.RequestHandler):
             raise VimhelpError("bad status %d when getting index page",
                                resp.status_code)
 
+        # Define a generator that we will use to iterate over all 'RawFileInfo'
+        # objects that we must process
+
         def gen_rinfo():
             got_faq = False
+            # only need to process any Vim documentation files if the index page
+            # has changed
             if index_changed:
+                # get all filenames from the index page
                 filenames = { m.group(1) for m in ITEM_RE.finditer(index_html) }
+                # iterate over all 'RawFileInfo' objects in the data store
                 for rinfo in RawFileInfo.all():
                     filename = rinfo.key().name()
                     if filename == FAQ_NAME:
@@ -157,11 +165,15 @@ class UpdateHandler(webapp2.RequestHandler):
                                       filename)
                         yield rinfo
                     filenames.discard(filename)
+                # now iterate over all filenames found in the index page that
+                # weren't already in the datastore
                 for filename in filenames:
                     logging.info("found %s on index page but not in db",
                                   filename)
                     yield RawFileInfo(key_name=filename)
             if not got_faq:
+                # make sure we always process the FAQ, whether the index page
+                # changed or not (since it's not part of the Vim documentation)
                 faq_rinfo = RawFileInfo.get_by_key_name(FAQ_NAME)
                 if faq_rinfo:
                     logging.info("got faq from db")
@@ -169,6 +181,11 @@ class UpdateHandler(webapp2.RequestHandler):
                     logging.info("no faq in db, making a new one")
                     faq_rinfo = RawFileInfo(key_name=FAQ_NAME)
                 yield faq_rinfo
+
+        # For each file that we want to process, make an async urlfetch call; in
+        # the callback, we will process the file.  Note, the callback is not
+        # executed asynchronously, but only when we call wait() on the urlfetch
+        # object later on.
 
         def make_urlfetch_callback(rinfo, rpc):
             return lambda: self._process_and_put(rinfo, rpc.get_result())
@@ -180,6 +197,9 @@ class UpdateHandler(webapp2.RequestHandler):
             rpc.callback = make_urlfetch_callback(rinfo, rpc)
             urlfetch.make_fetch_call(rpc, **self._urlfetch_args(rinfo))
             urlfetches.append(rpc)
+
+        # Check if the Vim version has changed; we display it on our front page,
+        # so we must keep it updated even if nothing else has changed
 
         if index_changed:
             resp = self._sync_urlfetch(HGTAGS_URL, g.hgtags_etag)
@@ -195,7 +215,7 @@ class UpdateHandler(webapp2.RequestHandler):
                         if verspart:
                             new_vim_version = verspart.replace('-', '.')
                             if new_vim_version != g.vim_version:
-                                logging.info("found new vim version %s" \
+                                logging.info("found new vim version %s"
                                              " (was: %s)", new_vim_version,
                                              g.vim_version)
                                 g.vim_version = new_vim_version
@@ -203,14 +223,14 @@ class UpdateHandler(webapp2.RequestHandler):
                                 g_changed = True
                                 self._is_new_vim_version = True
                             else:
-                                logging.info("hgtags file changed but has no" \
-                                             "new vim version (still %s)",
+                                logging.info("hgtags file changed but has no"
+                                             " new vim version (still %s)",
                                              new_vim_version)
                         else:
                             logging.warn("found blank vim version?!")
                     else:
-                        logging.warn("failed to parse vim version in hgtags" \
-                                     "file")
+                        logging.warn("failed to parse vim version in hgtags"
+                                     " file")
                 else:
                     logging.warn("failed to find last line in hgtags file")
             elif g.hgtags_etag and resp.status_code == HTTP_NOT_MOD:
@@ -221,14 +241,26 @@ class UpdateHandler(webapp2.RequestHandler):
 
         self._vim_version = g.vim_version
 
-        # execute the callbacks
-        for uf in urlfetches: uf.wait()
+        # Execute the urlfetch callbacks, which will process the results
 
-        # in case none of the urls were changed, the tags have now been
-        # completely skipped. deal with that case.
+        for uf in urlfetches:
+            try:
+                uf.wait()
+            except (DownloadError, ResponseTooLargeError) as e:
+                logging.error(e)
+                # If we could not fetch the URL, continue with the others, but
+                # set 'g_changed' to False so we do not save the 'GlobalInfo'
+                # object at the end, so that we will retry at the next run
+                g_changed = False
+
+        # In case none of the URLs were changed, the tags file has now been
+        # completely skipped. Process it now in case it has changed.
+
         if index_changed and not self._h2h:
             logging.debug("tags file was skipped, processing it now")
             self._process_tags(need_h2h=False)
+
+        # Join the save threads
 
         if self._save_threads:
             logging.info("joining %d save threads", len(self._save_threads))
@@ -243,8 +275,14 @@ class UpdateHandler(webapp2.RequestHandler):
         self.response.write("</body></html>")
 
     def _process_and_put(self, rinfo, result, need_h2h=True):
+        # This is the callback that's invoked when a urlfetch is complete.
+        # 'result' is the result of the fetch, and 'rinfo' is the 'RawFileInfo'
+        # object for this file (either from the data store or, if it did not
+        # exist, newly constructed).
+        # We need to process the file and write the result to the data store.
         filename = rinfo.key().name()
         if result.status_code == HTTP_OK:
+            # We got a response, process and save it
             rinfo.redo = False
             rinfo.etag = result.headers.get(HTTP_HDR_ETAG)
             rdata = RawFileData(key_name=filename, data=result.content)
@@ -259,6 +297,7 @@ class UpdateHandler(webapp2.RequestHandler):
             phead, ppart = self._process(filename, rdata)
             self._save(rinfo, rdata, phead, ppart)
         elif rinfo.etag and result.status_code == HTTP_NOT_MOD:
+            # Based on the ETag we sent, the content of the file is not modified
             if rinfo.redo or \
                (filename == HELP_NAME and self._is_new_vim_version):
                 logging.info("%s unchanged, processing it anyway", filename)
@@ -283,12 +322,14 @@ class UpdateHandler(webapp2.RequestHandler):
                           result.status_code)
 
     def _process(self, filename, rdata):
+        # Generate the HTML version of a documentation file
         h2h = self._get_h2h(rdata)
         filename = rdata.key().name()
         if filename == FAQ_NAME:
             logging.debug("adding tags for faq")
             h2h.add_tags(filename, rdata.data)
         html = h2h.to_html(filename, rdata.data, rdata.encoding)
+        # TODO: instead of the SHA1, the timestamp should be enough
         sha1 = hashlib.sha1()
         sha1.update(html)
         etag = base64.b64encode(sha1.digest())
@@ -331,6 +372,8 @@ class UpdateHandler(webapp2.RequestHandler):
         self._process_and_put(self._tags_rinfo, result, need_h2h)
 
     def _save(self, rinfo, rdata, phead, ppart):
+        # Save a processed file to the datastore and memcache. We do this in a
+        # new thread so that we don't block the caller on the I/O.
 
         @db.transactional(xg=True)
         def put_trans(entities):
@@ -346,6 +389,7 @@ class UpdateHandler(webapp2.RequestHandler):
             # 1. Put processed file
             put_trans([ phead ] + ppart)
             # 2. Put memcache
+            # TODO: perhaps only add it if it was already in memcache
             cmap = { memcache_part_name(filename, new_genid, i + 1):
                     MemcachePart(part) for i, part in enumerate(ppart) }
             cmap[filename] = phead
