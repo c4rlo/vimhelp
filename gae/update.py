@@ -24,7 +24,7 @@ HELP_NAME = 'help.txt'
 
 REVISION_RE = re.compile(r'<title>Revision (.+?): /runtime/doc</title>')
 ITEM_RE = re.compile(r'[^-\w]([-\w]+\.txt|tags)[^-\w]')
-HGTAG_RE = re.compile(r'^[0-9A-Fa-f]+ v(\d+-\d+-\d+)$')
+HGTAG_RE = re.compile(r'^[0-9A-Fa-f]+ v(\d[\w.-]*)$')
 
 PFD_MAX_PART_LEN = 995000
 
