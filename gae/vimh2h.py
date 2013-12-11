@@ -204,7 +204,7 @@ class VimH2H(object):
 		line = line[0:-1]
 	    if RE_SECTION.match(line_tabs):
 		m = RE_SECTION.match(line)
-                out.extend((r'<span class="c>"', m.group(0), r'</span>'))
+                out.extend((r'<span class="c">', m.group(0), r'</span>'))
 		line = line[m.end():]
 	    if is_help_txt and RE_LOCAL_ADD.match(line_tabs):
 		faq_line = True
