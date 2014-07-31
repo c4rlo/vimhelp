@@ -1,3 +1,4 @@
+* Replace memcache gendi with built-in cas (compare-and-swap) API
 * Add download link to github: https://github.com/b4winckler/vim
   - Check whether it actually represents the same version as us
 * Use mapreduce?
