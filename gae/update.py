@@ -193,7 +193,7 @@ class UpdateHandler(webapp2.RequestHandler):
         urlfetches = []
         for rinfo in gen_rinfo():
             logging.debug("making async urlfetch for %s", rinfo.key().name())
-            rpc = urlfetch.create_rpc()
+            rpc = urlfetch.create_rpc(deadline=20)  # 20 seconds
             rpc.callback = make_urlfetch_callback(rinfo, rpc)
             urlfetch.make_fetch_call(rpc, **self._urlfetch_args(rinfo))
             urlfetches.append(rpc)
