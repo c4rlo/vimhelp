@@ -392,9 +392,15 @@ class UpdateHandler(webapp2.RequestHandler):
             # TODO: perhaps only add it if it was already in memcache
             cmap = { memcache_part_name(filename, new_genid, i + 1):
                     MemcachePart(part) for i, part in enumerate(ppart) }
-            cmap[filename] = phead
-            memcache.set_multi(cmap)
-            memcache.set(filename, MemcacheHead(phead, new_genid))
+            # first the extra parts
+            failed_parts = memcache.set_multi(cmap)
+            # then -- if that succeeded -- the head, which contains the new
+            # genid
+            if len(failed_parts) == 0:
+                memcache.set(filename, MemcacheHead(phead, new_genid))
+            else:
+                logging.error("Failed to save some memcache parts")
+                return
             # 3. Put raw file
             rinfo.memcache_genid = new_genid
             raw = [ rinfo ]
