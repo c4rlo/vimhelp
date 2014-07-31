@@ -94,7 +94,7 @@ PAT_STARWORD = r'\*([#-)!+-~]+)\*(?:(?=\s)|$)'
 PAT_COMMAND  = r'`([^` ]+)`'
 PAT_OPTWORD  = r"('(?:[a-z]{2,}|t_..)')"
 PAT_CTRL     = r'(CTRL-(?:W_)?(?:[\w\[\]^+-<>=@]|<[A-Za-z]+?>)?)'
-PAT_SPECIAL  = r'(<.*?>|\{.*?}|' \
+PAT_SPECIAL  = r'(<.+?>|\{.+?}|' \
 	       r'\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|' \
 	       r'arg|arguments|ident|addr|group)]|' \
 	       r'(?<=\s)\[[-a-z^A-Z0-9_]{2,}])'
