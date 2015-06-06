@@ -18,7 +18,7 @@ from google.appengine.api.urlfetch import DownloadError, ResponseTooLargeError
 BASE_URL = 'http://vim.googlecode.com/hg/runtime/doc/'
 TAGS_NAME = 'tags'
 HGTAGS_URL = 'http://vim.googlecode.com/hg/.hgtags'
-FAQ_BASE_URL = 'https://raw.github.com/chrisbra/vim_faq/master/doc/'
+FAQ_BASE_URL = 'https://raw.githubusercontent.com/chrisbra/vim_faq/master/doc/'
 FAQ_NAME = 'vim_faq.txt'
 HELP_NAME = 'help.txt'
 
