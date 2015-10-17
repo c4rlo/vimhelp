@@ -39,7 +39,7 @@ INTRO = """
 target="_blank">Vim</a> help pages{vers-note}. They are kept up-to-date <a
 href="https://github.com/c4rlo/vimhelp" target="_blank"
 class="d">automatically</a> from the <a
-href="http://code.google.com/p/vim/source/browse/runtime/doc" target="_blank"
+href="https://github.com/vim/vim/tree/master/runtime/doc" target="_blank"
 class="d">Vim source repository</a>. Also included is the <a
 href="vim_faq.txt.html">Vim FAQ</a>, kept up to date from its <a
 href="https://github.com/chrisbra/vim_faq" target="_blank" class="d">github
