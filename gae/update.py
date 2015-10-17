@@ -153,9 +153,9 @@ class UpdateHandler(webapp2.RequestHandler):
             rfi = rfi_map.get(name)
             etag = rfi.etag if rfi is not None else None
             logging.debug("fetching %s (etag: %s)", name, etag)
-            uf_future = urlfetch_async(url, etag)
-            processor_futures_add(name, ProcessorHTTP.create_async(name,
-                                                                   uf_future))
+            processor_future = ProcessorHTTP.create_async(name, url=url,
+                                                          etag=etag)
+            processor_futures_add(name, processor_future)
 
         # Kick off FAQ download
 
@@ -228,14 +228,16 @@ class UpdateHandler(webapp2.RequestHandler):
         @ndb.tasklet
         def get_content_async(name):
             processor_future = processor_futures_by_name.get(name)
-            if processor_future is None:
-                processor_future = ProcessorDB.create_async(name)
-            # Note: we never call 'process_async()' on the 'ProcessorDB' we have
-            # created, nor do we add it to the 'processor_futures' set.  All we
-            # want to do is to (asynchronously) return the raw content, not
-            # process it.
-            processor = yield processor_future
-            content = yield processor.raw_content_async()
+            # Do we already have retrieval queued?
+            if processor_future is not None:
+                # If so, wait for that and return the content.
+                processor = yield processor_future
+                content = yield processor.raw_content_async()
+            else:
+                # If we don't have retrieval queued, that means we must already
+                # have the latest version in the Datastore, so get the content
+                # from there.
+                content = yield RawFileData.get_by_id_async(name)
             raise ndb.Return(content)
 
         # Make sure we are retrieving tags, either from HTTP or from Datastore
@@ -264,6 +266,9 @@ class UpdateHandler(webapp2.RequestHandler):
             future = ndb.Future.wait_any(processor_futures)
             processor = future.get_result()
             processor.process_async(h2h)
+            # Because this method is decorated '@ndb.toplevel', we don't need to
+            # keep hold of the future returned by the above line: this method
+            # automatically waits for all outstanding futures before returning.
             processor_futures.remove(future)
             del processor_futures_by_name[processor.name()]
 
@@ -292,13 +297,11 @@ class ProcessorHTTP(object):
             # TODO: is this thread-safe?
             r = self.__result
             if r.status_code == HTTP_OK:
-                logging.debug('ProcHTTP: got %d content bytes from server',
-                              len(r.content))
                 self.__raw_content = r.content
+                logging.debug('ProcHTTP: got %d content bytes from server',
+                              len(self.__raw_content))
             elif r.status_code == HTTP_NOT_MOD:
-                proc_future = ProcessorDB.create_async(self.__name)
-                proc = yield proc_future
-                self.__raw_content = yield proc.raw_content_async()
+                self.__raw_content = yield RawFileData.get_by_id_async(name)
                 logging.debug('ProcHTTP: got %d content bytes from db',
                               len(self.__raw_content))
         raise ndb.Return(self.__raw_content)
@@ -316,8 +319,8 @@ class ProcessorHTTP(object):
 
     @staticmethod
     @ndb.tasklet
-    def create_async(name, result_future):
-        result = yield result_future
+    def create_async(name, **urlfetch_args):
+        result = yield urlfetch_async(**urlfetch_args)
         raise ndb.Return(ProcessorHTTP(name, result))
 
 
