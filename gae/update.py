@@ -21,17 +21,12 @@ HELP_NAME = 'help.txt'
 DOC_ITEM_RE = re.compile(r'(?:[-\w]+\.txt|tags)$')
 COMMIT_MSG_RE = re.compile(r'[Pp]atch\s+(\d[^\n]+)')
 
+URLFETCH_DEADLINE_SECONDS = 20
+
 GITHUB_API_URL_BASE = 'https://api.github.com'
 GITHUB_ACCESS_TOKEN = 'cd46dfb1bd21f54c6d17e7bde948a09ad65a074d'
 
 FAQ_BASE_URL = 'https://raw.githubusercontent.com/chrisbra/vim_faq/master/doc/'
-
-# ** Old Google Code specific constants:
-# BASE_URL = 'http://vim.googlecode.com/hg/runtime/doc/'
-# HGTAGS_URL = 'http://vim.googlecode.com/hg/.hgtags'
-# REVISION_RE = re.compile(r'<title>Revision (.+?): /runtime/doc</title>')
-# ITEM_RE = re.compile(r'[^-\w]([-\w]+\.txt|tags)[^-\w]')
-# HGTAG_RE = re.compile(r'^[0-9A-Fa-f]+ v(\d[\w.-]*)$')
 
 PFD_MAX_PART_LEN = 995000
 
@@ -44,6 +39,7 @@ HTTP_HDR_ETAG = 'ETag'
 # HTTP Status
 HTTP_OK = 200
 HTTP_NOT_MOD = 304
+HTTP_INTERNAL_SERVER_ERROR = 500
 
 
 class UpdateHandler(webapp2.RequestHandler):
@@ -81,7 +77,8 @@ class UpdateHandler(webapp2.RequestHandler):
             self._update(query_string)
         except:
             logging.exception("exception caught")
-            # TODO set bad HTTP status code so the job gets retried?
+            self.response.status = HTTP_INTERNAL_SERVER_ERROR
+            # The bad response code will make Google App Engine retry this task
         finally:
             # it's important we always remove the log handler, otherwise it will
             # be in place for other requests, including to vimhelp.py, where
@@ -90,22 +87,19 @@ class UpdateHandler(webapp2.RequestHandler):
                 self.response.write("</body></html>")
                 logging.getLogger().removeHandler(htmlLogHandler)
 
+    @ndb.synctasklet
     def _update(self, query_string):
         force = 'force' in query_string
 
         logging.info("starting %supdate", 'forced ' if force else '')
 
         if force:
-            logging.info("'force' is in effect")
-            rfis = RawFileInfo.query().fetch(None)
-            for r in rfis:
-                r.redo = True
-            ndb.put_multi(rfis)
+            logging.info("'force' specified: deleting global info "
+                         "and raw files from db")
             ndb.Key('GlobalInfo', 'global').delete()
-            logging.info("set redo flag on %d item(s)", len(rfis))
+            yield wipe_db_async(RawFileContent), wipe_db_async(RawFileInfo)
 
         g = GlobalInfo.get_by_id('global') or GlobalInfo(id='global')
-        g_changed = False  # track any changes we make to 'g'
 
         logging.debug("global info: %s",
                       ", ".join("{} = {}".format(n, getattr(g, n)) for n in
@@ -237,7 +231,7 @@ class UpdateHandler(webapp2.RequestHandler):
                 # If we don't have retrieval queued, that means we must already
                 # have the latest version in the Datastore, so get the content
                 # from there.
-                content = yield RawFileData.get_by_id_async(name)
+                content = yield RawFileContent.get_by_id_async(name)
             raise ndb.Return(content)
 
         # Make sure we are retrieving tags, either from HTTP or from Datastore
@@ -263,19 +257,28 @@ class UpdateHandler(webapp2.RequestHandler):
         # processing as they do so
 
         while len(processor_futures) > 0:
-            future = ndb.Future.wait_any(processor_futures)
-            processor = future.get_result()
-            processor.process_async(h2h)
-            # Because this method is decorated '@ndb.toplevel', we don't need to
-            # keep hold of the future returned by the above line: this method
-            # automatically waits for all outstanding futures before returning.
+            try:
+                future = ndb.Future.wait_any(processor_futures)
+                processor = future.get_result()
+            except (DownloadError, ResponseTooLargeError) as e:
+                logging.error(e)
+                # If we could not fetch the URL, continue with the others, but
+                # set 'g_changed' to False so we do not save the 'GlobalInfo'
+                # object at the end, so that we will retry at the next run
+                g_changed = False
+            else:  # no exception was raised
+                processor.process_async(h2h)
+                # Because this method is decorated '@ndb.toplevel', we don't
+                # need to keep hold of the future returned by the above line:
+                # this method automatically waits for all outstanding futures
+                # before returning.
             processor_futures.remove(future)
             del processor_futures_by_name[processor.name()]
 
         return g_changed
 
 
-# TODO: we should probably split up the "Processor*" classes into "fetching" and
+# TODO: we should perhaps split up the "Processor*" classes into "fetching" and
 # "processing" operations.  Not sure if those should be classes, probably all
 # tasklets, and some simple structs/tuples.
 
@@ -294,14 +297,13 @@ class ProcessorHTTP(object):
     @ndb.tasklet
     def raw_content_async(self):
         if self.__raw_content is None:
-            # TODO: is this thread-safe?
             r = self.__result
             if r.status_code == HTTP_OK:
                 self.__raw_content = r.content
                 logging.debug('ProcHTTP: got %d content bytes from server',
                               len(self.__raw_content))
             elif r.status_code == HTTP_NOT_MOD:
-                self.__raw_content = yield RawFileData.get_by_id_async(name)
+                self.__raw_content = yield RawFileContent.get_by_id_async(name)
                 logging.debug('ProcHTTP: got %d content bytes from db',
                               len(self.__raw_content))
         raise ndb.Return(self.__raw_content)
@@ -311,8 +313,8 @@ class ProcessorHTTP(object):
         r = self.__result
         logging.info('ProcHTTP: %s: HTTP %d', self.__name, r.status_code)
         if r.status_code == HTTP_OK:
-            yield do_process_async(self.__name, r.content, h2h)
-            yield do_save_rawfileinfo(self.__name, r.content,
+            encoding = yield do_process_async(self.__name, r.content, h2h)
+            yield do_save_rawfile(self.__name, r.content, encoding,
                                       r.headers.get(HTTP_HDR_ETAG))
         else:
             logging.info('ProcHTTP: not processing %s', self.__name)
@@ -325,32 +327,43 @@ class ProcessorHTTP(object):
 
 
 class ProcessorDB(object):
-    def __init__(self, name, content):
+    def __init__(self, name, rfc):
         self.__name = name
-        self.__content = content
+        self.__rfc = rfc
 
     def name(self):
         return self.__name
 
     @ndb.tasklet
     def raw_content_async(self):
-        raise ndb.Return(self.__content)
+        raise ndb.Return(self.__rfc.data)
 
     @ndb.tasklet
     def process_async(self, h2h):
-        logging.info('ProcDB: %s: %d byte(s)', self.__name, len(self.__content))
-        yield do_process_async(self.__name, self.__content, h2h)
+        logging.info('ProcDB: %s: %d byte(s)', self.__name, len(self.__rfc.data))
+        yield do_process_async(self.__name, self.__rfc.data, h2h,
+                               encoding=self.__rfc.encoding)
 
     @staticmethod
     @ndb.tasklet
     def create_async(name):
-        content = yield RawFileData.get_by_id_async(name)
-        raise ndb.Return(ProcessorDB(name, content.data))
+        rfc = yield RawFileContent.get_by_id_async(name)
+        raise ndb.Return(ProcessorDB(name, rfc))
 
 
 @ndb.transactional_tasklet(xg=True)
 def save_async(entities):
     yield ndb.put_multi_async(entities)
+
+@ndb.tasklet
+def wipe_db_async(model):
+    all_keys = yield model.query().fetch_async(keys_only=True)
+    yield ndb.delete_multi_async(all_keys)
+    # Alternative (not sure if this'll work):
+    #
+    # qit = model.query().iter(keys_only=True)
+    # while (yield qit.has_next_async()):
+    #     yield qit.next().delete_async()
 
 
 def sha1(content):
@@ -360,23 +373,28 @@ def sha1(content):
 
 
 @ndb.tasklet
-def do_process_async(name, content, h2h):
+def do_process_async(name, content, h2h, encoding=None):
     logging.info("processing '%s' (%d byte(s))...", name, len(content))
-    phead, pparts = to_html(name, content, h2h)
-    logging.info("saving processed file '%s'", name)
+    phead, pparts, encoding = to_html(name, content, encoding, h2h)
+    logging.info("saving processed file '%s' (encoding is %s)", name, encoding)
     yield save_async(itertools.chain((phead,), pparts))
+    raise ndb.Return(encoding)
 
 @ndb.tasklet
-def do_save_rawfileinfo(name, content, etag):
+def do_save_rawfile(name, content, encoding, etag):
     logging.info("saving unprocessed file '%s'", name)
-    redo = False  # TODO
-    encoding = 'UTF-8'  # TODO
-    rinfo = RawFileInfo(id=name, sha1=sha1(content), etag=etag, redo=redo)
-    rdata = RawFileData(id=name, data=content, encoding=encoding)
-    yield save_async((rinfo, rdata))
+    rfi = RawFileInfo(id=name, sha1=sha1(content), etag=etag)
+    rfc = RawFileContent(id=name, data=content, encoding=encoding)
+    yield save_async((rfi, rfc))
 
-def to_html(name, content, h2h):
-    encoding = 'UTF-8'  # TODO
+def to_html(name, content, encoding, h2h):
+    if encoding is None:
+        try:
+            content.decode('UTF-8')
+        except UnicodeError:
+            encoding = 'ISO-8859-1'
+        else:
+            encoding = 'UTF-8'
     html = h2h.to_html(name, content, encoding)
     etag = base64.b64encode(sha1(html))
     datalen = len(html)
@@ -395,7 +413,7 @@ def to_html(name, content, h2h):
     else:
         phead.numparts = 1
         phead.data0 = html
-    return phead, pparts
+    return phead, pparts, encoding
 
 
 
@@ -414,7 +432,8 @@ def urlfetch_async(url, etag, is_json=False, headers={}):
         headers[HTTP_HDR_IF_NONE_MATCH] = etag
     logging.debug("requesting url '%s', headers = %s", url, headers)
     ctx = ndb.get_context()
-    result = yield ctx.urlfetch(url, headers=headers)
+    result = yield ctx.urlfetch(url, headers=headers,
+                                deadline=URLFETCH_DEADLINE_SECONDS)
     logging.debug("response status for url %s is %s", url, result.status_code)
     if result.status_code == HTTP_OK and is_json:
         result.json = json.loads(result.content)
