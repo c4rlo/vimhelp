@@ -41,7 +41,6 @@ class PageHandler(webapp2.RequestHandler):
             resp.write(head.data0)
             for part in parts:
                 resp.write(part.data)
-        return True
 
 def get_from_db(filename):
     head = ProcessedFileHead.get_by_id(filename)

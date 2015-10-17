@@ -30,6 +30,9 @@ class RawFileInfo(ndb.Model):
 
 # The actual contents of an unprocessed documentation file from the repository;
 # key name is basename, e.g. "help.txt"
+# TODO: we can probably fold this into RawFileInfo, since NDB supports
+# projection queries:
+# https://cloud.google.com/appengine/docs/python/ndb/projectionqueries
 class RawFileData(ndb.Model):
     data = ndb.BlobProperty(required=True)
     # The contents

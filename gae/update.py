@@ -1,8 +1,8 @@
 # Regularly scheduled update: check which files need updating and process them
 
-import os, re, logging, hashlib, base64, json
+import os, re, logging, hashlib, base64, json, itertools
 import webapp2
-from google.appengine.api import urlfetch, taskqueue
+from google.appengine.api import taskqueue
 from google.appengine.ext import ndb
 from dbmodel import *
 from vimh2h import VimH2H
@@ -44,6 +44,7 @@ HTTP_HDR_ETAG = 'ETag'
 # HTTP Status
 HTTP_OK = 200
 HTTP_NOT_MOD = 304
+
 
 class UpdateHandler(webapp2.RequestHandler):
     def __init__(self, request, response):
@@ -129,28 +130,32 @@ class UpdateHandler(webapp2.RequestHandler):
         # Kick off retrieval of data about latest commit on master branch, which
         # we will use to figure out if there is a new vim version
 
-        master_future = async_vim_github_request(
+        master_future = vim_github_request_async(
             '/repos/vim/vim/branches/master', g.master_etag)
 
         # Kick off retrieval of 'runtime/doc' dir listing in github
 
-        docdir_future = async_vim_github_request(
+        docdir_future = vim_github_request_async(
             '/repos/vim/vim/contents/runtime/doc', g.docdir_etag)
 
         # Put all RawFileInfo entites into a map
 
         rfi_map = { r.key.string_id(): r for r in all_rfi_future.get_result() }
 
-        urlfetch_futures = set()
-        urlfetch_futures_by_name = {}
+        processor_futures = set()
+        processor_futures_by_name = {}
+
+        def processor_futures_add(name, value):
+            processor_futures.add(value)
+            processor_futures_by_name[name] = value
 
         def queue_urlfetch(name, url):
             rfi = rfi_map.get(name)
             etag = rfi.etag if rfi is not None else None
             logging.debug("fetching %s (etag: %s)", name, etag)
-            uf_future = async_urlfetch(url, etag, user_context=name)
-            urlfetch_futures.add(uf_future)
-            urlfetch_futures_by_name[name] = uf_future
+            uf_future = urlfetch_async(url, etag)
+            processor_futures_add(name, ProcessorHTTP.create_async(name,
+                                                                   uf_future))
 
         # Kick off FAQ download
 
@@ -166,13 +171,13 @@ class UpdateHandler(webapp2.RequestHandler):
         elif docdir.status_code == HTTP_OK:
             g.docdir_etag = docdir.headers.get(HTTP_HDR_ETAG)
             g_changed = True
-            logging.debug("got doc dir etag %s (%s)", g.docdir_etag)
+            logging.debug("got doc dir etag %s", g.docdir_etag)
             for item in docdir.json:
                 name = item['name'].encode()
                 if item['type'] == 'file' and DOC_ITEM_RE.match(name):
-                    assert name not in urlfetch_futures_by_name
+                    assert name not in processor_futures_by_name
                     rfi = rfi_map.get(name)
-                    if rfi is not None and rfi.sha == item['sha']:
+                    if rfi is not None and rfi.sha1 == item['sha'].encode():
                         logging.debug("%s unchanged (sha=%s)", name, rfi.sha)
                         continue
                     queue_urlfetch(name, item['download_url'])
@@ -215,50 +220,202 @@ class UpdateHandler(webapp2.RequestHandler):
         # is the FAQ, and if the FAQ was not modified, then there is nothing to
         # do for us, so bail out now
 
-        if not is_new_vim_version and len(urlfetch_futures) == 1:
-            faq_uf = urlfetch_futures_by_name[FAQ_NAME].get_result()
-            if faq_uf.status_code == HTTP_NOT_MOD:
+        if not is_new_vim_version and len(processor_futures) == 1:
+            faq_uf = processor_futures_by_name[FAQ_NAME].get_result()
+            if faq_uf.http_result().status_code == HTTP_NOT_MOD:
                 return g_changed
 
-        def async_get_contents(name):
-            uf = urlfetch_futures.get(name)
-            if uf is not None:
-                return HttpFetch(uf)
-            else:
-                return DbFetch(name)
+        @ndb.tasklet
+        def get_content_async(name):
+            processor_future = processor_futures_by_name.get(name)
+            if processor_future is None:
+                processor_future = ProcessorDB.create_async(name)
+            # Note: we never call 'process_async()' on the 'ProcessorDB' we have
+            # created, nor do we add it to the 'processor_futures' set.  All we
+            # want to do is to (asynchronously) return the raw content, not
+            # process it.
+            processor = yield processor_future
+            content = yield processor.raw_content_async()
+            raise ndb.Return(content)
 
         # Make sure we are retrieving tags, either from HTTP or from Datastore
-        tags_future = async_get_contents(TAGS_NAME)
+        tags_future = get_content_async(TAGS_NAME)
 
         # Make sure we are retrieving FAQ, either from HTTP or from Datastore
-        faq_future = async_get_contents(FAQ_NAME)
+        faq_future = get_content_async(FAQ_NAME)
 
         # If we found a new vim version and we're not already downloading
         # help.txt, kick off its retrieval from the Datastore instead
         # (since we're displaying the current vim version in the rendered
         # help.txt.html)
-        help_future = None
-        if is_new_vim_version and HELP_NAME not in urlfetch_futures_by_name:
-            help_future = DbFetch(HELP_NAME)
+        if is_new_vim_version and HELP_NAME not in processor_futures_by_name:
+            processor_futures_add(HELP_NAME,
+                                  ProcessorDB.create_async(HELP_NAME))
 
         # Construct the vimhelp-to-html converter, providing it the tags file,
         # and adding on the FAQ for extra tags
-        h2h = VimH2H(tags_future.content, g.vim_version)
+        h2h = VimH2H(tags_future.get_result(), g.vim_version)
         h2h.add_tags(FAQ_NAME, faq_future.get_result())
 
-        # ... TODO ...
+        # Wait for urlfetches and Datastore accesses to return; kick off the
+        # processing as they do so
 
-        # Wait for urlfetches to return
-
-        while len(urlfetch_futures) > 0:
-            future = ndb.Future.wait_any(urlfetch_futures)
-            result, name = future.get_result()
-            logging.info("got status code %s for %s", result.status_code, name)
-            process_async(name, result, h2h)
-            urlfetch_futures.remove(future)
-            del urlfetch_futures_by_name[name]
+        while len(processor_futures) > 0:
+            future = ndb.Future.wait_any(processor_futures)
+            processor = future.get_result()
+            processor.process_async(h2h)
+            processor_futures.remove(future)
+            del processor_futures_by_name[processor.name()]
 
         return g_changed
+
+
+# TODO: we should probably split up the "Processor*" classes into "fetching" and
+# "processing" operations.  Not sure if those should be classes, probably all
+# tasklets, and some simple structs/tuples.
+
+class ProcessorHTTP(object):
+    def __init__(self, name, result):
+        self.__name = name
+        self.__result = result
+        self.__raw_content = None
+
+    def http_result(self):
+        return self.__result
+
+    def name(self):
+        return self.__name
+
+    @ndb.tasklet
+    def raw_content_async(self):
+        if self.__raw_content is None:
+            # TODO: is this thread-safe?
+            r = self.__result
+            if r.status_code == HTTP_OK:
+                logging.debug('ProcHTTP: got %d content bytes from server',
+                              len(r.content))
+                self.__raw_content = r.content
+            elif r.status_code == HTTP_NOT_MOD:
+                proc_future = ProcessorDB.create_async(self.__name)
+                proc = yield proc_future
+                self.__raw_content = yield proc.raw_content_async()
+                logging.debug('ProcHTTP: got %d content bytes from db',
+                              len(self.__raw_content))
+        raise ndb.Return(self.__raw_content)
+
+    @ndb.tasklet
+    def process_async(self, h2h):
+        r = self.__result
+        logging.info('ProcHTTP: %s: HTTP %d', self.__name, r.status_code)
+        if r.status_code == HTTP_OK:
+            yield do_process_async(self.__name, r.content, h2h)
+            yield do_save_rawfileinfo(self.__name, r.content,
+                                      r.headers.get(HTTP_HDR_ETAG))
+        else:
+            logging.info('ProcHTTP: not processing %s', self.__name)
+
+    @staticmethod
+    @ndb.tasklet
+    def create_async(name, result_future):
+        result = yield result_future
+        raise ndb.Return(ProcessorHTTP(name, result))
+
+
+class ProcessorDB(object):
+    def __init__(self, name, content):
+        self.__name = name
+        self.__content = content
+
+    def name(self):
+        return self.__name
+
+    @ndb.tasklet
+    def raw_content_async(self):
+        raise ndb.Return(self.__content)
+
+    @ndb.tasklet
+    def process_async(self, h2h):
+        logging.info('ProcDB: %s: %d byte(s)', self.__name, len(self.__content))
+        yield do_process_async(self.__name, self.__content, h2h)
+
+    @staticmethod
+    @ndb.tasklet
+    def create_async(name):
+        content = yield RawFileData.get_by_id_async(name)
+        raise ndb.Return(ProcessorDB(name, content.data))
+
+
+@ndb.transactional_tasklet(xg=True)
+def save_async(entities):
+    yield ndb.put_multi_async(entities)
+
+
+def sha1(content):
+    digest = hashlib.sha1()
+    digest.update(content)
+    return digest.digest()
+
+
+@ndb.tasklet
+def do_process_async(name, content, h2h):
+    logging.info("processing '%s' (%d byte(s))...", name, len(content))
+    phead, pparts = to_html(name, content, h2h)
+    logging.info("saving processed file '%s'", name)
+    yield save_async(itertools.chain((phead,), pparts))
+
+@ndb.tasklet
+def do_save_rawfileinfo(name, content, etag):
+    logging.info("saving unprocessed file '%s'", name)
+    redo = False  # TODO
+    encoding = 'UTF-8'  # TODO
+    rinfo = RawFileInfo(id=name, sha1=sha1(content), etag=etag, redo=redo)
+    rdata = RawFileData(id=name, data=content, encoding=encoding)
+    yield save_async((rinfo, rdata))
+
+def to_html(name, content, h2h):
+    encoding = 'UTF-8'  # TODO
+    html = h2h.to_html(name, content, encoding)
+    etag = base64.b64encode(sha1(html))
+    datalen = len(html)
+    phead = ProcessedFileHead(id=name, encoding=encoding, etag=etag)
+    pparts = [ ]
+    if datalen > PFD_MAX_PART_LEN:
+        phead.numparts = 0
+        for i in xrange(0, datalen, PFD_MAX_PART_LEN):
+            part = html[i:(i+PFD_MAX_PART_LEN)]
+            if i == 0:
+                phead.data0 = part
+            else:
+                partname = name + ':' + str(phead.numparts)
+                pparts.append(ProcessedFilePart(id=partname, data=part))
+            phead.numparts += 1
+    else:
+        phead.numparts = 1
+        phead.data0 = html
+    return phead, pparts
+
+
+
+def vim_github_request_async(document, etag):
+    headers = {
+        'Accept':        'application/vnd.github.v3+json',
+        'Authorization': 'token ' + GITHUB_ACCESS_TOKEN,
+    }
+    return urlfetch_async(GITHUB_API_URL_BASE + document, etag, is_json=True,
+                          headers=headers)
+
+
+@ndb.tasklet
+def urlfetch_async(url, etag, is_json=False, headers={}):
+    if etag is not None:
+        headers[HTTP_HDR_IF_NONE_MATCH] = etag
+    logging.debug("requesting url '%s', headers = %s", url, headers)
+    ctx = ndb.get_context()
+    result = yield ctx.urlfetch(url, headers=headers)
+    logging.debug("response status for url %s is %s", url, result.status_code)
+    if result.status_code == HTTP_OK and is_json:
+        result.json = json.loads(result.content)
+    raise ndb.Return(result)
 
 
 class EnqueueUpdateHandler(webapp2.RequestHandler):
@@ -289,33 +446,6 @@ class HtmlLogFormatter(logging.Formatter):
             return '<p>' + fmsg + '</p>'
         else:
             return '<p style="color: gray">' + fmsg + '</p>'
-
-
-def async_vim_github_request(document, etag):
-    headers = {
-        'Accept':        'application/vnd.github.v3+json',
-        'Authorization': 'token ' + GITHUB_ACCESS_TOKEN,
-    }
-    return async_urlfetch(GITHUB_API_URL_BASE + document, etag, is_json=True,
-                          headers=headers)
-
-@ndb.tasklet
-def async_urlfetch(url, etag, is_json=False, headers=None, user_context=None):
-    all_headers = { }
-    if headers is not None:
-        all_headers.update(headers)
-    if etag is not None:
-        all_headers[HTTP_HDR_IF_NONE_MATCH] = etag
-    logging.debug("requesting url '%s', headers = %s", url, headers)
-    ctx = ndb.get_context()
-    result = yield ctx.urlfetch(url, headers)
-    logging.debug("response status for url %s is %s", url, result.status_code)
-    if result.status_code == HTTP_OK and is_json:
-        result.json = json.loads(result.content)
-    if user_context is not None:
-        raise ndb.Return((result, user_context))
-    else:
-        raise ndb.Return(result)
 
 
 app = webapp2.WSGIApplication([
