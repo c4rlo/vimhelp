@@ -25,7 +25,7 @@ SEARCH_SCRIPT = """
   (function() {
     var gcse = document.createElement('script'); gcse.type = 'text/javascript'; gcse.async = true;
     gcse.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') +
-        '//www.google.co.uk/cse/cse.js?cx=007529716539815883269:a71bug8rd0k';
+        '//cse.google.com/cse.js?cx=007529716539815883269:a71bug8rd0k';
     var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(gcse, s);
   })();
 </script>
