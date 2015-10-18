@@ -65,7 +65,7 @@ class UpdateHandler(webapp2.RequestHandler):
         if debuglog or is_dev:
             logger.setLevel(logging.DEBUG)
         else:
-            logger.setlevel(logging.INFO)
+            logger.setLevel(logging.INFO)
 
         if html_logging:
             htmlLogHandler = logging.StreamHandler(self.response)
