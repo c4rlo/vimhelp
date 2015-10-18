@@ -8,9 +8,6 @@ default_expiration: "1h"
 handlers:
 - url: /(?:(?:.*?\.txt|tags)\.html)?
   script: vimhelp.app
-- url: /memcache_add
-  script: vimhelp.app
-  login: admin
 - url: /update
   script: update.app
   login: admin
