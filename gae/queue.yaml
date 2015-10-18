@@ -1,6 +1,6 @@
 total_storage_limit: 20M
 queue:
-- name: update
+- name: update2
   rate: 5/h
   bucket_size: 1
   max_concurrent_requests: 1

@@ -444,7 +444,7 @@ def urlfetch_async(url, etag, is_json=False, headers={}):
 class EnqueueUpdateHandler(webapp2.RequestHandler):
     def get(self):
         logging.info("enqueueing update")
-        taskqueue.add(queue_name='update', url='/update',
+        taskqueue.add(queue_name='update2', url='/update',
                       payload=self.request.query_string)
 
 class VimhelpError(Exception):
