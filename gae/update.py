@@ -24,7 +24,7 @@ COMMIT_MSG_RE = re.compile(r'[Pp]atch\s+(\d[^\n]+)')
 URLFETCH_DEADLINE_SECONDS = 20
 
 GITHUB_API_URL_BASE = 'https://api.github.com'
-GITHUB_ACCESS_TOKEN = 'cd46dfb1bd21f54c6d17e7bde948a09ad65a074d'
+GITHUB_ACCESS_TOKEN = '[secret]'
 
 FAQ_BASE_URL = 'https://raw.githubusercontent.com/chrisbra/vim_faq/master/doc/'
 
