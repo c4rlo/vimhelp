@@ -231,7 +231,7 @@ class UpdateHandler(webapp2.RequestHandler):
                 # If we don't have retrieval queued, that means we must already
                 # have the latest version in the Datastore, so get the content
                 # from there.
-                content = yield RawFileContent.get_by_id_async(name)
+                content = yield RawFileContent.get_by_id_async(name).data
             raise ndb.Return(content)
 
         # Make sure we are retrieving tags, either from HTTP or from Datastore
@@ -304,7 +304,7 @@ class ProcessorHTTP(object):
                               len(self.__raw_content))
             elif r.status_code == HTTP_NOT_MOD:
                 self.__raw_content = \
-                        yield RawFileContent.get_by_id_async(self.__name)
+                        yield RawFileContent.get_by_id_async(self.__name).data
                 logging.debug('ProcHTTP: got %d content bytes from db',
                               len(self.__raw_content))
         raise ndb.Return(self.__raw_content)
