@@ -1,6 +1,13 @@
+# TODO: for some reason, the 'update2' queue always ends up being 'inactive' in
+# the Developers Console:
+# https://console.developers.google.com/project/vimhelp-hrd/appengine/taskqueues/update2
+# :(
+# Just a display issue?
+# http://stackoverflow.com/questions/29640069/trouble-configuring-app-engine-task-queue
+# https://code.google.com/p/googleappengine/issues/detail?id=12282&q=task%20queue%20component%3DTaskQueue&colspec=ID%20Type%20Component%20Status%20Stars%20Summary%20Language%20Priority%20Owner%20Log
 total_storage_limit: 20M
 queue:
 - name: update2
-  rate: 5/h
+  rate: 2/m
   bucket_size: 1
   max_concurrent_requests: 1
