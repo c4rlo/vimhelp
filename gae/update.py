@@ -303,7 +303,8 @@ class ProcessorHTTP(object):
                 logging.debug('ProcHTTP: got %d content bytes from server',
                               len(self.__raw_content))
             elif r.status_code == HTTP_NOT_MOD:
-                self.__raw_content = yield RawFileContent.get_by_id_async(name)
+                self.__raw_content = \
+                        yield RawFileContent.get_by_id_async(self.__name)
                 logging.debug('ProcHTTP: got %d content bytes from db',
                               len(self.__raw_content))
         raise ndb.Return(self.__raw_content)
