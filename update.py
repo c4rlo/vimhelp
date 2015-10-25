@@ -43,9 +43,6 @@ HTTP_INTERNAL_SERVER_ERROR = 500
 
 
 class UpdateHandler(webapp2.RequestHandler):
-    def __init__(self, request, response):
-        self.initialize(request, response)
-
     def post(self):
         # We get an HTTP POST request if the request came programmatically via
         # the Task Queue mechanism.  In that case, we turn off logging.
