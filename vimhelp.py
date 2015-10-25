@@ -28,19 +28,17 @@ class PageHandler(webapp2.RequestHandler):
         resp.last_modified = head.modified
         del resp.cache_control
         if head.etag in req.if_none_match:
-            logging.info("matched etag, modified %s, expires %s, from db",
+            logging.info("matched etag, modified %s, expires %s",
                          resp.last_modified, expires)
             resp.status = HTTP_NOT_MOD
         elif not req.if_none_match and req.if_modified_since and \
                 req.if_modified_since >= resp.last_modified:
-            logging.info("not modified since %s, modified %s, expires %s," \
-                         " from db", req.if_modified_since, resp.last_modified,
-                         expires)
+            logging.info("not modified since %s, modified %s, expires %s",
+                         req.if_modified_since, resp.last_modified, expires)
             resp.status = HTTP_NOT_MOD
         else:
-            logging.info("writing %d-part response, modified %s, expires %s," \
-                         " from db", 1 + len(parts), resp.last_modified,
-                         expires)
+            logging.info("writing %d-part response, modified %s, expires %s",
+                         1 + len(parts), resp.last_modified, expires)
             resp.content_type = 'text/html'
             resp.charset = head.encoding
             resp.write(head.data0)
