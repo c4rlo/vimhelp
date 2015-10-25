@@ -433,8 +433,6 @@ def urlfetch_async(url, etag, is_json=False, headers={}):
     ctx = ndb.get_context()
     result = yield ctx.urlfetch(url, headers=headers,
                                 deadline=URLFETCH_DEADLINE_SECONDS)
-    # TODO: for some reason we still get 200 when we would expect 304, but only
-    # on prod :(
     logging.debug("response status for url %s is %s", url, result.status_code)
     if result.status_code == HTTP_OK and is_json:
         result.json = json.loads(result.content)
