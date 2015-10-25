@@ -186,6 +186,10 @@ class UpdateHandler(webapp2.RequestHandler):
         # Check if the Vim version has changed; we display it on our front page,
         # so we must keep it updated even if nothing else has changed
 
+        # TODO: find a better way... this doesn't find the current vim version
+        # if the latest commit did not bump the version (only a problem if we
+        # don't already have the vim version in the datastore)
+
         is_new_vim_version = False
 
         master = master_future.get_result()
