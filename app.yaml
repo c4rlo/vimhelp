@@ -14,6 +14,8 @@ handlers:
 - url: /enqueue_update
   script: update.app
   login: admin
+- url: /sitemap\.txt
+  script: sitemap.app
 - url: /(.*)
   static_files: static/\1
   upload: static/(.*)
