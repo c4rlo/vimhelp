@@ -7,6 +7,7 @@ from google.appengine.ext import ndb
 from dbmodel import *
 from vimh2h import VimH2H
 from google.appengine.api import urlfetch
+import secret
 
 # Once we have consumed about ten minutes of CPU time, Google will throw us a
 # DeadlineExceededError and our script terminates. Therefore, we must be careful
@@ -24,7 +25,6 @@ COMMIT_MSG_RE = re.compile(r'[Pp]atch\s+(\d[^\n]+)')
 URLFETCH_DEADLINE_SECONDS = 20
 
 GITHUB_API_URL_BASE = 'https://api.github.com'
-GITHUB_ACCESS_TOKEN = '[secret]'
 
 FAQ_BASE_URL = 'https://raw.githubusercontent.com/chrisbra/vim_faq/master/doc/'
 
@@ -422,7 +422,7 @@ def to_html(name, content, encoding, h2h):
 def vim_github_request_async(document, etag):
     headers = {
         'Accept':        'application/vnd.github.v3+json',
-        'Authorization': 'token ' + GITHUB_ACCESS_TOKEN,
+        'Authorization': 'token ' + secret.GITHUB_ACCESS_TOKEN,
     }
     return urlfetch_async(GITHUB_API_URL_BASE + document, etag, is_json=True,
                           headers=headers)
