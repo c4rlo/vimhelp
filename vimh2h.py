@@ -153,6 +153,7 @@ class VimH2H(object):
 	    self.do_add_tag(str(filename), tag)
 
     def do_add_tag(self, filename, tag):
+        # TODO: omit the filename part if it's a link within the page
 	part1 = '<a href="' + filename + '.html#' + \
 		urllib.quote_plus(tag) + '"'
 	part2 = '>' + html_escape[tag] + '</a>'

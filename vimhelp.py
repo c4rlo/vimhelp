@@ -10,6 +10,9 @@ HTTP_NOT_MOD = 304
 class PageHandler(webapp2.RequestHandler):
     def get(self, filename):
         if not filename: filename = 'help.txt'
+        # TODO: we should probably set up an url redirect from '/help.txt.html'
+        # to just '/', and change the html generator to use that. Also remove
+        # 'help.txt.html' from the sitemap.
         result = get_from_db(filename)
         if not result: return HTTPNotFound()
         head, parts = result
