@@ -361,7 +361,7 @@ class ProcessorDB(object):
 
 
 @ndb.transactional_tasklet(xg=True)
-def save_async(entities):
+def save_transactional_async(entities):
     yield ndb.put_multi_async(entities)
 
 @ndb.tasklet
@@ -386,7 +386,7 @@ def do_process_async(name, content, h2h, encoding=None):
     logging.info("processing '%s' (%d byte(s))...", name, len(content))
     phead, pparts, encoding = to_html(name, content, encoding, h2h)
     logging.info("saving processed file '%s' (encoding is %s)", name, encoding)
-    yield save_async(itertools.chain((phead,), pparts))
+    yield save_transactional_async(itertools.chain((phead,), pparts))
     raise ndb.Return(encoding)
 
 @ndb.tasklet
@@ -394,7 +394,7 @@ def do_save_rawfile(name, content, encoding, etag):
     logging.info("saving unprocessed file '%s'", name)
     rfi = RawFileInfo(id=name, sha1=sha1(content), etag=etag)
     rfc = RawFileContent(id=name, data=content, encoding=encoding)
-    yield save_async((rfi, rfc))
+    yield save_transactional_async((rfi, rfc))
 
 def to_html(name, content, encoding, h2h):
     if encoding is None:
