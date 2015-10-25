@@ -20,6 +20,8 @@ class PageHandler(webapp2.RequestHandler):
         resp = self.response
         resp.etag = head.etag
         # set expires to next exact half hour, i.e. :30:00 or :00:00
+        # TODO: race condition if it's now :30:01 and new version is in the
+        # process of being generated
         expires = datetime.datetime.utcnow().replace(second=0, microsecond=0)
         expires += datetime.timedelta(minutes=(30 - (expires.minute % 30)))
         resp.expires = expires
