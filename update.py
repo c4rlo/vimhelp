@@ -436,7 +436,9 @@ def vim_github_request_async(document, etag):
 
 
 @ndb.tasklet
-def urlfetch_async(url, etag, is_json=False, headers={}):
+def urlfetch_async(url, etag, is_json=False, headers=None):
+    if headers is None:
+        headers = {}
     if etag is not None:
         headers[HTTP_HDR_IF_NONE_MATCH] = etag
     logging.debug("requesting url '%s', headers = %s", url, headers)
