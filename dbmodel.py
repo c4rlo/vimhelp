@@ -14,6 +14,9 @@ class GlobalInfo(ndb.Model):
     vim_version = ndb.BlobProperty()
     # Current Vim version
 
+    _use_cache = False
+    _use_memcache = False
+
 # Info related to an unprocessed documentation file from the repository; key
 # name is basename, e.g. "help.txt"
 class RawFileInfo(ndb.Model):
@@ -23,6 +26,9 @@ class RawFileInfo(ndb.Model):
     etag = ndb.BlobProperty()
     # HTTP ETag of the file on github
 
+    _use_cache = False
+    _use_memcache = False
+
 # The actual contents of an unprocessed documentation file from the repository;
 # key name is basename, e.g. "help.txt"
 class RawFileContent(ndb.Model):
@@ -31,6 +37,9 @@ class RawFileContent(ndb.Model):
 
     encoding = ndb.BlobProperty(required=True)
     # The encoding, e.g. 'UTF-8'
+
+    _use_cache = False
+    _use_memcache = False
 
 # Info related to a processed (HTMLified) documentation file; key name is
 # basename, e.g. "help.txt"
