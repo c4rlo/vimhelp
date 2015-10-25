@@ -6,7 +6,7 @@ from google.appengine.api import taskqueue
 from google.appengine.ext import ndb
 from dbmodel import *
 from vimh2h import VimH2H
-from google.appengine.api.urlfetch import DownloadError, ResponseTooLargeError
+from google.appengine.api import urlfetch
 
 # Once we have consumed about ten minutes of CPU time, Google will throw us a
 # DeadlineExceededError and our script terminates. Therefore, we must be careful
@@ -261,7 +261,7 @@ class UpdateHandler(webapp2.RequestHandler):
             try:
                 future = ndb.Future.wait_any(processor_futures)
                 processor = future.get_result()
-            except (DownloadError, ResponseTooLargeError) as e:
+            except urlfetch.Error as e:
                 logging.error(e)
                 # If we could not fetch the URL, continue with the others, but
                 # set 'g_changed' to False so we do not save the 'GlobalInfo'
