@@ -10,10 +10,7 @@ builtins:
 handlers:
 - url: /(?:(?:.*?\.txt|tags)\.html)?
   script: vimhelp.app
-- url: /update
-  script: update.app
-  login: admin
-- url: /enqueue_update
+- url: /(?:enqueue_)?update
   script: update.app
   login: admin
 - url: /sitemap\.txt
