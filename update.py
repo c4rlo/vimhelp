@@ -93,16 +93,19 @@ class UpdateHandler(webapp2.RequestHandler):
         if force:
             logging.info("'force' specified: deleting global info "
                          "and raw files from db")
-            ndb.Key('GlobalInfo', 'global').delete()
-            yield wipe_db_async(RawFileContent), wipe_db_async(RawFileInfo)
-
-        g = GlobalInfo.get_by_id('global') or GlobalInfo(id='global')
+            yield wipe_db_async(RawFileContent), wipe_db_async(RawFileInfo), \
+                    ndb.Key('GlobalInfo', 'global').delete_async()
+            g = GlobalInfo(id='global')
+            no_rfi = True
+        else:
+            g = GlobalInfo.get_by_id('global') or GlobalInfo(id='global')
+            no_rfi = False
 
         logging.debug("global info: %s",
                       ", ".join("{} = {}".format(n, getattr(g, n)) for n in
                                 g._properties.iterkeys()))
 
-        g_changed = self._do_update(g)
+        g_changed = self._do_update(g, no_rfi)
 
         if g_changed:
             logging.info("finished update, writing global info")
@@ -111,12 +114,15 @@ class UpdateHandler(webapp2.RequestHandler):
             logging.info("finished update, global info unchanged")
 
     @ndb.toplevel
-    def _do_update(self, g):
+    def _do_update(self, g, no_rfi):
         g_changed = False
 
         # Kick off retrieval of all RawFileInfo entities from the Datastore
 
-        all_rfi_future = RawFileInfo.query().fetch_async()
+        if no_rfi:
+            all_rfi_future = None
+        else:
+            all_rfi_future = RawFileInfo.query().fetch_async()
 
         # Kick off retrieval of data about latest commit on master branch, which
         # we will use to figure out if there is a new vim version
@@ -131,7 +137,11 @@ class UpdateHandler(webapp2.RequestHandler):
 
         # Put all RawFileInfo entites into a map
 
-        rfi_map = { r.key.string_id(): r for r in all_rfi_future.get_result() }
+        if no_rfi:
+            rfi_map = { }
+        else:
+            rfi_map = { r.key.string_id(): \
+                       r for r in all_rfi_future.get_result() }
 
         processor_futures = set()
         processor_futures_by_name = {}
