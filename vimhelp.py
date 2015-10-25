@@ -46,6 +46,7 @@ class PageHandler(webapp2.RequestHandler):
                 resp.write(part.data)
 
 def get_from_db(filename):
+    # TODO: use an ancestor query to ensure strong consistency
     head = ProcessedFileHead.get_by_id(filename)
     if not head:
         logging.warn("%s not found in db", filename)
