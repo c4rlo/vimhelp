@@ -62,6 +62,8 @@ class ProcessedFileHead(ndb.Model):
     data0 = ndb.BlobProperty(required=True)
     # Contents of the first (and possibly only) part
 
+    _use_cache = False
+
 # Part of a processed file; keyname is basename + ":" + partnum (1-based), e.g.
 # "help.txt:1".
 # This chunking is necessary because the maximum entity size in the Datastore is
@@ -69,3 +71,5 @@ class ProcessedFileHead(ndb.Model):
 class ProcessedFilePart(ndb.Model):
     data = ndb.BlobProperty(required=True)
     # Contents
+
+    _use_cache = False
