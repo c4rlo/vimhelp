@@ -396,7 +396,7 @@ def do_process_async(name, content, h2h, encoding=None):
     raise ndb.Return(encoding)
 
 def need_save_rawfilecontent(name):
-    return name == 'help.txt' or name == 'faq.txt' or name == 'tags'
+    return name in (HELP_NAME, FAQ_NAME, TAGS_NAME)
 
 @ndb.tasklet
 def do_save_rawfile(name, content, encoding, etag):
