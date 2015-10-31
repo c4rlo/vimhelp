@@ -68,6 +68,9 @@ class ProcessedFileHead(ndb.Model):
 # "help.txt:1".
 # This chunking is necessary because the maximum entity size in the Datastore is
 # 1 MB: see https://cloud.google.com/appengine/docs/python/ndb/
+# NOTE: vimhelp.py currently relies on the keynames, when sorted
+# lexicographically, yielding the correct order; this implies that we must never
+# have a partnum with more than one digit.
 class ProcessedFilePart(ndb.Model):
     data = ndb.BlobProperty(required=True)
     # Contents

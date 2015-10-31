@@ -2,7 +2,7 @@
 
 import logging, re, datetime
 import webapp2
-from webob.exc import HTTPNotFound
+from webob.exc import HTTPNotFound, HTTPInternalServerError
 from dbmodel import *
 
 HTTP_NOT_MOD = 304
@@ -13,9 +13,10 @@ class PageHandler(webapp2.RequestHandler):
         # TODO: we should probably set up an url redirect from '/help.txt.html'
         # to just '/', and change the html generator to use that. Also remove
         # 'help.txt.html' from the sitemap.
-        result = get_from_db(filename)
-        if not result: return HTTPNotFound()
-        head, parts = result
+        head = ProcessedFileHead.get_by_id(filename)
+        if not head:
+            logging.warn("%s not found in db", filename)
+            raise HTTPNotFound()
         req = self.request
         resp = self.response
         resp.etag = head.etag
@@ -37,6 +38,7 @@ class PageHandler(webapp2.RequestHandler):
                          req.if_modified_since, resp.last_modified, expires)
             resp.status = HTTP_NOT_MOD
         else:
+            parts = get_parts(head)
             logging.info("writing %d-part response, modified %s, expires %s",
                          1 + len(parts), resp.last_modified, expires)
             resp.content_type = 'text/html'
@@ -45,21 +47,27 @@ class PageHandler(webapp2.RequestHandler):
             for part in parts:
                 resp.write(part.data)
 
-def get_from_db(filename):
-    # TODO: use an ancestor query to ensure strong consistency
-    head = ProcessedFileHead.get_by_id(filename)
-    if not head:
-        logging.warn("%s not found in db", filename)
-        return None
-    parts = []
-    for i in xrange(1, head.numparts):
-        partname = filename + ':' + str(i)
-        part = ProcessedFilePart.get_by_id(partname)
-        if not part:
-            logging.warn("%s not found in db", partname)
-            return None
-        parts.append(part)
-    return head, parts
+def get_parts(head):
+    # We could alternatively achieve this via an ancestor query (retrieving the
+    # head and its parts simultaneously) to give us strong consistency. But the
+    # downside of that is that it bypasses the automatic memcache layer built
+    # into ndb, which we want to take advantage of.
+    if head.numparts == 1: return []
+    logging.info("retrieving %d extra part(s)", head.numparts - 1)
+    filename = head.key.string_id()
+    keys = [ ndb.Key('ProcessedFilePart', filename + ':' + str(i))
+                for i in xrange(1, head.numparts) ]
+    num_tries = 0
+    while True:
+        num_tries += 1
+        if num_tries >= 10:
+            logging.error("tried too many times, giving up")
+            raise HTTPInternalServerError()
+        parts = ndb.get_multi(keys)
+        if any(p.etag != head.etag for p in parts):
+            logging.warn("got differing etags, retrying")
+        else:
+            return sorted(parts, key=lambda p: p.key.string_id())
 
 app = webapp2.WSGIApplication([
     (r'/(?:(.*?\.txt|tags)\.html)?', PageHandler)
