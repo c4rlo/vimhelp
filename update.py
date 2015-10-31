@@ -397,6 +397,7 @@ def do_process_async(name, content, h2h, encoding=None):
 
 @ndb.tasklet
 def do_save_rawfile(name, content, encoding, etag):
+    # TODO: in theory we only need to save: tags, help.txt, vim_faq.txt
     logging.info("saving unprocessed file '%s'", name)
     rfi = RawFileInfo(id=name, sha1=sha1(content), etag=etag)
     rfc = RawFileContent(id=name, data=content, encoding=encoding)
