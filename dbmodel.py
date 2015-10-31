@@ -72,8 +72,7 @@ class ProcessedFilePart(ndb.Model):
     data = ndb.BlobProperty(required=True)
     # Contents
 
-    etag = ndb.BlobProperty()
-    # TODO: required=True
+    etag = ndb.BlobProperty(required=True)
     # Same value as corresponding 'ProcessedFileHead.etag'.  Used when
     # retrieving the 'ProcessedFileHead' and all its 'ProcessedFilePart's to
     # ensure that they were retrieved consistently.
