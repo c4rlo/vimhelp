@@ -424,7 +424,8 @@ def to_html(name, content, encoding, h2h):
                 phead.data0 = part
             else:
                 partname = name + ':' + str(phead.numparts)
-                pparts.append(ProcessedFilePart(id=partname, data=part))
+                pparts.append(ProcessedFilePart(id=partname, data=part,
+                                                etag=etag))
             phead.numparts += 1
     else:
         phead.numparts = 1
