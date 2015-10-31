@@ -395,13 +395,19 @@ def do_process_async(name, content, h2h, encoding=None):
     yield save_transactional_async(itertools.chain((phead,), pparts))
     raise ndb.Return(encoding)
 
+def need_save_rawfilecontent(name):
+    return name == 'help.txt' or name == 'faq.txt' or name == 'tags'
+
 @ndb.tasklet
 def do_save_rawfile(name, content, encoding, etag):
-    # TODO: in theory we only need to save: tags, help.txt, vim_faq.txt
-    logging.info("saving unprocessed file '%s'", name)
     rfi = RawFileInfo(id=name, sha1=sha1(content), etag=etag)
-    rfc = RawFileContent(id=name, data=content, encoding=encoding)
-    yield save_transactional_async((rfi, rfc))
+    if need_save_rawfilecontent(name):
+        logging.info("saving unprocessed file '%s' (info and content)", name)
+        rfc = RawFileContent(id=name, data=content, encoding=encoding)
+        yield save_transactional_async((rfi, rfc))
+    else:
+        logging.info("saving unprocessed file '%s' (info only)", name)
+        yield rfi.put_async()
 
 def to_html(name, content, encoding, h2h):
     if encoding is None:
