@@ -20,8 +20,8 @@ class GlobalInfo(ndb.Model):
 # Info related to an unprocessed documentation file from the repository; key
 # name is basename, e.g. "help.txt"
 class RawFileInfo(ndb.Model):
-    sha1 = ndb.BlobProperty(required=True)
-    # SHA1 of content
+    git_sha = ndb.BlobProperty()
+    # 'sha' property returned by GitHub API (not populated for vim_faq.txt)
 
     etag = ndb.BlobProperty()
     # HTTP ETag of the file on github

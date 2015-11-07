@@ -155,12 +155,12 @@ class UpdateHandler(webapp2.RequestHandler):
             processor_futures.add(value)
             processor_futures_by_name[name] = value
 
-        def queue_urlfetch(name, url):
+        def queue_urlfetch(name, url, git_sha=None):
             rfi = rfi_map.get(name)
             etag = rfi.etag if rfi is not None else None
             logging.debug("fetching %s (etag: %s)", name, etag)
-            processor_future = ProcessorHTTP.create_async(name, url=url,
-                                                          etag=etag)
+            processor_future = ProcessorHTTP.create_async(name, git_sha,
+                                                          url=url, etag=etag)
             processor_futures_add(name, processor_future)
 
         # Kick off FAQ download
@@ -182,11 +182,18 @@ class UpdateHandler(webapp2.RequestHandler):
                 name = item['name'].encode()
                 if item['type'] == 'file' and DOC_ITEM_RE.match(name):
                     assert name not in processor_futures_by_name
+                    git_sha = item['sha'].encode()
                     rfi = rfi_map.get(name)
-                    if rfi is not None and rfi.sha1 == item['sha'].encode():
-                        logging.debug("%s unchanged (sha=%s)", name, rfi.sha)
+                    if rfi is not None and rfi.git_sha == git_sha:
+                        logging.debug("%s unchanged (sha=%s)", name,
+                                      rfi.git_sha)
                         continue
-                    queue_urlfetch(name, item['download_url'])
+                    elif rfi is None:
+                        logging.debug("%s is new (sha=%s)", name, git_sha)
+                    else:
+                        logging.debug("%s changed (%s != %s)", name,
+                                      rfi.git_sha, git_sha)
+                    queue_urlfetch(name, item['download_url'], git_sha)
 
         # Check if the Vim version has changed; we display it on our front page,
         # so we must keep it updated even if nothing else has changed
@@ -307,8 +314,9 @@ class UpdateHandler(webapp2.RequestHandler):
 # tasklets, and some simple structs/tuples.
 
 class ProcessorHTTP(object):
-    def __init__(self, name, result):
+    def __init__(self, name, git_sha, result):
         self.__name = name
+        self.__git_sha = git_sha
         self.__result = result
         self.__raw_content = None
 
@@ -339,16 +347,16 @@ class ProcessorHTTP(object):
         logging.info('ProcHTTP: %s: HTTP %d', self.__name, r.status_code)
         if r.status_code == HTTP_OK:
             encoding = yield do_process_async(self.__name, r.content, h2h)
-            yield do_save_rawfile(self.__name, r.content, encoding,
-                                      r.headers.get(HTTP_HDR_ETAG))
+            yield do_save_rawfile(self.__name, self.__git_sha, r.content,
+                                  encoding, r.headers.get(HTTP_HDR_ETAG))
         else:
             logging.info('ProcHTTP: not processing %s', self.__name)
 
     @staticmethod
     @ndb.tasklet
-    def create_async(name, **urlfetch_args):
+    def create_async(name, git_sha, **urlfetch_args):
         result = yield urlfetch_async(**urlfetch_args)
-        raise ndb.Return(ProcessorHTTP(name, result))
+        raise ndb.Return(ProcessorHTTP(name, git_sha, result))
 
 
 class ProcessorDB(object):
@@ -409,8 +417,8 @@ def need_save_rawfilecontent(name):
     return name in (HELP_NAME, FAQ_NAME, TAGS_NAME)
 
 @ndb.tasklet
-def do_save_rawfile(name, content, encoding, etag):
-    rfi = RawFileInfo(id=name, sha1=sha1(content), etag=etag)
+def do_save_rawfile(name, git_sha, content, encoding, etag):
+    rfi = RawFileInfo(id=name, git_sha=git_sha, etag=etag)
     if need_save_rawfilecontent(name):
         logging.info("saving unprocessed file '%s' (info and content)", name)
         rfc = RawFileContent(id=name, data=content, encoding=encoding)
