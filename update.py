@@ -1,5 +1,11 @@
 # Regularly scheduled update: check which files need updating and process them
 
+# TODO: have this be invoked as a webhook! both from vim/vim and from
+# chrisbra/vim_faq
+# https://developer.github.com/webhooks/
+# make sure this is done via enqueue_update to prevent multiple concurrent
+# update runs
+
 import os, re, logging, hashlib, base64, json, itertools
 import webapp2
 from google.appengine.api import taskqueue
@@ -191,6 +197,13 @@ class UpdateHandler(webapp2.RequestHandler):
         # TODO: find a better way... this doesn't find the current vim version
         # if the latest commit did not bump the version (only a problem if we
         # don't already have the vim version in the datastore)
+        #
+        # should probably use the Events API:
+        # https://developer.github.com/v3/activity/events/types/#pushevent
+        # this is also (somewhat) compatible with webhook payloads
+        # or perhaps better to use
+        # https://developer.github.com/v3/repos/commits/ since that does not
+        # include events we're not interested in
 
         is_new_vim_version = False
 

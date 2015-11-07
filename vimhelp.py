@@ -25,7 +25,8 @@ class PageHandler(webapp2.RequestHandler):
         # process of being generated
         expires = datetime.datetime.utcnow().replace(second=0, microsecond=0)
         expires += datetime.timedelta(minutes=(30 - (expires.minute % 30)))
-        resp.expires = expires
+        resp.expires = expires  # TODO this doesn't seem to work; need to use
+                                # 'cache_expires'
         resp.last_modified = head.modified
         del resp.cache_control
         if head.etag in req.if_none_match:
