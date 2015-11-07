@@ -130,10 +130,7 @@ class UpdateHandler(webapp2.RequestHandler):
         # Kick off retrieval of all RawFileInfo entities from the Datastore
 
         if no_rfi:
-            @ndb.tasklet
-            def empty_async():
-                raise ndb.Return(())
-            all_rfi_future = empty_async()
+            all_rfi_future = ndb.tasklet(lambda: ())()
         else:
             all_rfi_future = RawFileInfo.query().fetch_async()
 
