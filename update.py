@@ -19,7 +19,8 @@ import secret
 # DeadlineExceededError and our script terminates. Therefore, we must be careful
 # with the order of operations, to ensure that after this has happened, the next
 # scheduled run of the script can pick up where the previous one was
-# interrupted.
+# interrupted. Although in practice, it takes about 30 seconds, so it's unlikely
+# to be an issue.
 
 TAGS_NAME = 'tags'
 FAQ_NAME = 'vim_faq.txt'
@@ -90,60 +91,35 @@ class UpdateHandler(webapp2.RequestHandler):
                 self.response.write("</body></html>")
                 logging.getLogger().removeHandler(htmlLogHandler)
 
-    @ndb.synctasklet
     def _update(self, query_string):
         force = 'force' in query_string
 
         logging.info("starting %supdate", 'forced ' if force else '')
 
-        g = GlobalInfo.get_by_id('global')
+        self._g_changed = False
+        self._g = get_g(wipe=force)
+        self._do_update(no_rfi=force)
 
-        if force:
-            logging.info("'force' specified: deleting global info "
-                         "and raw files from db")
-            yield wipe_db_async(RawFileContent), wipe_db_async(RawFileInfo)
-            if g:
-                g.key.delete_async()
-                # Make sure we preserve at least the vim version; necessary in
-                # case the latest commit on master doesn't specify it
-                g = GlobalInfo(id='global', vim_version=g.vim_version)
-
-        if not g:
-            g = GlobalInfo(id='global')
-
-        logging.debug("global info: %s",
-                      ", ".join("{} = {}".format(n, getattr(g, n)) for n in
-                                g._properties.iterkeys()))
-
-        g_changed = self._do_update(g, no_rfi=force)
-
-        if g_changed:
+        if self._g_changed:
             logging.info("finished update, writing global info")
-            g.put()
+            self._g.put()
         else:
             logging.info("finished update, global info unchanged")
 
     @ndb.toplevel
-    def _do_update(self, g, no_rfi):
-        g_changed = False
-
+    def _do_update(self, no_rfi):
         # Kick off retrieval of all RawFileInfo entities from the Datastore
-
         if no_rfi:
             all_rfi_future = ndb.tasklet(lambda: ())()
         else:
             all_rfi_future = RawFileInfo.query().fetch_async()
 
-        # Kick off retrieval of data about latest commit on master branch, which
-        # we will use to figure out if there is a new vim version
-
-        master_future = vim_github_request_async(
-            '/repos/vim/vim/branches/master', g.master_etag)
+        # Kick off check for new vim version
+        refresh_vim_version_future = self.refresh_vim_version_async()
 
         # Kick off retrieval of 'runtime/doc' dir listing in github
-
         docdir_future = vim_github_request_async(
-            '/repos/vim/vim/contents/runtime/doc', g.docdir_etag)
+            '/repos/vim/vim/contents/runtime/doc', self._g.docdir_etag)
 
         # Put all RawFileInfo entites into a map
         rfi_map = { r.key.string_id(): r for r in all_rfi_future.get_result() }
@@ -175,9 +151,9 @@ class UpdateHandler(webapp2.RequestHandler):
         if docdir.status_code == HTTP_NOT_MOD:
             logging.info("doc dir not modified")
         elif docdir.status_code == HTTP_OK:
-            g.docdir_etag = docdir.headers.get(HTTP_HDR_ETAG)
-            g_changed = True
-            logging.debug("got doc dir etag %s", g.docdir_etag)
+            self._g.docdir_etag = docdir.headers.get(HTTP_HDR_ETAG)
+            self._g_changed = True
+            logging.debug("got doc dir etag %s", self._g.docdir_etag)
             for item in docdir.json:
                 name = item['name'].encode()
                 if item['type'] == 'file' and DOC_ITEM_RE.match(name):
@@ -195,50 +171,8 @@ class UpdateHandler(webapp2.RequestHandler):
                                       rfi.git_sha, git_sha)
                     queue_urlfetch(name, item['download_url'], git_sha)
 
-        # Check if the Vim version has changed; we display it on our front page,
-        # so we must keep it updated even if nothing else has changed
-
-        # TODO: find a better way... this doesn't find the current vim version
-        # if the latest commit did not bump the version (only a problem if we
-        # don't already have the vim version in the datastore)
-        #
-        # should probably use the Events API:
-        # https://developer.github.com/v3/activity/events/types/#pushevent
-        # this is also (somewhat) compatible with webhook payloads
-        # or perhaps better to use
-        # https://developer.github.com/v3/repos/commits/ since that does not
-        # include events we're not interested in
-
-        is_new_vim_version = False
-
-        master = master_future.get_result()
-
-        if master.status_code == HTTP_OK:
-            message = master.json['commit']['commit']['message'].encode()
-            m = COMMIT_MSG_RE.match(message)
-            if m:
-                new_vim_version = m.group(1)
-                if new_vim_version != g.vim_version:
-                    logging.info("found new vim version %s (was: %s)",
-                                 new_vim_version, g.vim_version)
-                    is_new_vim_version = True
-                    g.vim_version = new_vim_version
-                    g_changed = True
-                else:
-                    logging.warn("master branch has moved forward, but vim "
-                                 "version from commit message is unchanged: "
-                                 "'%s' -> version '%s'", message, g.vim_version)
-            else:
-                logging.warn("master branch has moved forward, but no new vim "
-                             "version found in commit msg ('%s'), so keeping "
-                             "old one (%s)", message, g.vim_version)
-            g.master_etag = master.headers.get(HTTP_HDR_ETAG)
-            g_changed = True
-        elif g.master_etag and master.status_code == HTTP_NOT_MOD:
-            logging.info("master branch is unchanged, so no new vim version")
-        else:
-            logging.warn("failed to get master branch: HTTP status %d",
-                         master.status_code)
+        # Check if we have a new vim version
+        is_new_vim_version = refresh_vim_version_future.get_result()
 
         # If there is no new vim version, and if the only file we're downloading
         # is the FAQ, and if the FAQ was not modified, then there is nothing to
@@ -247,7 +181,7 @@ class UpdateHandler(webapp2.RequestHandler):
         if not is_new_vim_version and len(processor_futures) == 1:
             faq_uf = processor_futures_by_name[FAQ_NAME].get_result()
             if faq_uf.http_result().status_code == HTTP_NOT_MOD:
-                return g_changed
+                return
 
         @ndb.tasklet
         def get_content_async(name):
@@ -281,7 +215,7 @@ class UpdateHandler(webapp2.RequestHandler):
 
         # Construct the vimhelp-to-html converter, providing it the tags file,
         # and adding on the FAQ for extra tags
-        h2h = VimH2H(tags_future.get_result(), g.vim_version)
+        h2h = VimH2H(tags_future.get_result(), self._g.vim_version)
         h2h.add_tags(FAQ_NAME, faq_future.get_result())
 
         # Wait for urlfetches and Datastore accesses to return; kick off the
@@ -294,9 +228,10 @@ class UpdateHandler(webapp2.RequestHandler):
             except urlfetch.Error as e:
                 logging.error(e)
                 # If we could not fetch the URL, continue with the others, but
-                # set 'g_changed' to False so we do not save the 'GlobalInfo'
-                # object at the end, so that we will retry at the next run
-                g_changed = False
+                # set 'self._g_changed' to False so we do not save the
+                # 'GlobalInfo' object at the end, so that we will retry at the
+                # next run
+                self._g_changed = False
             else:  # no exception was raised
                 processor.process_async(h2h)
                 # Because this method is decorated '@ndb.toplevel', we don't
@@ -306,7 +241,82 @@ class UpdateHandler(webapp2.RequestHandler):
             processor_futures.remove(future)
             del processor_futures_by_name[processor.name()]
 
-        return g_changed
+    @ndb.tasklet
+    def refresh_vim_version_async(self):
+        # Check if the Vim version has changed; we display it on our front page,
+        # so we must keep it updated even if nothing else has changed
+
+        # TODO: find a better way... this doesn't find the current vim version
+        # if the latest commit did not bump the version (only a problem if we
+        # don't already have the vim version in the datastore)
+        #
+        # should probably use the Events API:
+        # https://developer.github.com/v3/activity/events/types/#pushevent
+        # this is also (somewhat) compatible with webhook payloads
+        # or perhaps better to use
+        # https://developer.github.com/v3/repos/commits/ since that does not
+        # include events we're not interested in
+
+        # Kick off retrieval of data about latest commit on master branch, which
+        # we will use to figure out if there is a new vim version
+        master = yield vim_github_request_async(
+            '/repos/vim/vim/branches/master', self._g.master_etag)
+
+        is_new_vim_version = False
+
+        if master.status_code == HTTP_OK:
+            message = master.json['commit']['commit']['message'].encode()
+            m = COMMIT_MSG_RE.match(message)
+            if m:
+                new_vim_version = m.group(1)
+                if new_vim_version != self._g.vim_version:
+                    logging.info("found new vim version %s (was: %s)",
+                                 new_vim_version, self._g.vim_version)
+                    is_new_vim_version = True
+                    self._g.vim_version = new_vim_version
+                    self._g_changed = True
+                else:
+                    logging.warn("master branch has moved forward, but vim "
+                                 "version from commit message is unchanged: "
+                                 "'%s' -> version '%s'", message,
+                                 self._g.vim_version)
+            else:
+                logging.warn("master branch has moved forward, but no new vim "
+                             "version found in commit msg ('%s'), so keeping "
+                             "old one (%s)", message, self._g.vim_version)
+            self._g.master_etag = master.headers.get(HTTP_HDR_ETAG)
+            self._g_changed = True
+        elif self._g.master_etag and master.status_code == HTTP_NOT_MOD:
+            logging.info("master branch is unchanged, so no new vim version")
+        else:
+            logging.warn("failed to get master branch: HTTP status %d",
+                         master.status_code)
+
+        raise ndb.Return(is_new_vim_version)
+
+
+@ndb.synctasklet
+def get_g(wipe):
+    g = GlobalInfo.get_by_id('global')
+
+    if wipe:
+        logging.info("deleting global info and raw files from db")
+        yield wipe_db_async(RawFileContent), wipe_db_async(RawFileInfo)
+        if g:
+            g.key.delete_async()
+            # Make sure we preserve at least the vim version; necessary in
+            # case the latest commit on master doesn't specify it
+            g = GlobalInfo(id='global', vim_version=g.vim_version)
+
+    if not g:
+        g = GlobalInfo(id='global')
+
+    logging.debug("global info: %s",
+                  ", ".join("{} = {}".format(n, getattr(g, n)) for n in
+                            g._properties.iterkeys()))
+
+    raise ndb.Return(g)
+
 
 
 # TODO: we should perhaps split up the "Processor*" classes into "fetching" and
