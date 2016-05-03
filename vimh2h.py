@@ -81,7 +81,7 @@ FOOTER2 = """
 """
 
 VIM_FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">' \
-	       'vim_faq.txt</a>   Frequently Asked Questions\n'
+               'vim_faq.txt</a>   Frequently Asked Questions\n'
 
 RE_TAGLINE = re.compile(r'(\S+)\s+(\S+)')
 
@@ -95,9 +95,9 @@ PAT_COMMAND  = r'`([^` ]+)`'
 PAT_OPTWORD  = r"('(?:[a-z]{2,}|t_..)')"
 PAT_CTRL     = r'(CTRL-(?:W_)?(?:\{char\}|<[A-Za-z]+?>|.)?)'
 PAT_SPECIAL  = r'(<.+?>|\{.+?}|' \
-	       r'\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|' \
-	       r'arg|arguments|ident|addr|group)]|' \
-	       r'(?<=\s)\[[-a-z^A-Z0-9_]{2,}])'
+               r'\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|' \
+               r'arg|arguments|ident|addr|group)]|' \
+               r'(?<=\s)\[[-a-z^A-Z0-9_]{2,}])'
 PAT_TITLE    = r'(Vim version [0-9.a-z]+|VIM REFERENCE.*)'
 PAT_NOTE     = r'((?<!' + PAT_WORDCHAR + r')(?:note|NOTE|Notes?):?' \
                  r'(?!' + PAT_WORDCHAR + r'))'
@@ -106,22 +106,22 @@ PAT_WORD     = r'((?<!' + PAT_WORDCHAR + r')' + PAT_WORDCHAR + r'+' \
                  r'(?!' + PAT_WORDCHAR + r'))'
 
 RE_LINKWORD = re.compile(
-	PAT_OPTWORD  + '|' +
-	PAT_CTRL     + '|' +
-	PAT_SPECIAL)
+        PAT_OPTWORD  + '|' +
+        PAT_CTRL     + '|' +
+        PAT_SPECIAL)
 RE_TAGWORD = re.compile(
-	PAT_HEADER   + '|' +
+        PAT_HEADER   + '|' +
         PAT_GRAPHIC  + '|' +
-	PAT_PIPEWORD + '|' +
-	PAT_STARWORD + '|' +
-    	PAT_COMMAND  + '|' +
-	PAT_OPTWORD  + '|' +
-	PAT_CTRL     + '|' +
-	PAT_SPECIAL  + '|' +
-	PAT_TITLE    + '|' +
-	PAT_NOTE     + '|' +
-	PAT_URL      + '|' +
-	PAT_WORD)
+        PAT_PIPEWORD + '|' +
+        PAT_STARWORD + '|' +
+        PAT_COMMAND  + '|' +
+        PAT_OPTWORD  + '|' +
+        PAT_CTRL     + '|' +
+        PAT_SPECIAL  + '|' +
+        PAT_TITLE    + '|' +
+        PAT_NOTE     + '|' +
+        PAT_URL      + '|' +
+        PAT_WORD)
 RE_NEWLINE   = re.compile(r'[\r\n]')
 RE_HRULE     = re.compile(r'[-=]{3,}.*[-=]{3,3}$')
 RE_EG_START  = re.compile(r'(?:.* )?>$')
@@ -134,126 +134,126 @@ class Link(object):
     __slots__ = 'link_pipe', 'link_plain'
 
     def __init__(self, link_pipe, link_plain):
-	self.link_pipe = link_pipe
-	self.link_plain = link_plain
+        self.link_pipe = link_pipe
+        self.link_plain = link_plain
 
 class VimH2H(object):
     def __init__(self, tags, version=None):
         self._urls = { }
         self._version = version
-	for line in RE_NEWLINE.split(tags):
-	    m = RE_TAGLINE.match(line)
-	    if m:
-		tag, filename = m.group(1, 2)
-		self.do_add_tag(filename, tag)
+        for line in RE_NEWLINE.split(tags):
+            m = RE_TAGLINE.match(line)
+            if m:
+                tag, filename = m.group(1, 2)
+                self.do_add_tag(filename, tag)
 
     def add_tags(self, filename, contents):
-	for match in RE_STARTAG.finditer(contents):
-	    tag = match.group(1).replace('\\', '\\\\').replace('/', '\\/')
-	    self.do_add_tag(str(filename), tag)
+        for match in RE_STARTAG.finditer(contents):
+            tag = match.group(1).replace('\\', '\\\\').replace('/', '\\/')
+            self.do_add_tag(str(filename), tag)
 
     def do_add_tag(self, filename, tag):
         # TODO: omit the filename part if it's a link within the page
-	part1 = '<a href="' + filename + '.html#' + \
-		urllib.quote_plus(tag) + '"'
-	part2 = '>' + html_escape[tag] + '</a>'
-	link_pipe = part1 + ' class="l"' + part2
-	classattr = ' class="d"'
-	m = RE_LINKWORD.match(tag)
-	if m:
-	    opt, ctrl, special = m.groups()
-	    if opt is not None: classattr = ' class="o"'
-	    elif ctrl is not None: classattr = ' class="k"'
-	    elif special is not None: classattr = ' class="s"'
-	link_plain = part1 + classattr + part2
-	self._urls[tag] = Link(link_pipe, link_plain)
+        part1 = '<a href="' + filename + '.html#' + \
+                urllib.quote_plus(tag) + '"'
+        part2 = '>' + html_escape[tag] + '</a>'
+        link_pipe = part1 + ' class="l"' + part2
+        classattr = ' class="d"'
+        m = RE_LINKWORD.match(tag)
+        if m:
+            opt, ctrl, special = m.groups()
+            if opt is not None: classattr = ' class="o"'
+            elif ctrl is not None: classattr = ' class="k"'
+            elif special is not None: classattr = ' class="s"'
+        link_plain = part1 + classattr + part2
+        self._urls[tag] = Link(link_pipe, link_plain)
 
     def maplink(self, tag, css_class=None):
-	links = self._urls.get(tag)
-	if links is not None:
-	    if css_class == 'l': return links.link_pipe
-	    else: return links.link_plain
-	elif css_class is not None:
-	    return '<span class="' + css_class + '">' + html_escape[tag] + \
-		    '</span>'
-	else: return html_escape[tag]
+        links = self._urls.get(tag)
+        if links is not None:
+            if css_class == 'l': return links.link_pipe
+            else: return links.link_plain
+        elif css_class is not None:
+            return '<span class="' + css_class + '">' + html_escape[tag] + \
+                    '</span>'
+        else: return html_escape[tag]
 
     def to_html(self, filename, contents, encoding, web_version=True):
-	out = [ ]
+        out = [ ]
 
-	inexample = 0
+        inexample = 0
         filename = str(filename)
         is_help_txt = (filename == 'help.txt')
-	faq_line = False
-	for line in RE_NEWLINE.split(contents):
-	    line = line.rstrip('\r\n')
-	    line_tabs = line
-	    line = line.expandtabs()
-	    if RE_HRULE.match(line):
-		out.extend(('<span class="h">', line, '</span>\n'))
-		continue
-	    if inexample == 2:
-		if RE_EG_END.match(line):
-		    inexample = 0
-		    if line[0] == '<': line = line[1:]
-		else:
+        faq_line = False
+        for line in RE_NEWLINE.split(contents):
+            line = line.rstrip('\r\n')
+            line_tabs = line
+            line = line.expandtabs()
+            if RE_HRULE.match(line):
+                out.extend(('<span class="h">', line, '</span>\n'))
+                continue
+            if inexample == 2:
+                if RE_EG_END.match(line):
+                    inexample = 0
+                    if line[0] == '<': line = line[1:]
+                else:
                     out.extend(('<span class="e">', html_escape[line],
                                '</span>\n'))
-		    continue
-	    if RE_EG_START.match(line_tabs):
-		inexample = 1
-		line = line[0:-1]
-	    if RE_SECTION.match(line_tabs):
-		m = RE_SECTION.match(line)
+                    continue
+            if RE_EG_START.match(line_tabs):
+                inexample = 1
+                line = line[0:-1]
+            if RE_SECTION.match(line_tabs):
+                m = RE_SECTION.match(line)
                 out.extend((r'<span class="c">', m.group(0), r'</span>'))
-		line = line[m.end():]
-	    if is_help_txt and RE_LOCAL_ADD.match(line_tabs):
-		faq_line = True
-	    lastpos = 0
-	    for match in RE_TAGWORD.finditer(line):
-		pos = match.start()
-		if pos > lastpos:
-		    out.append(html_escape[line[lastpos:pos]])
-		lastpos = match.end()
+                line = line[m.end():]
+            if is_help_txt and RE_LOCAL_ADD.match(line_tabs):
+                faq_line = True
+            lastpos = 0
+            for match in RE_TAGWORD.finditer(line):
+                pos = match.start()
+                if pos > lastpos:
+                    out.append(html_escape[line[lastpos:pos]])
+                lastpos = match.end()
                 header, graphic, pipeword, starword, command, opt, ctrl, \
                         special, title, note, url, word = match.groups()
-		if pipeword is not None:
-		    out.append(self.maplink(pipeword, 'l'))
-		elif starword is not None:
-		    out.extend(('<a name="', urllib.quote_plus(starword),
-			    '" class="t">', html_escape[starword], '</a>'))
+                if pipeword is not None:
+                    out.append(self.maplink(pipeword, 'l'))
+                elif starword is not None:
+                    out.extend(('<a name="', urllib.quote_plus(starword),
+                            '" class="t">', html_escape[starword], '</a>'))
                 elif command is not None:
                     out.extend(('<span class="e">', html_escape[command],
                                 '</span>'))
-		elif opt is not None:
-		    out.append(self.maplink(opt, 'o'))
-		elif ctrl is not None:
-		    out.append(self.maplink(ctrl, 'k'))
-		elif special is not None:
-		    out.append(self.maplink(special, 's'))
-		elif title is not None:
+                elif opt is not None:
+                    out.append(self.maplink(opt, 'o'))
+                elif ctrl is not None:
+                    out.append(self.maplink(ctrl, 'k'))
+                elif special is not None:
+                    out.append(self.maplink(special, 's'))
+                elif title is not None:
                     out.extend(('<span class="i">', html_escape[title],
                                 '</span>'))
-		elif note is not None:
+                elif note is not None:
                     out.extend(('<span class="n">', html_escape[note],
                                 '</span>'))
-		elif header is not None:
+                elif header is not None:
                     out.extend(('<span class="h">', html_escape[header[:-1]],
                                 '</span>'))
                 elif graphic is not None:
                     out.append(html_escape[graphic[:-2]])
-		elif url is not None:
+                elif url is not None:
                     out.extend(('<a class="u" href="', url, '">' +
                                 html_escape[url], '</a>'))
-		elif word is not None:
-		    out.append(self.maplink(word))
-	    if lastpos < len(line):
-		out.append(html_escape[line[lastpos:]])
-	    out.append('\n')
-	    if inexample == 1: inexample = 2
-	    if faq_line:
-		out.append(VIM_FAQ_LINE)
-		faq_line = False
+                elif word is not None:
+                    out.append(self.maplink(word))
+            if lastpos < len(line):
+                out.append(html_escape[line[lastpos:]])
+            out.append('\n')
+            if inexample == 1: inexample = 2
+            if faq_line:
+                out.append(VIM_FAQ_LINE)
+                faq_line = False
 
         header = []
         header.append(HEAD.format(encoding=encoding, filename=filename))
