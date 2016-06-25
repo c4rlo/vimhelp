@@ -215,7 +215,7 @@ class UpdateHandler(webapp2.RequestHandler):
 
         # Construct the vimhelp-to-html converter, providing it the tags file,
         # and adding on the FAQ for extra tags
-        h2h = VimH2H(tags_future.get_result(), self._g.vim_version)
+        h2h = VimH2H(tags_future.get_result(), version=self._g.vim_version)
         h2h.add_tags(FAQ_NAME, faq_future.get_result())
 
         # Wait for urlfetches and Datastore accesses to return; kick off the

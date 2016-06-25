@@ -24,7 +24,7 @@ def main():
     basenames = sys.argv[3:]
 
     print "Processing tags..."
-    h2h = VimH2H(slurp(os.path.join(in_dir, 'tags')))
+    h2h = VimH2H(slurp(os.path.join(in_dir, 'tags')), is_web_version=False)
 
     if len(basenames) == 0:
         basenames = os.listdir(in_dir)
@@ -44,8 +44,7 @@ def main():
             encoding = 'UTF-8'
         outpath = os.path.join(out_dir, basename + '.html')
         of = open(outpath, 'w')
-        of.write(h2h.to_html(basename, slurp(path), encoding,
-                             web_version=False))
+        of.write(h2h.to_html(basename, slurp(path), encoding))
         of.close()
 
 main()

@@ -53,13 +53,14 @@ Quick links:
 <a href="/">help overview</a> &middot;
 <a href="quickref.txt.html">quick reference</a> &middot;
 <a href="usr_toc.txt.html">user manual toc</a> &middot;
-<a href="help.txt.html#reference_toc">reference manual toc</a> &middot;
+<a href="{helptxt}#reference_toc">reference manual toc</a> &middot;
 <a href="vim_faq.txt.html">faq</a>
 """
 
-SITENAVI_PLAIN = '<p>' + SITENAVI_LINKS + '</p>'
+SITENAVI_PLAIN = '<p>' + SITENAVI_LINKS.format(helptxt='help.txt.html') + '</p>'
 
-SITENAVI_SEARCH = '<table width="100%"><tbody><tr><td>' + SITENAVI_LINKS + \
+SITENAVI_SEARCH = '<table width="100%"><tbody><tr><td>' + \
+        SITENAVI_LINKS.format(helptxt='/') + \
 '</td><td align="right"><div class="gcse-searchbox"></div></td></tr></tbody></table>' \
 '<div class="gcse-searchresults"></div>'
 
@@ -144,9 +145,10 @@ class Link(object):
         self.filename           = filename
 
 class VimH2H(object):
-    def __init__(self, tags, version=None):
+    def __init__(self, tags, version=None, is_web_version=True):
         self._urls = { }
         self._version = version
+        self._is_web_version = is_web_version
         for line in RE_NEWLINE.split(tags):
             m = RE_TAGLINE.match(line)
             if m:
@@ -163,7 +165,11 @@ class VimH2H(object):
         def mkpart1(doc):
             return '<a href="' + doc + '#' + tag_quoted + '" class="'
         part1_same = mkpart1('')
-        part1_foreign = mkpart1(filename + '.html')
+        if self._is_web_version and filename == 'help.txt':
+            doc = '/'
+        else:
+            doc = filename + '.html'
+        part1_foreign = mkpart1(doc)
         part2 = '">' + html_escape[tag] + '</a>'
         def mklinks(cssclass):
             return (part1_same    + cssclass + part2,
@@ -196,7 +202,7 @@ class VimH2H(object):
                     '</span>'
         else: return html_escape[tag]
 
-    def to_html(self, filename, contents, encoding, web_version=True):
+    def to_html(self, filename, contents, encoding):
         out = [ ]
 
         inexample = 0
@@ -275,14 +281,14 @@ class VimH2H(object):
 
         header = []
         header.append(HEAD.format(encoding=encoding, filename=filename))
-        if web_version:
+        if self._is_web_version:
             header.append(SEARCH_SCRIPT)
         header.append(HEAD_END)
-        if web_version and is_help_txt:
+        if self._is_web_version and is_help_txt:
             vers_note = VERSION_NOTE.replace('{version}', self._version) \
                     if self._version else ''
             header.append(INTRO.replace('{vers-note}', vers_note))
-        if web_version:
+        if self._is_web_version:
             header.append(SITENAVI_SEARCH)
         else:
             header.append(SITENAVI_PLAIN)

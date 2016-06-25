@@ -14,6 +14,8 @@ class PageHandler(webapp2.RequestHandler):
                 query.map(operator.methodcaller('string_id'), keys_only=True)
         self.response.write(BASE_URL + '\n')
         for name in sorted(all_names):
+            if name == 'help.txt':
+                continue
             self.response.write(BASE_URL + name + '.html\n')
 
 

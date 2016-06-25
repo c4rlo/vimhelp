@@ -1,18 +1,19 @@
 # Retrieve a help page from the data store, and present to the user
 
-import logging, re, datetime
+import logging, datetime
 import webapp2
 from webob.exc import HTTPNotFound, HTTPInternalServerError
+from google.appengine.ext import ndb
 from dbmodel import *
 
 HTTP_NOT_MOD = 304
 
 class PageHandler(webapp2.RequestHandler):
     def get(self, filename):
-        if not filename: filename = 'help.txt'
-        # TODO: we should probably set up an url redirect from '/help.txt.html'
-        # to just '/', and change the html generator to use that. Also remove
-        # 'help.txt.html' from the sitemap.
+        if filename == 'help.txt':
+            return self.redirect('/', permanent=True)
+        if not filename:
+            filename = 'help.txt'
         head = ProcessedFileHead.get_by_id(filename)
         if not head:
             logging.warn("%s not found in db", filename)
