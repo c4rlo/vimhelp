@@ -3,7 +3,7 @@
 import sys, os, os.path
 #import cProfile
 
-sys.path.append('../gae')
+sys.path.append('.')
 
 from vimh2h import VimH2H
 
