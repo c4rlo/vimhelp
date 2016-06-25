@@ -6,6 +6,13 @@ threadsafe: true
 default_expiration: "1h"
 builtins:
 - remote_api: on
+skip_files:
+- ^(.*/)?\..*$
+- ^(.*/)?.*~$
+- ^(.*/)?.*\.py[co]$
+- ^README\.md$
+- ^LICENSE$
+- ^scripts/.*$
 
 handlers:
 - url: /(?:(?:.*?\.txt|tags)\.html)?
