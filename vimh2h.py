@@ -131,11 +131,17 @@ RE_STARTAG   = re.compile(r'\s\*([^ \t|]+)\*(?:\s|$)')
 RE_LOCAL_ADD = re.compile(r'LOCAL ADDITIONS:\s+\*local-additions\*$')
 
 class Link(object):
-    __slots__ = 'link_pipe', 'link_plain'
+    __slots__ = 'link_plain_same',    'link_pipe_same', \
+                'link_plain_foreign', 'link_pipe_foreign', \
+                'filename'
 
-    def __init__(self, link_pipe, link_plain):
-        self.link_pipe = link_pipe
-        self.link_plain = link_plain
+    def __init__(self, link_plain_same, link_plain_foreign,
+                       link_pipe_same,  link_pipe_foreign, filename):
+        self.link_plain_same    = link_plain_same
+        self.link_plain_foreign = link_plain_foreign
+        self.link_pipe_same     = link_pipe_same
+        self.link_pipe_foreign  = link_pipe_foreign
+        self.filename           = filename
 
 class VimH2H(object):
     def __init__(self, tags, version=None):
@@ -153,26 +159,38 @@ class VimH2H(object):
             self.do_add_tag(str(filename), tag)
 
     def do_add_tag(self, filename, tag):
-        # TODO: omit the filename part if it's a link within the page
-        part1 = '<a href="' + filename + '.html#' + \
-                urllib.quote_plus(tag) + '"'
-        part2 = '>' + html_escape[tag] + '</a>'
-        link_pipe = part1 + ' class="l"' + part2
-        classattr = ' class="d"'
+        tag_quoted = urllib.quote_plus(tag)
+        def mkpart1(doc):
+            return '<a href="' + doc + '#' + tag_quoted + '" class="'
+        part1_same = mkpart1('')
+        part1_foreign = mkpart1(filename + '.html')
+        part2 = '">' + html_escape[tag] + '</a>'
+        def mklinks(cssclass):
+            return (part1_same    + cssclass + part2,
+                    part1_foreign + cssclass + part2)
+        cssclass_plain = 'd'
         m = RE_LINKWORD.match(tag)
         if m:
             opt, ctrl, special = m.groups()
-            if opt is not None: classattr = ' class="o"'
-            elif ctrl is not None: classattr = ' class="k"'
-            elif special is not None: classattr = ' class="s"'
-        link_plain = part1 + classattr + part2
-        self._urls[tag] = Link(link_pipe, link_plain)
+            if opt       is not None: cssclass_plain = 'o'
+            elif ctrl    is not None: cssclass_plain = 'k'
+            elif special is not None: cssclass_plain = 's'
+        links_plain = mklinks(cssclass_plain)
+        links_pipe = mklinks('l')
+        self._urls[tag] = Link(
+            links_plain[0], links_plain[1],
+            links_pipe[0],  links_pipe[1],
+            filename)
 
-    def maplink(self, tag, css_class=None):
+    def maplink(self, tag, curr_filename, css_class=None):
         links = self._urls.get(tag)
         if links is not None:
-            if css_class == 'l': return links.link_pipe
-            else: return links.link_plain
+            if links.filename == curr_filename:
+                if css_class == 'l': return links.link_pipe_same
+                else:                return links.link_plain_same
+            else:
+                if css_class == 'l': return links.link_pipe_foreign
+                else:                return links.link_plain_foreign
         elif css_class is not None:
             return '<span class="' + css_class + '">' + html_escape[tag] + \
                     '</span>'
@@ -218,7 +236,7 @@ class VimH2H(object):
                 header, graphic, pipeword, starword, command, opt, ctrl, \
                         special, title, note, url, word = match.groups()
                 if pipeword is not None:
-                    out.append(self.maplink(pipeword, 'l'))
+                    out.append(self.maplink(pipeword, filename, 'l'))
                 elif starword is not None:
                     out.extend(('<a name="', urllib.quote_plus(starword),
                             '" class="t">', html_escape[starword], '</a>'))
@@ -226,11 +244,11 @@ class VimH2H(object):
                     out.extend(('<span class="e">', html_escape[command],
                                 '</span>'))
                 elif opt is not None:
-                    out.append(self.maplink(opt, 'o'))
+                    out.append(self.maplink(opt, filename, 'o'))
                 elif ctrl is not None:
-                    out.append(self.maplink(ctrl, 'k'))
+                    out.append(self.maplink(ctrl, filename, 'k'))
                 elif special is not None:
-                    out.append(self.maplink(special, 's'))
+                    out.append(self.maplink(special, filename, 's'))
                 elif title is not None:
                     out.extend(('<span class="i">', html_escape[title],
                                 '</span>'))
@@ -246,7 +264,7 @@ class VimH2H(object):
                     out.extend(('<a class="u" href="', url, '">' +
                                 html_escape[url], '</a>'))
                 elif word is not None:
-                    out.append(self.maplink(word))
+                    out.append(self.maplink(word, filename))
             if lastpos < len(line):
                 out.append(html_escape[line[lastpos:]])
             out.append('\n')
