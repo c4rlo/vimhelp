@@ -8,8 +8,15 @@ from dbmodel import *
 
 HTTP_NOT_MOD = 304
 
+WWW_URL_PREFIX = 'http://www.vimhelp.org/'
+
 class PageHandler(webapp2.RequestHandler):
     def get(self, filename):
+        req = self.request
+        resp = self.response
+        if req.url.startswith(WWW_URL_PREFIX):
+            new_url = 'http://vimhelp.org/' + req.url[len(WWW_URL_PREFIX):]
+            return self.redirect(new_url, permanent=True)
         if filename == 'help.txt':
             return self.redirect('/', permanent=True)
         if not filename:
@@ -18,8 +25,6 @@ class PageHandler(webapp2.RequestHandler):
         if not head:
             logging.warn("%s not found in db", filename)
             raise HTTPNotFound()
-        req = self.request
-        resp = self.response
         resp.etag = head.etag
         # set expires to next exact half hour, i.e. :30:00 or :00:00
         # TODO: race condition if it's now :30:01 and new version is in the
