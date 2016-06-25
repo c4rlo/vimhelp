@@ -57,10 +57,13 @@ Quick links:
 <a href="vim_faq.txt.html">faq</a>
 """
 
-SITENAVI_PLAIN = '<p>' + SITENAVI_LINKS.format(helptxt='help.txt.html') + '</p>'
+SITENAVI_LINKS_PLAIN = SITENAVI_LINKS.format(helptxt='help.txt.html')
+SITENAVI_LINKS_WEB = SITENAVI_LINKS.format(helptxt='/')
 
-SITENAVI_SEARCH = '<table width="100%"><tbody><tr><td>' + \
-        SITENAVI_LINKS.format(helptxt='/') + \
+SITENAVI_PLAIN = '<p>' + SITENAVI_LINKS_PLAIN + '</p>'
+SITENAVI_WEB = '<p>' + SITENAVI_LINKS_WEB + '</p>'
+
+SITENAVI_SEARCH = '<table width="100%"><tbody><tr><td>' + SITENAVI_LINKS_WEB + \
 '</td><td align="right"><div class="gcse-searchbox"></div></td></tr></tbody></table>' \
 '<div class="gcse-searchresults"></div>'
 
@@ -290,10 +293,12 @@ class VimH2H(object):
             header.append(INTRO.replace('{vers-note}', vers_note))
         if self._is_web_version:
             header.append(SITENAVI_SEARCH)
+            sitenavi_footer = SITENAVI_WEB
         else:
             header.append(SITENAVI_PLAIN)
+            sitenavi_footer = SITENAVI_PLAIN
         header.append(TEXTSTART)
-        return ''.join(chain(header, out, (FOOTER, SITENAVI_PLAIN, FOOTER2)))
+        return ''.join(chain(header, out, (FOOTER, sitenavi_footer, FOOTER2)))
 
 class HtmlEscCache(dict):
     def __missing__(self, key):
