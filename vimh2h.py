@@ -64,8 +64,8 @@ SITENAVI_PLAIN = '<p>' + SITENAVI_LINKS_PLAIN + '</p>'
 SITENAVI_WEB = '<p>' + SITENAVI_LINKS_WEB + '</p>'
 
 SITENAVI_SEARCH = '<table width="100%"><tbody><tr><td>' + SITENAVI_LINKS_WEB + \
-'</td><td align="right"><div class="gcse-searchbox"></div></td></tr></tbody></table>' \
-'<div class="gcse-searchresults"></div>'
+'</td><td style="text-align: right; max-width: 25vw"><div class="gcse-searchbox">' \
+'</div></td></tr></tbody></table><div class="gcse-searchresults"></div>'
 
 TEXTSTART = """
 <div id="d1">
