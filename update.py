@@ -27,7 +27,7 @@ FAQ_NAME = 'vim_faq.txt'
 HELP_NAME = 'help.txt'
 
 DOC_ITEM_RE = re.compile(r'(?:[-\w]+\.txt|tags)$')
-COMMIT_MSG_RE = re.compile(r'[Pp]atch\s+(\d[^\n]+)')
+COMMIT_MSG_RE = re.compile(r'[Pp]atch\s+(\d[^:\n]+)')
 
 URLFETCH_DEADLINE_SECONDS = 20
 
