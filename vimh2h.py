@@ -77,7 +77,7 @@ TEXTSTART = """
 FOOTER = '</pre>'
 
 FOOTER2 = """
-<p id="footer">This site is maintained by Carlo Teubner (<i>(my first name) dot (my last name) at gmail dot com</i>).</p>
+<p id="footer">This site is maintained by Carlo Teubner (<i>(my first name) at cteubner dot net</i>).</p>
 </div>
 </div>
 </body>
