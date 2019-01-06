@@ -1,15 +1,17 @@
 # Retrieve a help page from the data store, and present to the user
 
-import logging, datetime
+import datetime
+import logging
 import webapp2
 from webob.exc import HTTPNotFound, HTTPInternalServerError
 from google.appengine.ext import ndb
-from dbmodel import *
+from dbmodel import ProcessedFileHead
 
 HTTP_NOT_MOD = 304
 
 LEGACY_HOSTS = 'www.vimhelp.org', 'vimhelp.appspot.com'
 LEGACY_HOST_URLS = ('http://vimhelp.org',)
+
 
 class PageHandler(webapp2.RequestHandler):
     def get(self, filename):
@@ -58,16 +60,18 @@ class PageHandler(webapp2.RequestHandler):
             for part in parts:
                 resp.write(part.data)
 
+
 def get_parts(head):
     # We could alternatively achieve this via an ancestor query (retrieving the
     # head and its parts simultaneously) to give us strong consistency. But the
     # downside of that is that it bypasses the automatic memcache layer built
     # into ndb, which we want to take advantage of.
-    if head.numparts == 1: return []
+    if head.numparts == 1:
+        return []
     logging.info("retrieving %d extra part(s)", head.numparts - 1)
     filename = head.key.string_id()
-    keys = [ ndb.Key('ProcessedFilePart', filename + ':' + str(i))
-                for i in xrange(1, head.numparts) ]
+    keys = [ndb.Key('ProcessedFilePart', filename + ':' + str(i))
+            for i in xrange(1, head.numparts)]
     num_tries = 0
     while True:
         num_tries += 1
@@ -79,6 +83,7 @@ def get_parts(head):
             logging.warn("got differing etags, retrying")
         else:
             return sorted(parts, key=lambda p: p.key.string_id())
+
 
 app = webapp2.WSGIApplication([
     (r'/(?:(.*?\.txt|tags)\.html)?', PageHandler)

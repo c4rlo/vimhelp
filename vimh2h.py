@@ -1,6 +1,7 @@
 # converts vim documentation to html
 
-import re, urllib
+import re
+import urllib
 from itertools import chain
 
 HEAD = """\
@@ -134,6 +135,7 @@ RE_SECTION   = re.compile(r'[-A-Z .][-A-Z0-9 .()]*(?=\s+\*)')
 RE_STARTAG   = re.compile(r'\s\*([^ \t|]+)\*(?:\s|$)')
 RE_LOCAL_ADD = re.compile(r'LOCAL ADDITIONS:\s+\*local-additions\*$')
 
+
 class Link(object):
     __slots__ = 'link_plain_same',    'link_pipe_same', \
                 'link_plain_foreign', 'link_pipe_foreign', \
@@ -147,9 +149,10 @@ class Link(object):
         self.link_pipe_foreign  = link_pipe_foreign
         self.filename           = filename
 
+
 class VimH2H(object):
     def __init__(self, tags, version=None, is_web_version=True):
-        self._urls = { }
+        self._urls = {}
         self._version = version
         self._is_web_version = is_web_version
         for line in RE_NEWLINE.split(tags):
@@ -165,8 +168,10 @@ class VimH2H(object):
 
     def do_add_tag(self, filename, tag):
         tag_quoted = urllib.quote_plus(tag)
+
         def mkpart1(doc):
             return '<a href="' + doc + '#' + tag_quoted + '" class="'
+
         part1_same = mkpart1('')
         if self._is_web_version and filename == 'help.txt':
             doc = '/'
@@ -174,9 +179,11 @@ class VimH2H(object):
             doc = filename + '.html'
         part1_foreign = mkpart1(doc)
         part2 = '">' + html_escape[tag] + '</a>'
+
         def mklinks(cssclass):
             return (part1_same    + cssclass + part2,
                     part1_foreign + cssclass + part2)
+
         cssclass_plain = 'd'
         m = RE_LINKWORD.match(tag)
         if m:
@@ -206,7 +213,7 @@ class VimH2H(object):
         else: return html_escape[tag]
 
     def to_html(self, filename, contents, encoding):
-        out = [ ]
+        out = []
 
         inexample = 0
         filename = str(filename)
@@ -300,6 +307,7 @@ class VimH2H(object):
         header.append(TEXTSTART)
         return ''.join(chain(header, out, (FOOTER, sitenavi_footer, FOOTER2)))
 
+
 class HtmlEscCache(dict):
     def __missing__(self, key):
         r = key.replace('&', '&amp;') \
@@ -307,5 +315,6 @@ class HtmlEscCache(dict):
                .replace('>', '&gt;')
         self[key] = r
         return r
+
 
 html_escape = HtmlEscCache()

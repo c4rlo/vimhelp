@@ -2,11 +2,13 @@
 
 from google.appengine.ext import ndb
 
+
 # There is one of these objects in the datastore, to persist some bits of info
 # that we need across update runs. keyname is "global".
 class GlobalInfo(ndb.Model):
     docdir_etag = ndb.BlobProperty()
-    # HTTP ETag of the vim repository request for the 'runtime/doc' subdirectory
+    # HTTP ETag of the vim repository request for the 'runtime/doc'
+    # subdirectory
 
     master_etag = ndb.BlobProperty()
     # HTTP ETag of the commit that the master branch points to
@@ -16,6 +18,7 @@ class GlobalInfo(ndb.Model):
 
     _use_cache = False
     _use_memcache = False
+
 
 # Info related to an unprocessed documentation file from the repository; key
 # name is basename, e.g. "help.txt"
@@ -29,6 +32,7 @@ class RawFileInfo(ndb.Model):
     _use_cache = False
     _use_memcache = False
 
+
 # The actual contents of an unprocessed documentation file from the repository;
 # key name is basename, e.g. "help.txt"
 class RawFileContent(ndb.Model):
@@ -40,6 +44,7 @@ class RawFileContent(ndb.Model):
 
     _use_cache = False
     _use_memcache = False
+
 
 # Info related to a processed (HTMLified) documentation file; key name is
 # basename, e.g. "help.txt"
@@ -64,13 +69,14 @@ class ProcessedFileHead(ndb.Model):
 
     _use_cache = False
 
+
 # Part of a processed file; keyname is basename + ":" + partnum (1-based), e.g.
 # "help.txt:1".
-# This chunking is necessary because the maximum entity size in the Datastore is
-# 1 MB: see https://cloud.google.com/appengine/docs/python/ndb/
+# This chunking is necessary because the maximum entity size in the Datastore
+# is 1 MB: see https://cloud.google.com/appengine/docs/python/ndb/
 # NOTE: vimhelp.py currently relies on the keynames, when sorted
-# lexicographically, yielding the correct order; this implies that we must never
-# have a partnum with more than one digit.
+# lexicographically, yielding the correct order; this implies that we must
+# never have a partnum with more than one digit.
 class ProcessedFilePart(ndb.Model):
     data = ndb.BlobProperty(required=True)
     # Contents

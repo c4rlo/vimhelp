@@ -1,11 +1,14 @@
 #!/usr/bin/python2
 
-import sys, os, os.path
-#import cProfile
+import sys
+import os
+import os.path
+# import cProfile
 
 sys.path.append('.')
 
 from vimh2h import VimH2H
+
 
 def slurp(filename):
     f = open(filename)
@@ -13,11 +16,14 @@ def slurp(filename):
     f.close()
     return c
 
+
 def usage():
     return "usage: " + sys.argv[0] + " IN_DIR OUT_DIR [BASENAMES...]"
 
+
 def main():
-    if len(sys.argv) < 3: sys.exit(usage())
+    if len(sys.argv) < 3:
+        sys.exit(usage())
 
     in_dir = sys.argv[1]
     out_dir = sys.argv[2]
@@ -47,5 +53,6 @@ def main():
         of.write(h2h.to_html(basename, slurp(path), encoding))
         of.close()
 
+
 main()
-#cProfile.run('main()')
+# cProfile.run('main()')
