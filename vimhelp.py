@@ -8,14 +8,18 @@ from dbmodel import *
 
 HTTP_NOT_MOD = 304
 
-WWW_URL_PREFIX = 'http://www.vimhelp.org/'
+LEGACY_HOSTS = 'www.vimhelp.org', 'vimhelp.appspot.com'
+LEGACY_HOST_URLS = ('http://vimhelp.org',)
 
 class PageHandler(webapp2.RequestHandler):
     def get(self, filename):
         req = self.request
         resp = self.response
-        if req.url.startswith(WWW_URL_PREFIX):
-            new_url = 'http://vimhelp.org/' + req.url[len(WWW_URL_PREFIX):]
+        logging.debug("url = '{}', host_url = '{}', path_qs = '{}'".format(
+            req.url, req.host_url, req.path_qs))
+        if req.host in LEGACY_HOSTS or req.host_url in LEGACY_HOST_URLS:
+            new_url = 'https://vimhelp.org' + req.path_qs
+            logging.info("Redirecting to: {}".format(new_url))
             return self.redirect(new_url, permanent=True)
         if filename == 'help.txt':
             return self.redirect('/', permanent=True)
