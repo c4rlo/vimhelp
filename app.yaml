@@ -13,7 +13,7 @@ skip_files:
 - ^scripts/.*$
 
 handlers:
-- url: /(?:(?:.*?\.txt|tags)\.html)?
+- url: /(?:.*\.html)?
   script: vimhelp.app
 - url: /(?:enqueue_)?update
   script: update.app

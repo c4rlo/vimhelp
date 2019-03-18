@@ -27,6 +27,8 @@ class PageHandler(webapp2.RequestHandler):
             return self.redirect('/', permanent=True)
         if not filename:
             filename = 'help.txt'
+        elif not filename.endswith('.txt') and filename != 'tags':
+            return self.redirect('/' + filename + '.txt.html', permanent=True)
         head = ProcessedFileHead.get_by_id(filename)
         if not head:
             logging.warn("%s not found in db", filename)
@@ -86,5 +88,5 @@ def get_parts(head):
 
 
 app = webapp2.WSGIApplication([
-    (r'/(?:(.*?\.txt|tags)\.html)?', PageHandler)
+    (r'/(?:(.*)\.html)?', PageHandler)
 ])
