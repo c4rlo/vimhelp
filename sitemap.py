@@ -4,7 +4,7 @@ import dbmodel
 import operator
 import webapp2
 
-BASE_URL = 'http://vimhelp.appspot.com/'
+BASE_URL = 'https://vimhelp.org/'
 
 
 class PageHandler(webapp2.RequestHandler):
