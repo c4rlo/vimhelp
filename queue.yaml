@@ -1,3 +1,5 @@
+# Migrated to Cloud Tasks: this is now unused (and hence present in .gcloudignore).
+
 # TODO: for some reason, the 'update2' queue always ends up being 'inactive' in
 # the Developers Console:
 # https://console.developers.google.com/project/vimhelp-hrd/appengine/taskqueues/update2

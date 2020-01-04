@@ -1,0 +1,8 @@
+/.git/
+/.gitignore
+/scripts/
+/README.md
+/LICENSE
+/queue.yaml
+/*.pyc
+/*.pyo

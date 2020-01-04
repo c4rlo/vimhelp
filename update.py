@@ -14,7 +14,7 @@ import logging
 import os
 import re
 import webapp2
-from google.appengine.api import taskqueue
+from google.cloud import tasks
 from google.appengine.ext import ndb
 from dbmodel import GlobalInfo, ProcessedFileHead, ProcessedFilePart, \
                     RawFileContent, RawFileInfo
@@ -506,8 +506,18 @@ def urlfetch_async(url, etag, is_json=False, headers=None):
 class EnqueueUpdateHandler(webapp2.RequestHandler):
     def get(self):
         logging.info("enqueueing update")
-        taskqueue.add(queue_name='update2', url='/update',
-                      payload=self.request.query_string)
+        client = tasks.CloudTasksClient()
+        parent = client.queue_path('vimhelp-hrd', 'us-central1', 'update2')
+        task = {
+            'app_engine_http_request': {
+                'http_method': 'POST',
+                'relative_uri': '/update',
+                'body': self.request.query_string.encode()
+            }
+        }
+        response = client.create_task(parent, task)
+        eta = response.schedule_time.ToDatetime().strftime("%m/%d/%Y, %H:%M:%S")
+        logging.info('Task %s enqueued, ETA %s', response.name, eta)
 
 
 class HtmlLogFormatter(logging.Formatter):
