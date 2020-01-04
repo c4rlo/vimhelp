@@ -43,7 +43,7 @@ class PageHandler(webapp2.RequestHandler):
             if next_update_time(timestamp) > now:
                 logging.debug("responding from inproc cache entry")
                 prepare_response(req, resp, head, now)
-                if resp.status != HTTP_NOT_MOD:
+                if resp.status_int != HTTP_NOT_MOD:
                     write_response(resp, head, parts)
             else:
                 logging.debug("inproc cache entry is expired")
@@ -57,7 +57,7 @@ class PageHandler(webapp2.RequestHandler):
             logging.debug("responding from db")
             prepare_response(req, resp, head, now)
             parts = []
-            if resp.status != HTTP_NOT_MOD:
+            if resp.status_int != HTTP_NOT_MOD:
                 parts = get_parts(head)
                 write_response(resp, head, parts)
             if head.numparts == 1 or parts:
@@ -76,12 +76,12 @@ def prepare_response(req, resp, head, now):
     if head.etag in req.if_none_match:
         logging.info("matched etag, modified %s, expires %s",
                      resp.last_modified, expires)
-        resp.status = HTTP_NOT_MOD
+        resp.status_int = HTTP_NOT_MOD
     elif not req.if_none_match and req.if_modified_since and \
             req.if_modified_since >= resp.last_modified:
         logging.info("not modified since %s, modified %s, expires %s",
                      req.if_modified_since, resp.last_modified, expires)
-        resp.status = HTTP_NOT_MOD
+        resp.status_int = HTTP_NOT_MOD
 
 
 # Return next exact half hour, i.e. HH:30:00 or HH:00:00
