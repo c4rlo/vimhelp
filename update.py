@@ -272,7 +272,7 @@ class UpdateHandler(webapp2.RequestHandler):
         is_new_vim_version = False
 
         if master.status_code == HTTP_OK:
-            message = master.json['commit']['commit']['message'].encode()
+            message = master.json['commit']['commit']['message'].encode(errors='replace')
             m = COMMIT_MSG_RE.match(message)
             if m:
                 new_vim_version = m.group(1)
