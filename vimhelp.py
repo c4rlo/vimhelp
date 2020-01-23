@@ -32,10 +32,14 @@ def vimhelp_filename(filename):
 def vimhelp_root():
     return vimhelp('')
 
-def vimhelp(filename):
+@main.app.route('/_ah/warmup')
+def vimhelp_warmup():
+    return vimhelp('', is_warmup=True)
+
+def vimhelp(filename, is_warmup=False):
     req = flask.request
 
-    if req.url_root in LEGACY_URL_PREFIXES:
+    if req.url_root in LEGACY_URL_PREFIXES and not is_warmup:
         new_url = 'https://vimhelp.org' + req.script_root + req.full_path
         logging.info("redirecting to: %s", new_url)
         return redirect(new_url)

@@ -8,12 +8,18 @@ libraries:
 - name: grpcio
   version: 1.0.0
 
+inbound_services:
+- warmup
+
 handlers:
 - url: /(?:.*\.html)?
   script: main.app
 - url: /sitemap\.txt
   script: main.app
 - url: /(?:enqueue_)?update
+  script: main.app
+  login: admin
+- url: /_ah/warmup
   script: main.app
   login: admin
 - url: /(.+)
