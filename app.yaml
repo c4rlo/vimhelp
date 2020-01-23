@@ -10,12 +10,12 @@ libraries:
 
 handlers:
 - url: /(?:.*\.html)?
-  script: vimhelp.app
-- url: /(?:enqueue_)?update
-  script: update.app
-  login: admin
+  script: main.app
 - url: /sitemap\.txt
-  script: sitemap.app
-- url: /(.*)
+  script: main.app
+- url: /(?:enqueue_)?update
+  script: main.app
+  login: admin
+- url: /(.+)
   static_files: static/\1
   upload: static/(.*)

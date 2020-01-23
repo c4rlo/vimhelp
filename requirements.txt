@@ -1,2 +1,3 @@
+Flask ~= 1.1
 googleapis_common_protos
 google-cloud-tasks
