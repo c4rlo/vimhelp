@@ -49,7 +49,7 @@ def vimhelp(filename, is_warmup=False):
     elif not filename:
         filename = 'help.txt'
     elif not filename.endswith('.html'):
-        flask.abort()
+        raise werkzeug.exceptions.NotFound()
     else:
         filename = filename[:-5]  # strip ".html"
 
