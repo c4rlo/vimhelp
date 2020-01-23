@@ -1,19 +1,16 @@
 # Retrieve a help page from the data store, and present to the user
 
-import main
-from dbmodel import ProcessedFileHead
-
-from google.appengine.ext import ndb
+import datetime
+import logging
+import threading
+from http import HTTPStatus
 
 import flask
 import werkzeug.exceptions
 
-import datetime
-import logging
-import threading
+from google.cloud import ndb
 
-HTTP_NOT_MOD = 304
-HTTP_MOVED_PERM = 301
+from . import dbmodel
 
 LEGACY_URL_PREFIXES = \
     'http://www.vimhelp.org/', 'https://www.vimhelp.org/', \
@@ -24,19 +21,7 @@ g_cache = {}
 g_cache_lock = threading.Lock()
 
 
-@main.app.route('/<filename>')
-def vimhelp_filename(filename):
-    return vimhelp(filename)
-
-@main.app.route('/')
-def vimhelp_root():
-    return vimhelp('')
-
-@main.app.route('/_ah/warmup')
-def vimhelp_warmup():
-    return vimhelp('', is_warmup=True)
-
-def vimhelp(filename, is_warmup=False):
+def handle_vimhelp(filename, is_warmup=False):
     req = flask.request
 
     if req.url_root in LEGACY_URL_PREFIXES and not is_warmup:
@@ -57,7 +42,7 @@ def vimhelp(filename, is_warmup=False):
         logging.info("redirecting %s.html to %s.txt.html", filename, filename)
         return redirect('/' + filename + '.txt.html')
 
-    logging.debug("filename: %s", filename)
+    logging.info("filename: %s", filename)
 
     now = datetime.datetime.utcnow()
 
@@ -67,26 +52,27 @@ def vimhelp(filename, is_warmup=False):
     if entry is not None:
         head, parts, timestamp = entry
         if next_update_time(timestamp) > now:
-            logging.debug("responding from inproc cache entry")
+            logging.info("responding from inproc cache entry")
             resp = prepare_response(req, head, now)
             return complete_response(resp, head, parts)
-        logging.debug("inproc cache entry is expired")
+        logging.info("inproc cache entry is expired")
 
-    head = ProcessedFileHead.get_by_id(filename)
-    if not head:
-        logging.warn("%s not found in db", filename)
-        raise werkzeug.exceptions.NotFound()
-    logging.debug("responding from db")
-    resp = prepare_response(req, head, now)
-    parts = []
-    if resp.status_code != HTTP_NOT_MOD:
-        parts = get_parts(head)
-        complete_response(resp, head, parts)
-    if head.numparts == 1 or parts:
-        logging.debug("writing entry to inproc cache")
-        with g_cache_lock:
-            g_cache[filename] = head, parts, now
-    return resp
+    with dbmodel.ndb_client.context():
+        head = dbmodel.ProcessedFileHead.get_by_id(filename)
+        if not head:
+            logging.warn("%s not found in db", filename)
+            raise werkzeug.exceptions.NotFound()
+        logging.info("responding from db")
+        resp = prepare_response(req, head, now)
+        parts = []
+        if resp.status_code != HTTPStatus.NOT_MODIFIED:
+            parts = get_parts(head)
+            complete_response(resp, head, parts)
+        if head.numparts == 1 or parts:
+            logging.info("writing entry to inproc cache")
+            with g_cache_lock:
+                g_cache[filename] = head, parts, now
+        return resp
 
 
 def prepare_response(req, head, now):
@@ -94,7 +80,7 @@ def prepare_response(req, head, now):
     resp.charset = head.encoding
     resp.last_modified = head.modified
     resp.expires = next_update_time(now)
-    resp.set_etag(head.etag)
+    resp.set_etag(head.etag.decode())
     return resp.make_conditional(req)
 
 
@@ -106,15 +92,15 @@ def next_update_time(t):
 
 
 def complete_response(resp, head, parts):
-    if resp.status_code != HTTP_NOT_MOD:
+    if resp.status_code != HTTPStatus.NOT_MODIFIED:
         logging.info("writing %d-part response, modified %s, expires %s",
                      1 + len(parts), resp.last_modified, resp.expires)
-        resp.data = head.data0 + ''.join(p.data for p in parts)
+        resp.data = head.data0 + b''.join(p.data for p in parts)
     return resp
 
 
 def redirect(url):
-    return flask.redirect(url, HTTP_MOVED_PERM)
+    return flask.redirect(url, HTTPStatus.MOVED_PERMANENTLY)
 
 
 def get_parts(head):
@@ -127,7 +113,7 @@ def get_parts(head):
     logging.info("retrieving %d extra part(s)", head.numparts - 1)
     filename = head.key.string_id()
     keys = [ndb.Key('ProcessedFilePart', filename + ':' + str(i))
-            for i in xrange(1, head.numparts)]
+            for i in range(1, head.numparts)]
     num_tries = 0
     while True:
         num_tries += 1

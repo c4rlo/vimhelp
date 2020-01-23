@@ -1,6 +1,9 @@
 # Definitions of objects stored in Data Store and Memcache
 
-from google.appengine.ext import ndb
+from google.cloud import ndb
+
+
+ndb_client = ndb.Client()
 
 
 # There is one of these objects in the datastore, to persist some bits of info

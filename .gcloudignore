@@ -1,8 +1,9 @@
-/.git/
+/.git
 /.gitignore
-/scripts/
+/.gcloudignore
+/env
+/scripts
 /README.md
 /LICENSE
-/queue.yaml
-/*.pyc
-/*.pyo
+/Makefile
+__pycache__/

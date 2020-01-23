@@ -1,19 +1,18 @@
 # Generate 'sitemap.txt' on the fly.
 
-import dbmodel
-import main
+import operator
 
 import flask
 
-import operator
+from . import dbmodel
 
 BASE_URL = 'https://vimhelp.org/'
 
 
-@main.app.route('/sitemap.txt')
-def sitemap():
-    all_names = dbmodel.ProcessedFileHead.query() \
-        .map(operator.methodcaller('string_id'), keys_only=True)
+def handle_sitemap():
+    with dbmodel.ndb_client.context():
+        all_names = dbmodel.ProcessedFileHead.query() \
+            .map(operator.methodcaller('string_id'), keys_only=True)
     return flask.Response(
         BASE_URL + '\n' + ''.join(
             BASE_URL + name + '.html\n'

@@ -1,7 +1,7 @@
 # converts vim documentation to html
 
 import re
-import urllib
+import urllib.parse
 from itertools import chain
 
 HEAD = """\
@@ -65,8 +65,9 @@ SITENAVI_PLAIN = '<p>' + SITENAVI_LINKS_PLAIN + '</p>'
 SITENAVI_WEB = '<p>' + SITENAVI_LINKS_WEB + '</p>'
 
 SITENAVI_SEARCH = '<table width="100%"><tbody><tr><td>' + SITENAVI_LINKS_WEB + \
-'</td><td style="text-align: right; max-width: 25vw"><div class="gcse-searchbox">' \
-'</div></td></tr></tbody></table><div class="gcse-searchresults"></div>'
+    '</td><td style="text-align: right; max-width: 25vw">' \
+    '<div class="gcse-searchbox"></div></td></tr></tbody></table>' \
+    '<div class="gcse-searchresults"></div>'
 
 TEXTSTART = """
 <div id="d1">
@@ -136,13 +137,13 @@ RE_STARTAG   = re.compile(r'\s\*([^ \t|]+)\*(?:\s|$)')
 RE_LOCAL_ADD = re.compile(r'LOCAL ADDITIONS:\s+\*local-additions\*$')
 
 
-class Link(object):
+class Link:
     __slots__ = 'link_plain_same',    'link_pipe_same', \
                 'link_plain_foreign', 'link_pipe_foreign', \
                 'filename'
 
     def __init__(self, link_plain_same, link_plain_foreign,
-                       link_pipe_same,  link_pipe_foreign, filename):
+                 link_pipe_same,  link_pipe_foreign, filename):
         self.link_plain_same    = link_plain_same
         self.link_plain_foreign = link_plain_foreign
         self.link_pipe_same     = link_pipe_same
@@ -150,7 +151,7 @@ class Link(object):
         self.filename           = filename
 
 
-class VimH2H(object):
+class VimH2H:
     def __init__(self, tags, version=None, is_web_version=True):
         self._urls = {}
         self._version = version
@@ -167,7 +168,7 @@ class VimH2H(object):
             self.do_add_tag(str(filename), tag)
 
     def do_add_tag(self, filename, tag):
-        tag_quoted = urllib.quote_plus(tag)
+        tag_quoted = urllib.parse.quote_plus(tag)
 
         def mkpart1(doc):
             return '<a href="' + doc + '#' + tag_quoted + '" class="'
@@ -210,7 +211,8 @@ class VimH2H(object):
         elif css_class is not None:
             return '<span class="' + css_class + '">' + html_escape[tag] + \
                     '</span>'
-        else: return html_escape[tag]
+        else:
+            return html_escape[tag]
 
     def to_html(self, filename, contents, encoding):
         out = []
@@ -229,7 +231,8 @@ class VimH2H(object):
             if inexample == 2:
                 if RE_EG_END.match(line):
                     inexample = 0
-                    if line[0] == '<': line = line[1:]
+                    if line[0] == '<':
+                        line = line[1:]
                 else:
                     out.extend(('<span class="e">', html_escape[line],
                                '</span>\n'))
@@ -250,12 +253,12 @@ class VimH2H(object):
                     out.append(html_escape[line[lastpos:pos]])
                 lastpos = match.end()
                 header, graphic, pipeword, starword, command, opt, ctrl, \
-                        special, title, note, url, word = match.groups()
+                    special, title, note, url, word = match.groups()
                 if pipeword is not None:
                     out.append(self.maplink(pipeword, filename, 'l'))
                 elif starword is not None:
-                    out.extend(('<a name="', urllib.quote_plus(starword),
-                            '" class="t">', html_escape[starword], '</a>'))
+                    out.extend(('<a name="', urllib.parse.quote_plus(starword),
+                                '" class="t">', html_escape[starword], '</a>'))
                 elif command is not None:
                     out.extend(('<span class="e">', html_escape[command],
                                 '</span>'))
@@ -284,7 +287,8 @@ class VimH2H(object):
             if lastpos < len(line):
                 out.append(html_escape[line[lastpos:]])
             out.append('\n')
-            if inexample == 1: inexample = 2
+            if inexample == 1:
+                inexample = 2
             if faq_line:
                 out.append(VIM_FAQ_LINE)
                 faq_line = False

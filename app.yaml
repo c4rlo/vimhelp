@@ -1,27 +1,25 @@
-runtime: python27
-api_version: 1
-threadsafe: true
+runtime: python37
+entrypoint: gunicorn -b :$PORT -k gevent 'vimhelp:create_app()'
+
 default_expiration: "1h"
-builtins:
-- remote_api: on
-libraries:
-- name: grpcio
-  version: 1.0.0
 
 inbound_services:
 - warmup
 
 handlers:
 - url: /(?:.*\.html)?
-  script: main.app
+  script: auto
+  secure: always
 - url: /sitemap\.txt
-  script: main.app
+  script: auto
+  secure: always
 - url: /(?:enqueue_)?update
-  script: main.app
-  login: admin
+  script: auto
+  secure: always
 - url: /_ah/warmup
-  script: main.app
-  login: admin
+  script: auto
+  secure: always
 - url: /(.+)
   static_files: static/\1
   upload: static/(.*)
+  secure: always

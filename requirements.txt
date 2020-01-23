@@ -1,3 +1,7 @@
 Flask ~= 1.1
-googleapis_common_protos
-google-cloud-tasks
+gevent ~= 1.5a3
+google-cloud-ndb ~= 1.0
+google-cloud-tasks ~= 1.4
+googleapis_common_protos ~= 1.51
+gunicorn ~= 20.0
+httpx ~= 0.11

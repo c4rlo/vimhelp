@@ -1,11 +1,12 @@
-#!/usr/bin/python2 -i
+#!/usr/bin/env -S python3 -i
 
 # See
-# http://googlecloudplatform.github.io/gcloud-python/stable/datastore-client.html
+# https://googleapis.dev/python/datastore/latest/client.html
 
-from gcloud import datastore
 import os
 
+from google.cloud import datastore
+
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = \
-        '/home/carlo/gcloud-vimhelp-hrd.json'
-client = datastore.Client(dataset_id='vimhelp-hrd')
+        '/home/carlo/gcloud-creds/vimhelp2-owner.json'
+client = datastore.Client(project='vimhelp2')

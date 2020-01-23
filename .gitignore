@@ -1,2 +1,3 @@
-/secret.py
-/lib/
+/vimhelp/secret.py
+/env/
+__pycache__/
