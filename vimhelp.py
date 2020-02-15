@@ -90,21 +90,12 @@ def vimhelp(filename, is_warmup=False):
 
 
 def prepare_response(req, head, now):
-    resp = flask.Response()
-    resp.set_etag(head.etag)
-    expires = next_update_time(now)
-    resp.expires = expires
+    resp = flask.Response(mimetype='text/html')
+    resp.charset = head.encoding
     resp.last_modified = head.modified
-    if head.etag in req.if_none_match:
-        logging.info("matched etag, modified %s, expires %s",
-                     resp.last_modified, expires)
-        resp.status_code = HTTP_NOT_MOD
-    elif not req.if_none_match and req.if_modified_since and \
-            req.if_modified_since >= head.modified:
-        logging.info("not modified since %s, modified %s, expires %s",
-                     req.if_modified_since, resp.last_modified, expires)
-        resp.status_code = HTTP_NOT_MOD
-    return resp
+    resp.expires = next_update_time(now)
+    resp.set_etag(head.etag)
+    return resp.make_conditional(req)
 
 
 # Return next exact half hour, i.e. HH:30:00 or HH:00:00
@@ -115,11 +106,9 @@ def next_update_time(t):
 
 
 def complete_response(resp, head, parts):
-    logging.info("writing %d-part response, modified %s, expires %s",
-                 1 + len(parts), resp.last_modified, resp.expires)
-    resp.mimetype = 'text/html'
-    resp.charset = head.encoding
     if resp.status_code != HTTP_NOT_MOD:
+        logging.info("writing %d-part response, modified %s, expires %s",
+                     1 + len(parts), resp.last_modified, resp.expires)
         resp.data = head.data0 + ''.join(p.data for p in parts)
     return resp
 
