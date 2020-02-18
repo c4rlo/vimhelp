@@ -1,21 +1,24 @@
+# import gevent
+import gevent.monkey
+
+# gevent.config.track_greenlet_tree = False
+gevent.monkey.patch_all()
+
+import grpc.experimental.gevent  # noqa: E402
+
+grpc.experimental.gevent.init_gevent()
+
+import logging  # noqa: E402
+
+import flask  # noqa: E402
+
+
 def create_app():
-    import logging
-
-    import flask
-    import gevent
-    import gevent.monkey
-
-    import grpc.experimental.gevent
-
     from . import sitemap
     from . import vimhelp
     from . import update
 
     logging.basicConfig(level=logging.INFO)
-
-    gevent.config.track_greenlet_tree = False
-    gevent.monkey.patch_all()
-    grpc.experimental.gevent.init_gevent()
 
     app = flask.Flask(__name__)
 
