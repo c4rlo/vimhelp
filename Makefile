@@ -24,7 +24,7 @@ lint:
 	    --per-file-ignores='vimhelp/vimh2h.py:E221,E221,E272,E501,E701'
 
 run:
-	@[[ -n $$VIRTUAL_ENV ]] || { echo "Not in virtual env!"; exit 1; } || true
+	@[ -n "$$VIRTUAL_ENV" ] || { echo "Not in virtual env!"; exit 1; } || true
 	GOOGLE_APPLICATION_CREDENTIALS=~/gcloud-creds/vimhelp2-owner.json \
 	    GOOGLE_CLOUD_PROJECT=vimhelp2 VIMHELP_ENV=dev \
 	    gunicorn -k gevent --reload 'vimhelp:create_app()'
@@ -33,5 +33,5 @@ stage: lint
 	yes | gcloud app deploy --project=vimhelp2
 
 clean:
-	@[[ -n $$VIRTUAL_ENV ]] && { echo "In virtual env!"; exit 1; } || true
+	@[ -n "$$VIRTUAL_ENV" ] && { echo "In virtual env!"; exit 1; } || true
 	rm -rf env vimhelp/__pycache__
