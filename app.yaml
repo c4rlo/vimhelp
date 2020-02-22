@@ -1,5 +1,5 @@
 runtime: python37
-entrypoint: gunicorn -b :$PORT -k gevent 'vimhelp:create_app()'
+entrypoint: gunicorn -b :$PORT -k gevent 'vimhelp.webapp:create_app()'
 
 default_expiration: "1h"
 

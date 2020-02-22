@@ -27,7 +27,7 @@ run:
 	@[[ -n $$VIRTUAL_ENV ]] || { echo "Not in virtual env!"; exit 1; } || true
 	GOOGLE_APPLICATION_CREDENTIALS=~/gcloud-creds/vimhelp2-owner.json \
 	    GOOGLE_CLOUD_PROJECT=vimhelp2 VIMHELP_ENV=dev \
-	    gunicorn -k gevent --reload 'vimhelp:create_app()'
+	    gunicorn -k gevent --reload 'vimhelp.webapp:create_app()'
 
 stage: lint
 	yes | gcloud app deploy --project=vimhelp2
