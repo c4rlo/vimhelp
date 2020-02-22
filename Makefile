@@ -20,7 +20,7 @@ venv:
 	echo "- 'deactivate' to leave it again"
 
 lint:
-	flake8 --max-line-length=80 --exclude=env/,vimhelp/vimh2h.py \
+	python3 -m flake8 --max-line-length=80 --exclude=env/,vimhelp/vimh2h.py \
 	    --per-file-ignores='vimhelp/vimh2h.py:E221,E221,E272,E501,E701'
 
 run:
