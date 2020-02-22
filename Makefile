@@ -10,7 +10,7 @@ help:
 	echo "  clean - Delete build artefacts"
 
 venv:
-	python -m venv env && \
+	python3 -m venv env && \
 	. env/bin/activate && \
 	    pip install -U --upgrade-strategy=eager pip && \
 	    pip install -U --upgrade-strategy=eager -r requirements.txt
