@@ -8,9 +8,9 @@ import grpc.experimental.gevent  # noqa: E402
 
 grpc.experimental.gevent.init_gevent()
 
-import logging  # noqa: E402
-
 import flask  # noqa: E402
+
+import logging  # noqa: E402
 
 
 def create_app():
