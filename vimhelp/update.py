@@ -438,8 +438,8 @@ def to_html(name, content, encoding, h2h):
     content_str = None
     if encoding is None:
         try:
-            content_str = content.decode(encoding)
             encoding = 'UTF-8'
+            content_str = content.decode(encoding)
         except UnicodeError:
             encoding = 'ISO-8859-1'
     if content_str is None:
