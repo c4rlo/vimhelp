@@ -1,10 +1,38 @@
 # Regularly scheduled update: check which files need updating and process them
 
-# TODO: have this be invoked as a webhook! both from vim/vim and from
-# chrisbra/vim_faq
-# https://developer.github.com/webhooks/
-# make sure this is done via enqueue_update to prevent multiple concurrent
-# update runs
+# TODO: use geventhttpclient instead of httpx
+
+# TODO: migrate to GitHub API v4, which uses GraphQL. Example query below -- use
+# https://developer.github.com/v4/explorer/ to try it out (need to use the
+# actual node IDs returned):
+#
+# {
+#   repository(owner: "vim", name: "vim") {
+#     refs(refPrefix: "refs/tags/", last: 1) {
+#       nodes {
+#         name
+#       }
+#     }
+#     object(expression: "master:runtime/doc") {
+#       ... on Tree {
+#         entries {
+#           type
+#           name
+#           oid
+#           object {
+#             id
+#           }
+#         }
+#       }
+#     }
+#   }
+#   nodes(ids: ["xyz", "abc"]) {
+#     ... on Blob {
+#       text
+#     }
+#   }
+# }
+
 
 import base64
 import hashlib
@@ -85,7 +113,7 @@ class UpdateHandler(flask.views.MethodView):
 
         # Use a pool to limit the number of simultaneously existing greenlets.
         # Otherwise, we may run out of memory.
-        self._pool = gevent.pool.Pool(size=10)
+        self._pool = gevent.pool.Pool(size=5)
 
         with ndb_client.context():
             self._g_changed = False
@@ -160,8 +188,8 @@ class UpdateHandler(flask.views.MethodView):
                     git_sha = item['sha'].encode()
                     rfi = rfi_map.get(name)
                     if rfi is not None and rfi.git_sha == git_sha:
-                        logging.info("%s unchanged (sha=%s)", name,
-                                     rfi.git_sha)
+                        logging.debug("%s unchanged (sha=%s)", name,
+                                      rfi.git_sha)
                         continue
                     elif rfi is None:
                         logging.info("%s is new (sha=%s)", name, git_sha)
