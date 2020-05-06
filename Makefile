@@ -1,13 +1,14 @@
-.PHONY: help venv lint run stage clean
+.PHONY: help venv lint run stage deploy clean
 
 help:
 	@echo "Makefile targets:"; \
-	echo "  venv  - Create virtualenv with required dependencies"; \
-	echo "  lint  - Run flake8 on sources"; \
-	echo "  run   - Run app locally (assumes vimhelp2 creds exist"; \
-	echo "          in the expected filesystem location)"; \
-	echo "  stage - Deploy to staging env (vimhelp2.appspot.com)"; \
-	echo "  clean - Delete build artefacts"
+	echo "  venv   - Create virtualenv with required dependencies"; \
+	echo "  lint   - Run flake8 on sources"; \
+	echo "  run    - Run app locally (assumes vimhelp2 creds exist"; \
+	echo "           in the expected filesystem location)"; \
+	echo "  stage  - Deploy to staging env (vimhelp2.appspot.com)"; \
+	echo "  deploy - Deploy to prod env (vimhelp.org)"; \
+	echo "  clean  - Delete build artefacts"
 
 venv:
 	python3 -m venv env && \
@@ -31,6 +32,9 @@ run:
 
 stage: lint
 	yes | gcloud app deploy --project=vimhelp2
+
+deploy: lint
+	gcloud app deploy --project=vimhelp-hrd
 
 clean:
 	@[ -n "$$VIRTUAL_ENV" ] && { echo "In virtual env!"; exit 1; } || true
