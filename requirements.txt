@@ -3,4 +3,4 @@ gevent ~= 20.6
 google-cloud-ndb ~= 1.4
 google-cloud-tasks ~= 1.5
 gunicorn ~= 20.0
-httpx ~= 0.12
+httpx ~= 0.13

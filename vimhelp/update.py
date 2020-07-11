@@ -1,6 +1,7 @@
 # Regularly scheduled update: check which files need updating and process them
 
-# TODO: use geventhttpclient instead of httpx
+# TODO: use geventhttpclient instead of httpx (although this turns out to be
+# painful so maybe not worth it)
 
 # TODO: migrate to GitHub API v4, which uses GraphQL. Example query below -- use
 # https://developer.github.com/v4/explorer/ to try it out (need to use the
