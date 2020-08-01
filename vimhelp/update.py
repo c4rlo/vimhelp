@@ -1,8 +1,5 @@
 # Regularly scheduled update: check which files need updating and process them
 
-# TODO: use geventhttpclient instead of httpx (although this turns out to be
-# painful so maybe not worth it)
-
 # TODO: migrate to GitHub API v4, which uses GraphQL. Example query below -- use
 # https://developer.github.com/v4/explorer/ to try it out (need to use the
 # actual node IDs returned):
@@ -37,6 +34,7 @@
 
 import base64
 import hashlib
+import json
 import logging
 import os
 import re
@@ -46,7 +44,10 @@ import flask
 import flask.views
 import gevent
 import gevent.pool
-import httpx
+import gevent.ssl
+import geventhttpclient
+import geventhttpclient.client
+import geventhttpclient.response
 import werkzeug.exceptions
 
 import google.cloud.ndb
@@ -64,14 +65,16 @@ from . import vimh2h
 # interrupted. Although in practice, it takes about 30 seconds, so it's
 # unlikely to be an issue.
 
+# Number of concurrent (in the gevent sense) workers. Avoid setting this too
+# high, else there is risk of running out of memory on our puny worker node.
+CONCURRENCY = 5
+
 TAGS_NAME = 'tags'
 FAQ_NAME = 'vim_faq.txt'
 HELP_NAME = 'help.txt'
 
 DOC_ITEM_RE = re.compile(r'(?:[-\w]+\.txt|tags)$')
 COMMIT_MSG_RE = re.compile(r'[Pp]atch\s+(\d[^:\n]+)')
-
-URLFETCH_TIMEOUT_SECONDS = 20
 
 GITHUB_API_URL_BASE = 'https://api.github.com'
 
@@ -110,24 +113,29 @@ class UpdateHandler(flask.views.MethodView):
 
         force = b'force' in request_data
 
-        logging.info("starting %supdate", 'forced ' if force else '')
+        logging.info("Starting %supdate", 'forced ' if force else '')
 
-        # Use a pool to limit the number of simultaneously existing greenlets.
-        # Otherwise, we may run out of memory.
-        self._pool = gevent.pool.Pool(size=5)
+        self._http_client_pool = geventhttpclient.client.HTTPClientPool(
+            ssl_context_factory=gevent.ssl.create_default_context,
+            concurrency=CONCURRENCY)
 
-        with ndb_client.context():
-            self._g_changed = False
-            self._update_g(wipe=force)
-            self._do_update(no_rfi=force)
+        try:
+            self._greenlet_pool = gevent.pool.Pool(size=CONCURRENCY)
 
-            if self._g_changed:
-                self._g.put()
-                logging.info("finished update, updated global info")
-            else:
-                logging.info("finished update, global info unchanged")
+            with ndb_client.context():
+                self._g_changed = False
+                self._update_g(wipe=force)
+                self._do_update(no_rfi=force)
 
-        self._pool.join()
+                if self._g_changed:
+                    self._g.put()
+                    logging.info("Finished update, updated global info")
+                else:
+                    logging.info("Finished update, global info unchanged")
+
+            self._greenlet_pool.join()
+        finally:
+            self._http_client_pool.close()
 
     def _do_update(self, no_rfi):
 
@@ -142,7 +150,7 @@ class UpdateHandler(flask.views.MethodView):
         refresh_vim_version_greenlet = self._spawn(self._refresh_vim_version)
 
         # Kick off retrieval of 'runtime/doc' dir listing in github
-        docdir_greenlet = self._spawn(vim_github_request,
+        docdir_greenlet = self._spawn(self._vim_github_request,
                                       '/repos/vim/vim/contents/runtime/doc',
                                       self._g.docdir_etag)
 
@@ -162,9 +170,11 @@ class UpdateHandler(flask.views.MethodView):
         def queue_urlfetch(name, url, git_sha=None):
             rfi = rfi_map.get(name)
             etag = rfi.etag if rfi is not None else None
-            logging.info("fetching %s (etag: %s)", name, etag)
+            logging.info("Queueing URL fetch for '%s' (etag: %s)", name, etag)
             processor_greenlet = self._spawn(ProcessorHTTP.create, name,
-                                             git_sha, url=url, etag=etag)
+                                             git_sha,
+                                             client_pool=self._http_client_pool,
+                                             url=url, etag=etag)
             fetcher_greenlets_add(name, processor_greenlet)
 
         # Kick off FAQ download
@@ -179,24 +189,23 @@ class UpdateHandler(flask.views.MethodView):
         if docdir.status_code == HTTPStatus.NOT_MODIFIED:
             logging.info("doc dir not modified")
         elif docdir.status_code == HTTPStatus.OK:
-            self._g.docdir_etag = docdir.headers.get(HTTP_HDR_ETAG).encode()
+            self._g.docdir_etag = docdir.header(HTTP_HDR_ETAG).encode()
             self._g_changed = True
-            logging.info("got doc dir etag %s", self._g.docdir_etag)
-            for item in docdir.json():
+            logging.info("doc dir modified, new etag is %s",
+                         docdir.header(HTTP_HDR_ETAG))
+            for item in json.loads(docdir.body):
                 name = item['name']
                 if item['type'] == 'file' and DOC_ITEM_RE.match(name):
                     assert name not in fetcher_greenlets_by_name
                     git_sha = item['sha'].encode()
                     rfi = rfi_map.get(name)
                     if rfi is not None and rfi.git_sha == git_sha:
-                        logging.debug("%s unchanged (sha=%s)", name,
-                                      rfi.git_sha)
+                        logging.debug("Found unchanged '%s'", name)
                         continue
                     elif rfi is None:
-                        logging.info("%s is new (sha=%s)", name, git_sha)
+                        logging.info("Found new '%s'", name)
                     else:
-                        logging.info("%s changed (%s != %s)", name,
-                                     rfi.git_sha, git_sha)
+                        logging.info("Found changed '%s'", name)
                     queue_urlfetch(name, item['download_url'], git_sha)
 
         # Check if we have a new vim version
@@ -208,7 +217,7 @@ class UpdateHandler(flask.views.MethodView):
 
         if not is_new_vim_version and len(fetcher_greenlets) == 1:
             faq_uf = fetcher_greenlets_by_name[FAQ_NAME].get()
-            if faq_uf.http_result().status_code == HTTPStatus.NOT_MODIFIED:
+            if faq_uf.status_code() == HTTPStatus.NOT_MODIFIED:
                 return
 
         def get_content(name):
@@ -216,8 +225,10 @@ class UpdateHandler(flask.views.MethodView):
             # Do we already have retrieval queued?
             if processor_greenlet is not None:
                 # If so, wait for that and return the content.
+                logging.info("Getting '%s'", name)
                 return processor_greenlet.get().raw_content()
             else:
+                logging.info("Getting '%s' from Datastore", name)
                 # If we don't have retrieval queued, that means we must already
                 # have the latest version in the Datastore, so get the content
                 # from there.
@@ -237,10 +248,13 @@ class UpdateHandler(flask.views.MethodView):
             fetcher_greenlets_add(HELP_NAME, self._spawn_ndb(ProcessorDB.create,
                                                              HELP_NAME))
 
+        tags_body = tags_greenlet.get()
+
         # Construct the vimhelp-to-html converter, providing it the tags file,
         # and adding on the FAQ for extra tags
-        h2h = vimh2h.VimH2H(tags_greenlet.get().decode(),
+        h2h = vimh2h.VimH2H(tags_body.decode(),
                             version=self._g.vim_version.decode())
+        logging.info("Adding FAQ tags")
         h2h.add_tags(FAQ_NAME, faq_greenlet.get().decode())
 
         # Wait for urlfetches and Datastore accesses to return; kick off the
@@ -252,7 +266,7 @@ class UpdateHandler(flask.views.MethodView):
         for greenlet in gevent.iwait(fetcher_greenlets):
             try:
                 processor = greenlet.get()
-            except httpx.HTTPError as e:
+            except UrlfetchError as e:
                 logging.error(e)
                 # If we could not fetch the URL, continue with the others, but
                 # set 'self._g_changed' to False so we do not save the
@@ -284,21 +298,20 @@ class UpdateHandler(flask.views.MethodView):
         # https://developer.github.com/v3/repos/commits/ since that does not
         # include events we're not interested in
 
-        # Kick off retrieval of data about latest commit on master branch,
-        # which we will use to figure out if there is a new vim version
-        master = vim_github_request('/repos/vim/vim/branches/master',
-                                    self._g.master_etag)
-
         is_new_vim_version = False
 
+        # Kick off retrieval of data about latest commit on master branch,
+        # which we will use to figure out if there is a new vim version
+        master = self._vim_github_request('/repos/vim/vim/branches/master',
+                                          self._g.master_etag)
         if master.status_code == HTTPStatus.OK:
-            message = master.json()['commit']['commit']['message']
+            message = json.loads(master.body)['commit']['commit']['message']
             m = COMMIT_MSG_RE.match(message)
             if m:
                 new_vim_version = m.group(1)
                 new_vim_version_b = new_vim_version.encode()
                 if new_vim_version_b != self._g.vim_version:
-                    logging.info("found new vim version %s (was: %s)",
+                    logging.info("Found new vim version '%s' (was: '%s')",
                                  new_vim_version, self._g.vim_version)
                     is_new_vim_version = True
                     self._g.vim_version = new_vim_version_b
@@ -311,14 +324,14 @@ class UpdateHandler(flask.views.MethodView):
             else:
                 logging.warn("master branch has moved forward, but no new vim "
                              "version found in commit msg ('%s'), so keeping "
-                             "old one (%s)", message, self._g.vim_version)
-            self._g.master_etag = master.headers.get(HTTP_HDR_ETAG).encode()
+                             "old one ('%s')", message, self._g.vim_version)
+            self._g.master_etag = master.header(HTTP_HDR_ETAG).encode()
             self._g_changed = True
         elif self._g.master_etag and \
                 master.status_code == HTTPStatus.NOT_MODIFIED:
             logging.info("master branch is unchanged, so no new vim version")
         else:
-            logging.warn("failed to get master branch: HTTP status %d",
+            logging.warn("Failed to get master branch: HTTP status %d",
                          master.status_code)
 
         return is_new_vim_version
@@ -327,7 +340,7 @@ class UpdateHandler(flask.views.MethodView):
         g = GlobalInfo.get_by_id('global')
 
         if wipe:
-            logging.info("deleting global info and raw files from db")
+            logging.info("Deleting global info and raw files from Datastore")
             greenlets = [
                 self._spawn_ndb(wipe_db, RawFileContent),
                 self._spawn_ndb(wipe_db, RawFileInfo)
@@ -342,20 +355,28 @@ class UpdateHandler(flask.views.MethodView):
         if not g:
             g = GlobalInfo(id='global')
 
-        logging.info("global info: %s",
+        logging.info("Global info: %s",
                      ", ".join("{} = {}".format(n, getattr(g, n)) for n in
                                g._properties.keys()))
 
         self._g = g
 
+    def _vim_github_request(self, document, etag):
+        headers = {
+            'Accept':        'application/vnd.github.v3+json',
+            'Authorization': 'token ' + secret.GITHUB_ACCESS_TOKEN,
+        }
+        return urlfetch(self._http_client_pool, GITHUB_API_URL_BASE + document,
+                        etag, headers=headers)
+
     def _spawn(self, f, *args, **kwargs):
-        return self._pool.apply_async(f, args, kwargs)
+        return self._greenlet_pool.apply_async(f, args, kwargs)
 
     def _spawn_ndb(self, f, *args, **kwargs):
         def g():
             with ndb_client.context():
                 return f(*args, **kwargs)
-        return self._pool.apply_async(g)
+        return self._greenlet_pool.apply_async(g)
 
 
 class ProcessorHTTP:
@@ -365,8 +386,8 @@ class ProcessorHTTP:
         self._result = result
         self._raw_content = None
 
-    def http_result(self):
-        return self._result
+    def status_code(self):
+        return self._result.status_code
 
     def name(self):
         return self._name
@@ -375,25 +396,22 @@ class ProcessorHTTP:
         if self._raw_content is None:
             r = self._result
             if r.status_code == HTTPStatus.OK:
-                self._raw_content = r.content
-                logging.info('ProcHTTP: got %d content bytes from server',
-                             len(self._raw_content))
+                self._raw_content = r.body
+                logging.info("Got '%s' from HTTP (%d bytes)",
+                             self._name, len(self._raw_content))
             elif r.status_code == HTTPStatus.NOT_MODIFIED:
                 rfc = RawFileContent.get_by_id(self._name)
                 self._raw_content = rfc.data
-                logging.info('ProcHTTP: got %d content bytes from db',
-                             len(self._raw_content))
+                logging.info("Got '%s' from Datastore (%d bytes)",
+                             self._name, len(self._raw_content))
         return self._raw_content
 
     def process(self, h2h):
         r = self._result
-        logging.info('ProcHTTP: %s: HTTP %d', self._name, r.status_code)
         if r.status_code == HTTPStatus.OK:
-            encoding = do_process(self._name, r.content, h2h)
-            do_save_rawfile(self._name, self._git_sha, r.content,
-                            encoding.encode(), r.headers.get(HTTP_HDR_ETAG))
-        else:
-            logging.info('ProcHTTP: not processing %s', self._name)
+            encoding = do_process(self._name, self.raw_content(), h2h)
+            do_save_rawfile(self._name, self._git_sha, self.raw_content(),
+                            encoding.encode(), r.header(HTTP_HDR_ETAG))
 
     @staticmethod
     def create(name, git_sha, **urlfetch_args):
@@ -403,6 +421,7 @@ class ProcessorHTTP:
 
 class ProcessorDB:
     def __init__(self, name, rfc):
+        logging.info("'%s': got %d bytes from Datastore", name, len(rfc.data))
         self._name = name
         self._rfc = rfc
 
@@ -413,8 +432,6 @@ class ProcessorDB:
         return self._rfc.data
 
     def process(self, h2h):
-        logging.info('ProcDB: %s: %d byte(s)', self._name,
-                     len(self._rfc.data))
         do_process(self._name, self._rfc.data, h2h,
                    encoding=self._rfc.encoding.decode())
 
@@ -441,9 +458,10 @@ def sha1(content):
 
 
 def do_process(name, content, h2h, encoding=None):
-    logging.info("processing '%s' (%d byte(s))...", name, len(content))
+    logging.info("Translating '%s' to HTML", name)
     phead, pparts, encoding = to_html(name, content, encoding, h2h)
-    logging.info("saving processed file '%s' (encoding is %s)", name, encoding)
+    logging.info("Saving HTML translation of '%s' (encoded as %s) to "
+                 "Datastore", name, encoding)
     save_transactional([phead] + pparts)
     return encoding
 
@@ -455,11 +473,12 @@ def need_save_rawfilecontent(name):
 def do_save_rawfile(name, git_sha, content, encoding, etag):
     rfi = RawFileInfo(id=name, git_sha=git_sha, etag=etag.encode())
     if need_save_rawfilecontent(name):
-        logging.info("saving unprocessed file '%s' (info and content)", name)
+        logging.info("Saving raw file '%s' (info and content) to Datastore",
+                     name)
         rfc = RawFileContent(id=name, data=content, encoding=encoding)
         save_transactional([rfi, rfc])
     else:
-        logging.info("saving unprocessed file '%s' (info only)", name)
+        logging.info("Saving raw file '%s' (info only) to Datastore", name)
         rfi.put()
 
 
@@ -495,23 +514,43 @@ def to_html(name, content, encoding, h2h):
     return phead, pparts, encoding
 
 
-def vim_github_request(document, etag):
-    headers = {
-        'Accept':        'application/vnd.github.v3+json',
-        'Authorization': 'token ' + secret.GITHUB_ACCESS_TOKEN,
-    }
-    return urlfetch(GITHUB_API_URL_BASE + document, etag, headers=headers)
-
-
-def urlfetch(url, etag, headers=None):
+def urlfetch(client_pool, url, etag, headers=None):
     if headers is None:
         headers = {}
     if etag is not None:
-        headers[HTTP_HDR_IF_NONE_MATCH] = etag
-    logging.info("requesting url '%s', headers = %s", url, headers)
-    result = httpx.get(url, headers=headers, timeout=URLFETCH_TIMEOUT_SECONDS)
-    logging.info("response status for url %s is %s", url, result.status_code)
-    return result
+        headers[HTTP_HDR_IF_NONE_MATCH] = etag.decode()
+    logging.info("Fetching %s with headers %s", url, headers)
+    url = geventhttpclient.URL(url)
+    try:
+        result = client_pool.get_client(url).get(url.request_uri, headers)
+    except Exception as e:
+        logging.error(e)
+        raise UrlfetchError(e, url)
+    logging.info("Fetched %s -> HTTP %s", url, result.status_code)
+    return UrlfetchResponse(result)
+
+
+class UrlfetchResponse:
+    def __init__(self, ghc_resp):
+        self.body = bytes(ghc_resp.read())
+        ghc_resp.release()
+        self._resp = ghc_resp
+
+    @property
+    def status_code(self):
+        return self._resp.status_code
+
+    def header(self, name):
+        return self._resp.get(name)
+
+
+class UrlfetchError(RuntimeError):
+    def __init__(self, e, url):
+        self._e = e
+        self._url = url
+
+    def __str__(self):
+        return f"Failed to fetch {self._url}: {self._e}"
 
 
 def handle_enqueue_update():
@@ -524,7 +563,7 @@ def handle_enqueue_update():
             secret.UPDATE_PASSWORD not in req.query_string:
         raise werkzeug.exceptions.Forbidden()
 
-    logging.info("enqueueing update")
+    logging.info("Enqueueing update")
 
     client = google.cloud.tasks.CloudTasksClient()
     parent = client.queue_path(os.environ['GOOGLE_CLOUD_PROJECT'],
