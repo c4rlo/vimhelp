@@ -566,8 +566,8 @@ def handle_enqueue_update():
     logging.info("Enqueueing update")
 
     client = google.cloud.tasks.CloudTasksClient()
-    parent = client.queue_path(os.environ['GOOGLE_CLOUD_PROJECT'],
-                               'us-central1', 'update2')
+    project = os.environ['GOOGLE_CLOUD_PROJECT']
+    parent = f"projects/{project}/locations/us-central1/queues/update2"
     task = {
         'app_engine_http_request': {
             'http_method': 'POST',
@@ -575,9 +575,9 @@ def handle_enqueue_update():
             'body': req.query_string
         }
     }
-    response = client.create_task(parent, task)
-    eta = response.schedule_time.ToDatetime()
-    logging.info('Task %s enqueued, ETA %s', response.name, eta)
+    response = client.create_task(request={'parent': parent, 'task': task})
+    logging.info('Task %s enqueued, ETA %s', response.name,
+                 response.schedule_time)
 
     if is_cron:
         return flask.Response()
