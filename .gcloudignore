@@ -1,7 +1,7 @@
 /.git
 /.gitignore
 /.gcloudignore
-/env
+/.venv
 /scripts
 /README.md
 /LICENSE
