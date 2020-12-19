@@ -5,9 +5,8 @@ import urllib.parse
 from itertools import chain
 
 HEAD = """\
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
-    "http://www.w3.org/TR/html4/loose.dtd">
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
 <meta http-equiv="Content-type" content="text/html; charset={encoding}"/>
 <title>Vim: {filename}</title>
@@ -22,14 +21,7 @@ HEAD = """\
 """
 
 SEARCH_SCRIPT = """
-<script>
-  (function() {
-    var gcse = document.createElement('script'); gcse.type = 'text/javascript'; gcse.async = true;
-    gcse.src = (document.location.protocol == 'https:' ? 'https:' : 'http:') +
-        '//cse.google.com/cse.js?cx=007529716539815883269:a71bug8rd0k';
-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(gcse, s);
-  })();
-</script>
+<script async src="https://cse.google.com/cse.js?cx=007529716539815883269:a71bug8rd0k"></script>
 """
 
 HEAD_END = '</head><body>'
@@ -61,8 +53,8 @@ Quick links:
 SITENAVI_LINKS_PLAIN = SITENAVI_LINKS.format(helptxt='help.txt.html')
 SITENAVI_LINKS_WEB = SITENAVI_LINKS.format(helptxt='/')
 
-SITENAVI_PLAIN = '<p>' + SITENAVI_LINKS_PLAIN + '</p>'
-SITENAVI_WEB = '<p>' + SITENAVI_LINKS_WEB + '</p>'
+SITENAVI_PLAIN = f'<p>{SITENAVI_LINKS_PLAIN}</p>'
+SITENAVI_WEB = f'<p>{SITENAVI_LINKS_WEB}</p>'
 
 SITENAVI_SEARCH = '<table width="100%"><tbody><tr><td>' + SITENAVI_LINKS_WEB + \
     '</td><td style="text-align: right; max-width: 25vw">' \
@@ -157,8 +149,7 @@ class VimH2H:
         self._version = version
         self._is_web_version = is_web_version
         for line in RE_NEWLINE.split(tags):
-            m = RE_TAGLINE.match(line)
-            if m:
+            if m := RE_TAGLINE.match(line):
                 tag, filename = m.group(1, 2)
                 self.do_add_tag(filename, tag)
 
@@ -171,7 +162,7 @@ class VimH2H:
         tag_quoted = urllib.parse.quote_plus(tag)
 
         def mkpart1(doc):
-            return '<a href="' + doc + '#' + tag_quoted + '" class="'
+            return f'<a href="{doc}#{tag_quoted}" class="'
 
         part1_same = mkpart1('')
         if self._is_web_version and filename == 'help.txt':
@@ -179,15 +170,14 @@ class VimH2H:
         else:
             doc = filename + '.html'
         part1_foreign = mkpart1(doc)
-        part2 = '">' + html_escape[tag] + '</a>'
+        part2 = f'">{html_escape[tag]}</a>'
 
         def mklinks(cssclass):
             return (part1_same    + cssclass + part2,
                     part1_foreign + cssclass + part2)
 
         cssclass_plain = 'd'
-        m = RE_LINKWORD.match(tag)
-        if m:
+        if m := RE_LINKWORD.match(tag):
             opt, ctrl, special = m.groups()
             if opt       is not None: cssclass_plain = 'o'
             elif ctrl    is not None: cssclass_plain = 'k'
@@ -209,8 +199,7 @@ class VimH2H:
                 if css_class == 'l': return links.link_pipe_foreign
                 else:                return links.link_plain_foreign
         elif css_class is not None:
-            return '<span class="' + css_class + '">' + html_escape[tag] + \
-                    '</span>'
+            return f'<span class="{css_class}">{html_escape[tag]}</span>'
         else:
             return html_escape[tag]
 
@@ -280,8 +269,8 @@ class VimH2H:
                 elif graphic is not None:
                     out.append(html_escape[graphic[:-2]])
                 elif url is not None:
-                    out.extend(('<a class="u" href="', url, '">' +
-                                html_escape[url], '</a>'))
+                    out.extend(('<a class="u" href="', url, '">', html_escape[url],
+                                '</a>'))
                 elif word is not None:
                     out.append(self.maplink(word, filename))
             if lastpos < len(line):

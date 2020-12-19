@@ -1,4 +1,4 @@
-# Definitions of objects stored in Data Store and Memcache
+# Definitions of objects stored in Datastore
 
 from google.cloud import ndb
 
@@ -19,9 +19,6 @@ class GlobalInfo(ndb.Model):
     vim_version = ndb.BlobProperty()
     # Current Vim version
 
-    _use_cache = False
-    _use_memcache = False
-
 
 # Info related to an unprocessed documentation file from the repository; key
 # name is basename, e.g. "help.txt"
@@ -32,9 +29,6 @@ class RawFileInfo(ndb.Model):
     etag = ndb.BlobProperty()
     # HTTP ETag of the file on github
 
-    _use_cache = False
-    _use_memcache = False
-
 
 # The actual contents of an unprocessed documentation file from the repository;
 # key name is basename, e.g. "help.txt"
@@ -44,9 +38,6 @@ class RawFileContent(ndb.Model):
 
     encoding = ndb.BlobProperty(required=True)
     # The encoding, e.g. 'UTF-8'
-
-    _use_cache = False
-    _use_memcache = False
 
 
 # Info related to a processed (HTMLified) documentation file; key name is
@@ -70,8 +61,6 @@ class ProcessedFileHead(ndb.Model):
     data0 = ndb.BlobProperty(required=True)
     # Contents of the first (and possibly only) part
 
-    _use_cache = False
-
 
 # Part of a processed file; keyname is basename + ":" + partnum (1-based), e.g.
 # "help.txt:1".
@@ -88,5 +77,3 @@ class ProcessedFilePart(ndb.Model):
     # Same value as corresponding 'ProcessedFileHead.etag'.  Used when
     # retrieving the 'ProcessedFileHead' and all its 'ProcessedFilePart's to
     # ensure that they were retrieved consistently.
-
-    _use_cache = False
