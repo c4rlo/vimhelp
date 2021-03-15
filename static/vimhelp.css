@@ -10,7 +10,7 @@ pre { font-size: 11pt }
 #footer { font-size: 85%; padding-top: 1em }
 
 /* hidden links */
-a.d:link, a.d:visited { color: rgb(0,0,0); text-decoration: none; }
+a.d:link, a.d:visited { color: rgb(0,0,0); }
 a.d:active, a.d:hover { color: rgb(0,0,0); text-decoration: underline; }
 
 /* standard links */
