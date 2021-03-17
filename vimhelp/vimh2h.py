@@ -1,5 +1,7 @@
 # converts vim documentation to html
 
+import functools
+import html
 import re
 import urllib.parse
 from itertools import chain
@@ -8,16 +10,13 @@ HEAD = """\
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta http-equiv="Content-type" content="text/html; charset={encoding}"/>
+<meta charset="{encoding}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Vim help pages, always up-to-date">
 <title>Vim: {filename}</title>
 <link rel="shortcut icon" href="favicon.ico">
 <!-- favicon is based on http://amnoid.de/tmp/vim_solidbright_512.png and is used with permission by its author -->
-<!--[if IE]>
-<link rel="stylesheet" href="vimhelp-ie.css" type="text/css">
-<![endif]-->
-<!--[if !IE]>-->
 <link rel="stylesheet" href="vimhelp.css" type="text/css">
-<!--<![endif]-->
 """
 
 SEARCH_SCRIPT = """
@@ -35,7 +34,7 @@ class="d">automatically</a> from the <a
 href="https://github.com/vim/vim/tree/master/runtime/doc" target="_blank"
 class="d">Vim source repository</a>. Also included is the <a
 href="vim_faq.txt.html">Vim FAQ</a>, kept up to date from its <a
-href="https://github.com/chrisbra/vim_faq" target="_blank" class="d">github
+href="https://github.com/chrisbra/vim_faq" target="_blank" class="d">GitHub
 repository</a>.</p>
 """
 
@@ -57,13 +56,13 @@ SITENAVI_PLAIN = f'<p>{SITENAVI_LINKS_PLAIN}</p>'
 SITENAVI_WEB = f'<p>{SITENAVI_LINKS_WEB}</p>'
 
 SITENAVI_SEARCH = '<table width="100%"><tbody><tr><td>' + SITENAVI_LINKS_WEB + \
-    '</td><td style="text-align: right; max-width: 25vw">' \
+    '</td><td style="text-align: right; max-width: 25vw;">' \
     '<div class="gcse-searchbox"></div></td></tr></tbody></table>' \
     '<div class="gcse-searchresults"></div>'
 
-TEXTSTART = """
+TEXTSTART = f"""
 <div id="d1">
-<pre id="sp">                                                                                </pre>
+<pre id="sp">{' ' * 80}</pre>
 <div id="d2">
 <pre>
 """
@@ -71,7 +70,7 @@ TEXTSTART = """
 FOOTER = '</pre>'
 
 FOOTER2 = """
-<p id="footer">This site is maintained by Carlo Teubner (<i>(my first name) at cteubner dot net</i>).</p>
+<footer>This site is maintained by Carlo Teubner (<i>(my first name) at cteubner dot net</i>).</footer>
 </div>
 </div>
 </body>
@@ -170,7 +169,7 @@ class VimH2H:
         else:
             doc = filename + '.html'
         part1_foreign = mkpart1(doc)
-        part2 = f'">{html_escape[tag]}</a>'
+        part2 = f'">{html_escape(tag)}</a>'
 
         def mklinks(cssclass):
             return (part1_same    + cssclass + part2,
@@ -199,9 +198,9 @@ class VimH2H:
                 if css_class == 'l': return links.link_pipe_foreign
                 else:                return links.link_plain_foreign
         elif css_class is not None:
-            return f'<span class="{css_class}">{html_escape[tag]}</span>'
+            return f'<span class="{css_class}">{html_escape(tag)}</span>'
         else:
-            return html_escape[tag]
+            return html_escape(tag)
 
     def to_html(self, filename, contents, encoding):
         out = []
@@ -223,12 +222,12 @@ class VimH2H:
                     if line[0] == '<':
                         line = line[1:]
                 else:
-                    out.extend(('<span class="e">', html_escape[line],
+                    out.extend(('<span class="e">', html_escape(line),
                                '</span>\n'))
                     continue
             if RE_EG_START.match(line_tabs):
                 inexample = 1
-                line = line[0:-1]
+                line = line[:-1]
             if RE_SECTION.match(line_tabs):
                 m = RE_SECTION.match(line)
                 out.extend((r'<span class="c">', m.group(0), r'</span>'))
@@ -239,7 +238,7 @@ class VimH2H:
             for match in RE_TAGWORD.finditer(line):
                 pos = match.start()
                 if pos > lastpos:
-                    out.append(html_escape[line[lastpos:pos]])
+                    out.append(html_escape(line[lastpos:pos]))
                 lastpos = match.end()
                 header, graphic, pipeword, starword, command, opt, ctrl, \
                     special, title, note, url, word = match.groups()
@@ -247,9 +246,9 @@ class VimH2H:
                     out.append(self.maplink(pipeword, filename, 'l'))
                 elif starword is not None:
                     out.extend(('<a name="', urllib.parse.quote_plus(starword),
-                                '" class="t">', html_escape[starword], '</a>'))
+                                '" class="t">', html_escape(starword), '</a>'))
                 elif command is not None:
-                    out.extend(('<span class="e">', html_escape[command],
+                    out.extend(('<span class="e">', html_escape(command),
                                 '</span>'))
                 elif opt is not None:
                     out.append(self.maplink(opt, filename, 'o'))
@@ -258,23 +257,23 @@ class VimH2H:
                 elif special is not None:
                     out.append(self.maplink(special, filename, 's'))
                 elif title is not None:
-                    out.extend(('<span class="i">', html_escape[title],
+                    out.extend(('<span class="i">', html_escape(title),
                                 '</span>'))
                 elif note is not None:
-                    out.extend(('<span class="n">', html_escape[note],
+                    out.extend(('<span class="n">', html_escape(note),
                                 '</span>'))
                 elif header is not None:
-                    out.extend(('<span class="h">', html_escape[header[:-1]],
+                    out.extend(('<span class="h">', html_escape(header[:-1]),
                                 '</span>'))
                 elif graphic is not None:
-                    out.append(html_escape[graphic[:-2]])
+                    out.append(html_escape(graphic[:-2]))
                 elif url is not None:
-                    out.extend(('<a class="u" href="', url, '">', html_escape[url],
+                    out.extend(('<a class="u" href="', url, '">', html_escape(url),
                                 '</a>'))
                 elif word is not None:
                     out.append(self.maplink(word, filename))
             if lastpos < len(line):
-                out.append(html_escape[line[lastpos:]])
+                out.append(html_escape(line[lastpos:]))
             out.append('\n')
             if inexample == 1:
                 inexample = 2
@@ -301,13 +300,6 @@ class VimH2H:
         return ''.join(chain(header, out, (FOOTER, sitenavi_footer, FOOTER2)))
 
 
-class HtmlEscCache(dict):
-    def __missing__(self, key):
-        r = key.replace('&', '&amp;') \
-               .replace('<', '&lt;') \
-               .replace('>', '&gt;')
-        self[key] = r
-        return r
-
-
-html_escape = HtmlEscCache()
+@functools.cache
+def html_escape(s):
+    return html.escape(s, quote=False)

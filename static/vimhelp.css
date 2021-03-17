@@ -1,28 +1,30 @@
-body { font-family: georgia, palatino, serif }
+*, ::before, ::after { box-sizing: border-box; }
 
-pre { font-size: 11pt }
+html { line-height: 1.15; font-family: georgia, palatino, serif; }
 
-#d1 { position: relative; display: table; margin: 0 auto }
-#d2 { position: absolute; top: inherit }
+pre { font-family: monospace, monospace; }
 
-#sp { visibility: hidden; height: 1px; margin: 0 }
+#d1 { position: relative; display: table; margin: 0 auto; }
+#d2 { position: absolute; top: inherit; }
 
-#footer { font-size: 85%; padding-top: 1em }
+#sp { visibility: hidden; height: 1px; margin: 0; }
+
+footer { font-size: 85%; padding: 1em 0; }
 
 /* hidden links */
-a.d:link, a.d:visited { color: rgb(0,0,0); text-decoration: none; }
-a.d:active, a.d:hover { color: rgb(0,0,0); text-decoration: underline; }
+a.d:link, a.d:visited { color: rgb(0, 0, 0); text-decoration: none; }
+a.d:active, a.d:hover { color: rgb(0, 0, 0); text-decoration: underline; }
 
 /* standard links */
-a.l:link { color: rgb(0,137,139); }
-a.l:visited { color: rgb(0,100,100); }
-a.l:active, a.l:hover { color: rgb(0,200,200); }
+a.l:link { color: rgb(0, 137, 139); }
+a.l:visited { color: rgb(0, 100, 100); }
+a.l:active, a.l:hover { color: rgb(0, 200, 200); }
 
 /* title */
 .i { color: rgb(0, 137, 139); }
 
 /* tag */
-.t { color: rgb(250,0,250); }
+.t { color: rgb(250, 0, 250); }
 
 /* header */
 .h { color: rgb(164, 32, 246); }
@@ -46,4 +48,4 @@ a.l:active, a.l:hover { color: rgb(0,200,200); }
 .c { color: rgb(165, 42, 42); font-weight: bold; }
 
 /* external url */
-.u { color: rgb(250,0,250); }
+.u { color: rgb(250, 0, 250); }
