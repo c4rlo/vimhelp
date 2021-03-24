@@ -55,24 +55,18 @@ SITENAVI_LINKS_WEB = SITENAVI_LINKS.format(helptxt='/')
 SITENAVI_PLAIN = f'<p>{SITENAVI_LINKS_PLAIN}</p>'
 SITENAVI_WEB = f'<p>{SITENAVI_LINKS_WEB}</p>'
 
-SITENAVI_SEARCH = '<table width="100%"><tbody><tr><td>' + SITENAVI_LINKS_WEB + \
-    '</td><td style="text-align: right; max-width: 25vw;">' \
-    '<div class="gcse-searchbox"></div></td></tr></tbody></table>' \
+SITENAVI_SEARCH = '<div class="bar">' \
+    f'<div class="ql">{SITENAVI_LINKS_WEB}</div>' \
+    '<div class="srch"><div><div class="gcse-searchbox"></div></div></div>' \
+    '</div>' \
     '<div class="gcse-searchresults"></div>'
 
-TEXTSTART = f"""
-<div id="d1">
-<pre id="sp">{' ' * 80}</pre>
-<div id="d2">
-<pre>
-"""
+TEXTSTART = '<pre>'
 
 FOOTER = '</pre>'
 
 FOOTER2 = """
 <footer>This site is maintained by Carlo Teubner (<i>(my first name) at cteubner dot net</i>).</footer>
-</div>
-</div>
 </body>
 </html>
 """

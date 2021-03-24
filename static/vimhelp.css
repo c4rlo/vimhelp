@@ -2,12 +2,13 @@
 
 html { line-height: 1.15; font-family: georgia, palatino, serif; }
 
-pre { font-family: monospace, monospace; }
+/* top bar: quick links with search box */
+.bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5em; }
+.ql { flex: 3 3 auto; }
+.srch { flex: 1 1 auto; display: flex; justify-content: flex-end; }
+.srch > div { flex: 0 1 35ch; min-width: 20vw; }
 
-#d1 { position: relative; display: table; margin: 0 auto; }
-#d2 { position: absolute; top: inherit; }
-
-#sp { visibility: hidden; height: 1px; margin: 0; }
+pre { font-family: monospace, monospace; width: 80ch; margin: 0 auto; }
 
 footer { font-size: 85%; padding: 1em 0; }
 
