@@ -13,8 +13,9 @@ pre { font-family: monospace, monospace; width: 80ch; margin: 0 auto; }
 footer { font-size: 85%; padding: 1em 0; }
 
 /* hidden links */
-a.d:link, a.d:visited { color: rgb(0, 0, 0); text-decoration: none; }
-a.d:active, a.d:hover { color: rgb(0, 0, 0); text-decoration: underline; }
+a.d { color: black; }
+a.d:link, a.d:visited { text-decoration: underline silver; }
+a.d:active, a.d:hover { text-decoration: underline black; }
 
 /* standard links */
 a.l:link { color: rgb(0, 137, 139); }
