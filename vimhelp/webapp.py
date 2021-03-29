@@ -13,6 +13,9 @@ import flask  # noqa: E402
 import logging  # noqa: E402
 
 
+_CSP = "default-src: 'self' https://google.com https://*.google.com"
+
+
 def create_app():
     from . import sitemap
     from . import vimhelp
@@ -39,4 +42,12 @@ def create_app():
     app.add_url_rule('/enqueue_update', view_func=update.handle_enqueue_update)
     app.add_url_rule('/sitemap.txt', view_func=sitemap.handle_sitemap)
 
+    app.after_request(_add_default_headers)
+
     return app
+
+
+def _add_default_headers(response: flask.Response) -> flask.Response:
+    h = response.headers
+    h.setdefault("Content-Security-Policy", _CSP)
+    return response
