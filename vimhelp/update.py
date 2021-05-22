@@ -55,7 +55,7 @@ import google.cloud.tasks
 
 from . import secret
 from .dbmodel import GlobalInfo, ProcessedFileHead, ProcessedFilePart, \
-                     RawFileContent, RawFileInfo, ndb_client
+                     RawFileContent, RawFileInfo, TagsInfo, ndb_client
 from . import vimh2h
 
 # Once we have consumed about ten minutes of CPU time, Google will throw us a
@@ -257,12 +257,13 @@ class UpdateHandler(flask.views.MethodView):
         logging.info("Adding FAQ tags")
         h2h.add_tags(FAQ_NAME, faq_greenlet.get().decode())
 
+        processor_greenlets = [self._spawn_ndb(save_tags_json, h2h)]
+
         # Wait for urlfetches and Datastore accesses to return; kick off the
         # processing as they do so
 
         logging.info("Waiting for fetchers")
 
-        processor_greenlets = []
         for greenlet in gevent.iwait(fetcher_greenlets):
             try:
                 processor = greenlet.get()
@@ -480,6 +481,12 @@ def do_save_rawfile(name, git_sha, content, encoding, etag):
     else:
         logging.info("Saving raw file '%s' (info only) to Datastore", name)
         rfi.put()
+
+
+def save_tags_json(h2h):
+    tags = h2h.sorted_tag_href_pairs()
+    logging.info("Saving %d tag, href pairs", len(tags))
+    TagsInfo(id="tags", tags=tags).put()
 
 
 def to_html(name, content, encoding, h2h):

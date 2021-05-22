@@ -7,7 +7,7 @@ ndb_client = ndb.Client()
 
 
 # There is one of these objects in the datastore, to persist some bits of info
-# that we need across update runs. keyname is "global".
+# that we need across update runs; key name is "global".
 class GlobalInfo(ndb.Model):
     docdir_etag = ndb.BlobProperty()
     # HTTP ETag of the vim repository request for the 'runtime/doc'
@@ -18,6 +18,13 @@ class GlobalInfo(ndb.Model):
 
     vim_version = ndb.BlobProperty()
     # Current Vim version
+
+
+# Tags, for use with the "go to tag" feature; key name is "tags".
+class TagsInfo(ndb.Model):
+    tags = ndb.JsonProperty(json_type=list)
+    # Map from vimhelp tag to (site-relative) link. Looks like this:
+    # [ ["t": "motion.txt#t"], ["perl": "if_perl.txt#perl"], ... ]
 
 
 # Info related to an unprocessed documentation file from the repository; key

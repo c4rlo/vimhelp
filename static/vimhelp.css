@@ -3,10 +3,15 @@
 html { line-height: 1.15; font-family: georgia, palatino, serif; }
 
 /* top bar: quick links with search box */
-.bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5em; }
+.bar { margin-bottom: 2em; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5em; }
 .ql { flex: 3 3 auto; }
 .srch { flex: 1 1 auto; display: flex; justify-content: flex-end; }
 .srch > div { flex: 0 1 35ch; min-width: 20vw; }
+
+/* "Go to tag" search box */
+select#vh-select-tag { display: none; }
+.select2-container * { font-family: monospace, monospace; }
+.select2-results__message, .select2-selection__placeholder { font-family: georgia, palatino, serif; }
 
 pre { font-family: monospace, monospace; width: 80ch; margin: 0 auto; }
 

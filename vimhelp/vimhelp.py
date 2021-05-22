@@ -2,7 +2,6 @@
 
 import datetime
 import logging
-import threading
 from http import HTTPStatus
 
 import flask
@@ -11,27 +10,13 @@ import werkzeug.exceptions
 from google.cloud import ndb
 
 from . import dbmodel
-
-LEGACY_URL_PREFIXES = \
-    'http://www.vimhelp.org/', 'https://www.vimhelp.org/', \
-    'http://vimhelp.appspot.com/', 'https://vimhelp.appspot.com/', \
-    'http://vimhelp.org/'
-
-g_cache = {}
-g_cache_lock = threading.Lock()
+from . import util
 
 
-def handle_vimhelp(filename, is_warmup=False):
+def handle_vimhelp(filename, cache):
     req = flask.request
 
-    if req.url_root in LEGACY_URL_PREFIXES and not is_warmup:
-        new_url = 'https://vimhelp.org' + req.script_root + req.full_path
-        logging.info("redirecting to: %s", new_url)
-        return redirect(new_url)
-
-    if filename == 'help.txt.html':
-        return redirect('/')
-    elif not filename:
+    if not filename:
         filename = 'help.txt'
     elif not filename.endswith('.html'):
         raise werkzeug.exceptions.NotFound()
@@ -44,18 +29,11 @@ def handle_vimhelp(filename, is_warmup=False):
 
     logging.info("filename: %s", filename)
 
-    now = datetime.datetime.utcnow()
-
-    with g_cache_lock:
-        entry = g_cache.get(filename)
-
-    if entry is not None:
-        head, parts, timestamp = entry
-        if next_update_time(timestamp) > now:
-            logging.info("responding from inproc cache entry")
-            resp = prepare_response(req, head, now)
-            return complete_response(resp, head, parts)
-        logging.info("inproc cache entry is expired")
+    if entry := cache.get(filename):
+        logging.info("responding from inproc cache entry")
+        head, parts = entry
+        resp = prepare_response(req, head, datetime.datetime.utcnow())
+        return complete_response(resp, head, parts)
 
     with dbmodel.ndb_client.context():
         head = dbmodel.ProcessedFileHead.get_by_id(filename)
@@ -63,15 +41,14 @@ def handle_vimhelp(filename, is_warmup=False):
             logging.warn("%s not found in db", filename)
             raise werkzeug.exceptions.NotFound()
         logging.info("responding from db")
+        now = datetime.datetime.utcnow()
         resp = prepare_response(req, head, now)
         parts = []
         if resp.status_code != HTTPStatus.NOT_MODIFIED:
             parts = get_parts(head)
             complete_response(resp, head, parts)
         if head.numparts == 1 or parts:
-            logging.info("writing entry to inproc cache")
-            with g_cache_lock:
-                g_cache[filename] = head, parts, now
+            cache.put(filename, (head, parts))
         return resp
 
 
@@ -79,16 +56,9 @@ def prepare_response(req, head, now):
     resp = flask.Response(mimetype='text/html')
     resp.charset = head.encoding
     resp.last_modified = head.modified
-    resp.expires = next_update_time(now)
+    resp.expires = util.next_update_time(now)
     resp.set_etag(head.etag.decode())
     return resp.make_conditional(req)
-
-
-# Return next exact half hour, i.e. HH:30:00 or HH:00:00
-def next_update_time(t):
-    r = t.replace(second=0, microsecond=0)
-    r += datetime.timedelta(minutes=(30 - (t.minute % 30)))
-    return r
 
 
 def complete_response(resp, head, parts):

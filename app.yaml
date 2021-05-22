@@ -18,6 +18,9 @@ handlers:
 - url: /(?:.*\.html)?
   script: auto
   secure: always
+- url: /api/.+
+  script: auto
+  secure: always
 - url: /sitemap\.txt
   script: auto
   secure: always

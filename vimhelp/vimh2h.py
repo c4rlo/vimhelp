@@ -19,8 +19,11 @@ HEAD = """\
 <link rel="stylesheet" href="vimhelp.css" type="text/css">
 """
 
-SEARCH_SCRIPT = """
-<script async src="https://cse.google.com/cse.js?cx=007529716539815883269:a71bug8rd0k"></script>
+SEARCH_HEADERS = """
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" integrity="sha256-zaSoHBhwFdle0scfGEFUCwggPN7F+ip9XRglo8IWb4w=" crossorigin="anonymous">
+<script defer src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" integrity="sha256-9yRP/2EFlblE92vzCA10469Ctd0jT48HnmmMw5rJZrA=" crossorigin="anonymous"></script>
+<script defer src="vimhelp.js"></script>
 """
 
 HEAD_END = '</head><body>'
@@ -57,9 +60,8 @@ SITENAVI_WEB = f'<p>{SITENAVI_LINKS_WEB}</p>'
 
 SITENAVI_SEARCH = '<div class="bar">' \
     f'<div class="ql">{SITENAVI_LINKS_WEB}</div>' \
-    '<div class="srch"><div><div class="gcse-searchbox"></div></div></div>' \
-    '</div>' \
-    '<div class="gcse-searchresults"></div>'
+    '<div class="srch"><div><select id="vh-select-tag"></select></div></div>' \
+    '</div>'
 
 TEXTSTART = '<pre>'
 
@@ -123,17 +125,28 @@ RE_LOCAL_ADD = re.compile(r'LOCAL ADDITIONS:\s+\*local-additions\*$')
 
 
 class Link:
-    __slots__ = 'link_plain_same',    'link_pipe_same', \
-                'link_plain_foreign', 'link_pipe_foreign', \
-                'filename'
+    def __init__(self, filename, htmlfilename, tag):
+        self.filename = filename
+        self._htmlfilename = htmlfilename
+        self._tag_quoted = urllib.parse.quote_plus(tag)
+        self._tag_escaped = html_escape(tag)
+        self._cssclass = 'd'
+        if m := RE_LINKWORD.match(tag):
+            opt, ctrl, special = m.groups()
+            if opt       is not None: self._cssclass = 'o'
+            elif ctrl    is not None: self._cssclass = 'k'
+            elif special is not None: self._cssclass = 's'
 
-    def __init__(self, link_plain_same, link_plain_foreign,
-                 link_pipe_same,  link_pipe_foreign, filename):
-        self.link_plain_same    = link_plain_same
-        self.link_plain_foreign = link_plain_foreign
-        self.link_pipe_same     = link_pipe_same
-        self.link_pipe_foreign  = link_pipe_foreign
-        self.filename           = filename
+    @functools.cache
+    def href(self, is_same_doc):
+        doc = '' if is_same_doc else self._htmlfilename
+        return f"{doc}#{self._tag_quoted}"
+
+    @functools.cache
+    def html(self, is_pipe, is_same_doc):
+        cssclass = 'l' if is_pipe else self._cssclass
+        return f'<a href="{self.href(is_same_doc)}" class="{cssclass}">' + \
+               f'{self._tag_escaped}</a>'
 
 
 class VimH2H:
@@ -152,45 +165,24 @@ class VimH2H:
             self.do_add_tag(str(filename), tag)
 
     def do_add_tag(self, filename, tag):
-        tag_quoted = urllib.parse.quote_plus(tag)
-
-        def mkpart1(doc):
-            return f'<a href="{doc}#{tag_quoted}" class="'
-
-        part1_same = mkpart1('')
         if self._is_web_version and filename == 'help.txt':
-            doc = '/'
+            htmlfilename = '/'
         else:
-            doc = filename + '.html'
-        part1_foreign = mkpart1(doc)
-        part2 = f'">{html_escape(tag)}</a>'
+            htmlfilename = filename + '.html'
+        self._urls[tag] = Link(filename, htmlfilename, tag)
 
-        def mklinks(cssclass):
-            return (part1_same    + cssclass + part2,
-                    part1_foreign + cssclass + part2)
-
-        cssclass_plain = 'd'
-        if m := RE_LINKWORD.match(tag):
-            opt, ctrl, special = m.groups()
-            if opt       is not None: cssclass_plain = 'o'
-            elif ctrl    is not None: cssclass_plain = 'k'
-            elif special is not None: cssclass_plain = 's'
-        links_plain = mklinks(cssclass_plain)
-        links_pipe = mklinks('l')
-        self._urls[tag] = Link(
-            links_plain[0], links_plain[1],
-            links_pipe[0],  links_pipe[1],
-            filename)
+    def sorted_tag_href_pairs(self):
+        result = [ (tag, link.href(is_same_doc=False))
+                   for tag, link in self._urls.items() ]
+        result.sort()
+        return result
 
     def maplink(self, tag, curr_filename, css_class=None):
         links = self._urls.get(tag)
         if links is not None:
-            if links.filename == curr_filename:
-                if css_class == 'l': return links.link_pipe_same
-                else:                return links.link_plain_same
-            else:
-                if css_class == 'l': return links.link_pipe_foreign
-                else:                return links.link_plain_foreign
+            is_pipe = css_class == 'l'
+            is_same_doc = links.filename == curr_filename
+            return links.html(is_pipe, is_same_doc)
         elif css_class is not None:
             return f'<span class="{css_class}">{html_escape(tag)}</span>'
         else:
@@ -239,8 +231,8 @@ class VimH2H:
                 if pipeword is not None:
                     out.append(self.maplink(pipeword, filename, 'l'))
                 elif starword is not None:
-                    out.extend(('<a name="', urllib.parse.quote_plus(starword),
-                                '" class="t">', html_escape(starword), '</a>'))
+                    out.extend(('<span id="', urllib.parse.quote_plus(starword),
+                                '" class="t">', html_escape(starword), '</span>'))
                 elif command is not None:
                     out.extend(('<span class="e">', html_escape(command),
                                 '</span>'))
@@ -278,7 +270,7 @@ class VimH2H:
         header = []
         header.append(HEAD.format(encoding=encoding, filename=filename))
         if self._is_web_version:
-            header.append(SEARCH_SCRIPT)
+            header.append(SEARCH_HEADERS)
         header.append(HEAD_END)
         if self._is_web_version and is_help_txt:
             vers_note = VERSION_NOTE.replace('{version}', self._version) \
