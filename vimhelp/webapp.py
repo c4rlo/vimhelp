@@ -13,7 +13,8 @@ import flask  # noqa: E402
 import logging  # noqa: E402
 
 
-_CSP = "default-src: 'self' https://google.com https://*.google.com"
+_CSP = "default-src 'self' 'unsafe-inline' " \
+    "https://google.com https://*.google.com https://www.googleapis.com"
 
 
 def create_app():
