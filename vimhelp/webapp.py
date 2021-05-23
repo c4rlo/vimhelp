@@ -92,4 +92,8 @@ def create_app():
 def _add_default_headers(response: flask.Response) -> flask.Response:
     h = response.headers
     h.setdefault("Content-Security-Policy", _CSP)
+    # The following is needed for local dev scenarios where one is accessing
+    # an HTML file on disk ('file://' protocol) and wants it to be able to
+    # consume the tagsearch API.
+    # h.setdefault("Access-Control-Allow-Origin", "*")
     return response

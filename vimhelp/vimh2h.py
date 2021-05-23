@@ -58,10 +58,18 @@ SITENAVI_LINKS_WEB = SITENAVI_LINKS.format(helptxt='/')
 SITENAVI_PLAIN = f'<p>{SITENAVI_LINKS_PLAIN}</p>'
 SITENAVI_WEB = f'<p>{SITENAVI_LINKS_WEB}</p>'
 
-SITENAVI_SEARCH = '<div class="bar">' \
-    f'<div class="ql">{SITENAVI_LINKS_WEB}</div>' \
-    '<div class="srch"><div><select id="vh-select-tag"></select></div></div>' \
-    '</div>'
+SITENAVI_SEARCH = f"""
+<div class="bar">
+  <div class="ql">{SITENAVI_LINKS_WEB}</div>
+  <div class="srch">
+    <select id="vh-select-tag"></select>
+  </div>
+  <form class="srch" action="https://duckduckgo.com" method="get" target="_blank">
+    <input type="hidden" name="sites" value="vimhelp.org">
+    <input type="search" name="q" id="site-search-input" placeholder="Site search">
+  </form>
+</div>
+"""
 
 TEXTSTART = '<pre>'
 
