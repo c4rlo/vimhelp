@@ -1,6 +1,7 @@
 "use strict";
 
 $(() => {
+    $("link.select2-css").removeAttr("disabled");
     $("select#vh-select-tag")
         .select2({
             placeholder: "Go to keyword",

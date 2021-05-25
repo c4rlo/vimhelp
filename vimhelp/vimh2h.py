@@ -20,7 +20,7 @@ HEAD = """\
 """
 
 SEARCH_HEADERS = """
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" integrity="sha256-zaSoHBhwFdle0scfGEFUCwggPN7F+ip9XRglo8IWb4w=" crossorigin="anonymous">
+<link rel="stylesheet" class="select2-css" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" integrity="sha256-zaSoHBhwFdle0scfGEFUCwggPN7F+ip9XRglo8IWb4w=" crossorigin="anonymous" disabled>
 <script defer src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" integrity="sha256-9yRP/2EFlblE92vzCA10469Ctd0jT48HnmmMw5rJZrA=" crossorigin="anonymous"></script>
 <script defer src="vimhelp.js"></script>
@@ -30,15 +30,11 @@ HEAD_END = '</head><body>'
 
 INTRO = """
 <h1>Vim help files</h1>
-<p>This is an HTML version of the <a href="http://www.vim.org/"
-target="_blank">Vim</a> help pages{vers-note}. They are kept up-to-date <a
-href="https://github.com/c4rlo/vimhelp" target="_blank"
-class="d">automatically</a> from the <a
-href="https://github.com/vim/vim/tree/master/runtime/doc" target="_blank"
-class="d">Vim source repository</a>. Also included is the <a
-href="vim_faq.txt.html">Vim FAQ</a>, kept up to date from its <a
-href="https://github.com/chrisbra/vim_faq" target="_blank" class="d">GitHub
-repository</a>.</p>
+<p>This is an HTML version of the <a href="http://www.vim.org/" target="_blank" rel="noopener noreferrer">Vim</a> help pages{vers-note}.
+They are kept up-to-date <a href="https://github.com/c4rlo/vimhelp" target="_blank" rel="noopener noreferrer" class="d">automatically</a>
+from the <a href="https://github.com/vim/vim/tree/master/runtime/doc" target="_blank" rel="noopener noreferrer" class="d">Vim source repository</a>.
+Also included is the <a href="vim_faq.txt.html">Vim FAQ</a>, kept up to date from its
+<a href="https://github.com/chrisbra/vim_faq" target="_blank" rel="noopener noreferrer" class="d">GitHub repository</a>.</p>
 """
 
 VERSION_NOTE = ", current as of Vim {version}"
@@ -64,7 +60,7 @@ SITENAVI_SEARCH = f"""
   <div class="srch">
     <select id="vh-select-tag"></select>
   </div>
-  <form class="srch" action="https://duckduckgo.com" method="get" target="_blank">
+  <form class="srch" action="https://duckduckgo.com" method="get" target="_blank" rel="noopener noreferrer">
     <input type="hidden" name="sites" value="vimhelp.org">
     <input type="search" name="q" id="site-search-input" placeholder="Site search">
   </form>
