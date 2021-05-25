@@ -5,66 +5,83 @@ import flask
 from . import dbmodel
 
 
+# There are about 10k tags. To optimize performance, consider:
+# - Dealing with 'bytes' not 'str'
+# - Giving this module the Cython treatment
+
+
 MAX_RESULTS = 30
-CACHE_KEY = "api/tags"
+CACHE_KEY = "api/tag-items"
+
+
+class TagItem:
+    def __init__(self, tag, href):
+        self.tag = tag
+        self.tag_lower = tag.casefold()
+        self.href = href
+
+    def __lt__(self, query):
+        # This is enough for bisect_left to work...
+        return self.tag < query
 
 
 def handle_tagsearch(cache):
     query = flask.request.args.get("q", "")
-    tags = cache.get(CACHE_KEY)
-    if not tags:
+    items = cache.get(CACHE_KEY)
+    if not items:
         with dbmodel.ndb_client.context():
-            tags = dbmodel.TagsInfo.get_by_id("tags").tags
-            cache.put(CACHE_KEY, tags)
+            items = [TagItem(*tag) for tag in
+                     dbmodel.TagsInfo.get_by_id("tags").tags]
+            cache.put(CACHE_KEY, items)
 
-    results = do_handle_tagsearch(tags, query)
+    results = do_handle_tagsearch(items, query)
     return flask.jsonify({"results": results})
 
 
-def do_handle_tagsearch(tags, query):
-    len_tags = len(tags)
-    query_cf = query.casefold()
+def do_handle_tagsearch(items, query):
     results = []
     result_set = set()
 
+    is_lower = query == query.casefold()
+
     def add_result(item):
-        tag, href = item
-        if tag in result_set:
-            return
-        results.append({"id": tag, "text": tag, "href": href})
-        result_set.add(tag)
+        if item.tag in result_set:
+            return False
+        results.append({"id": item.tag, "text": item.tag, "href": item.href})
+        result_set.add(item.tag)
+        return len(results) == MAX_RESULTS
 
     # Find all tags beginning with query.
-    i = bisect.bisect_left(tags, [query, ""])
-    while i < len_tags and len(results) < MAX_RESULTS \
-            and tags[i][0].startswith(query):
-        add_result(tags[i])
-        i += 1
+    i = bisect.bisect_left(items, query)
+    for item in items[i:]:
+        if item.tag.startswith(query):
+            if add_result(item):
+                return results
+        else:
+            break
 
-    # If we didn't find enough, add all case-insensitive matches.
-    i = 0
-    while i < len_tags and len(results) < MAX_RESULTS:
-        item = tags[i]
-        if item[0].casefold().startswith(query_cf):
-            add_result(item)
-        i += 1
+    # If we didn't find enough, and the query is all-lowercase, add all
+    # case-insensitive matches.
+    if is_lower:
+        for item in items:
+            if item.tag_lower.startswith(query):
+                if add_result(item):
+                    return results
 
     # If we still didn't find enough, additionally find all tags that contain
     # query as a substring.
-    i = 0
-    while i < len_tags and len(results) < MAX_RESULTS:
-        item = tags[i]
-        if query in item[0]:
-            add_result(item)
-        i += 1
+    for item in items:
+        if query in item.tag:
+            if add_result(item):
+                return results
 
-    # If we still didn't find enough, additionally find all tags that contain
-    # query as a substring case-insensitively.
-    i = 0
-    while i < len_tags and len(results) < MAX_RESULTS:
-        item = tags[i]
-        if query_cf in item[0].casefold():
-            add_result(item)
-        i += 1
+    # If we still didn't find enough, and the query is all-lowercase,
+    # additionally find all tags that contain query as a substring
+    # case-insensitively.
+    if is_lower:
+        for item in items:
+            if query in item.tag_lower:
+                if add_result(item):
+                    return results
 
     return results

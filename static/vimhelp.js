@@ -7,7 +7,8 @@ $(() => {
             width: "100%",
             ajax: {
                 url: "/api/tagsearch"
-            }
+            },
+            minimumInputLength: 1
         })
         .on("select2:select", (e) => {
             window.location = e.params.data.href;
