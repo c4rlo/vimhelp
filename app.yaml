@@ -2,6 +2,7 @@ runtime: python39
 
 automatic_scaling:
   max_instances: 2
+  max_idle_instances: 1
   target_cpu_utilization: 0.95
   target_throughput_utilization: 0.95
   max_concurrent_requests: 50
