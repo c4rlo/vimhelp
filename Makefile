@@ -4,9 +4,9 @@ help:
 	@echo "Makefile targets:"; \
 	echo "  venv   - Create virtualenv with required dependencies"; \
 	echo "  lint   - Run flake8 on sources"; \
-	echo "  run    - Run app locally (assumes vimhelp2 creds exist"; \
+	echo "  run    - Run app locally (assumes vimhelp-staging creds exist"; \
 	echo "           in the expected filesystem location)"; \
-	echo "  stage  - Deploy to staging env (vimhelp2.appspot.com)"; \
+	echo "  stage  - Deploy to staging env (vimhelp-staging.appspot.com)"; \
 	echo "  deploy - Deploy to prod env (vimhelp.org)"; \
 	echo "  clean  - Delete build artefacts"
 
@@ -25,12 +25,12 @@ lint:
 
 run:
 	@[ -n "$$VIRTUAL_ENV" ] || { echo "Not in virtual env!"; exit 1; } || true
-	GOOGLE_APPLICATION_CREDENTIALS=~/private/gcloud-creds/vimhelp2-owner.json \
-	    GOOGLE_CLOUD_PROJECT=vimhelp2 VIMHELP_ENV=dev \
+	GOOGLE_APPLICATION_CREDENTIALS=~/private/gcloud-creds/vimhelp-staging-owner.json \
+	    GOOGLE_CLOUD_PROJECT=vimhelp-staging VIMHELP_ENV=dev \
 	    gunicorn -k gevent --reload 'vimhelp.webapp:create_app()'
 
 stage: lint
-	yes | gcloud app deploy --project=vimhelp2
+	yes | gcloud app deploy --project=vimhelp-staging
 
 deploy: lint
 	gcloud app deploy --project=vimhelp-hrd
