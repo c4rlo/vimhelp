@@ -14,20 +14,15 @@ venv:
 	python3 -m venv --upgrade-deps .venv && \
 	. .venv/bin/activate && \
 	    pip install -U --upgrade-strategy=eager -r requirements.txt
-	@echo; \
-	echo "Now run: "; \
-	echo "- '. .venv/bin/activate' to activate the virtualenv"; \
-	echo "- 'deactivate' to leave it again"
 
 lint:
 	python3 -m flake8 --max-line-length=80 --exclude=.venv/,vimhelp/vimh2h.py \
 	    --per-file-ignores='vimhelp/vimh2h.py:E221,E221,E272,E501,E701'
 
 run:
-	@[ -n "$$VIRTUAL_ENV" ] || { echo "Not in virtual env!"; exit 1; } || true
 	GOOGLE_APPLICATION_CREDENTIALS=~/private/gcloud-creds/vimhelp-staging-owner.json \
 	    GOOGLE_CLOUD_PROJECT=vimhelp-staging VIMHELP_ENV=dev \
-	    gunicorn -k gevent --reload 'vimhelp.webapp:create_app()'
+	    .venv/bin/gunicorn -k gevent --reload 'vimhelp.webapp:create_app()'
 
 stage: lint
 	yes | gcloud app deploy --project=vimhelp-staging
