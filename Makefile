@@ -12,8 +12,7 @@ help:
 
 venv:
 	python3 -m venv --upgrade-deps .venv && \
-	. .venv/bin/activate && \
-	    pip install -U --upgrade-strategy=eager -r requirements.txt
+	.venv/bin/pip install -U --upgrade-strategy=eager -r requirements.txt
 
 lint:
 	python3 -m flake8 --max-line-length=80 --exclude=.venv/,vimhelp/vimh2h.py \
