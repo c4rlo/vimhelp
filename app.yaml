@@ -3,10 +3,10 @@ runtime: python39
 automatic_scaling:
   max_instances: 2
   max_idle_instances: 1
-  target_cpu_utilization: 0.95
-  target_throughput_utilization: 0.95
+  target_cpu_utilization: 0.9
+  target_throughput_utilization: 0.9
   max_concurrent_requests: 50
-  min_pending_latency: 800ms
+  min_pending_latency: 500ms
 
 entrypoint: gunicorn -b :$PORT -k gevent -w 1 'vimhelp.webapp:create_app()'
 

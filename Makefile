@@ -12,6 +12,7 @@ help:
 
 venv:
 	python3 -m venv --upgrade-deps .venv && \
+	.venv/bin/pip install -U wheel && \
 	.venv/bin/pip install -U --upgrade-strategy=eager -r requirements.txt
 
 lint:
