@@ -155,7 +155,7 @@ class UpdateHandler(flask.views.MethodView):
                                       self._g.docdir_etag)
 
         # Put all RawFileInfo entites into a map
-        if all_rfi_greenlet:
+        if all_rfi_greenlet is not None:
             rfi_map = {r.key.string_id(): r for r in all_rfi_greenlet.get()}
         else:
             rfi_map = {}
