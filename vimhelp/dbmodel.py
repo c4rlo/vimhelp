@@ -9,14 +9,17 @@ ndb_client = ndb.Client()
 # There is one of these objects in the datastore, to persist some bits of info
 # that we need across update runs; key name is "global".
 class GlobalInfo(ndb.Model):
+    refs_etag = ndb.BlobProperty()
+    # HTTP ETag of GraphQL query for latest refs/tags
+
     docdir_etag = ndb.BlobProperty()
     # HTTP ETag of the vim repository request for the 'runtime/doc'
     # subdirectory
 
-    master_etag = ndb.BlobProperty()
-    # HTTP ETag of the commit that the master branch points to
+    master_sha = ndb.TextProperty()
+    # Git SHA of latest master commit
 
-    vim_version = ndb.BlobProperty()
+    vim_version = ndb.TextProperty()
     # Current Vim version
 
 

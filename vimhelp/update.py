@@ -1,41 +1,7 @@
 # Regularly scheduled update: check which files need updating and process them
 
-# TODO: Do user requests still get processed at all during the update process?
-#       Would be nice if we could make them take priority.
-#       Maybe doing the work in a separate thread and waiting for that thread
-#       would help (that waiting greenlet should hopefully be very much
-#       interruptible)?
-
-# TODO: migrate to GitHub API v4, which uses GraphQL. Example query below -- use
-# https://developer.github.com/v4/explorer/ to try it out (need to use the
-# actual node IDs returned):
-#
-# {
-#   repository(owner: "vim", name: "vim") {
-#     refs(refPrefix: "refs/tags/", last: 1) {
-#       nodes {
-#         name
-#       }
-#     }
-#     object(expression: "master:runtime/doc") {
-#       ... on Tree {
-#         entries {
-#           type
-#           name
-#           oid
-#           object {
-#             id
-#           }
-#         }
-#       }
-#     }
-#   }
-#   nodes(ids: ["xyz", "abc"]) {
-#     ... on Blob {
-#       text
-#     }
-#   }
-# }
+# Ugh, the GitHub GraphQL API does not seem to support ETag:
+# https://github.com/github-community/community/discussions/10799
 
 import base64
 import hashlib
@@ -52,7 +18,6 @@ import gevent.pool
 import gevent.ssl
 import geventhttpclient
 import geventhttpclient.client
-import geventhttpclient.response
 import werkzeug.exceptions
 
 import google.cloud.ndb
@@ -79,19 +44,50 @@ FAQ_NAME = 'vim_faq.txt'
 HELP_NAME = 'help.txt'
 
 DOC_ITEM_RE = re.compile(r'(?:[-\w]+\.txt|tags)$')
-COMMIT_MSG_RE = re.compile(r'[Pp]atch\s+(\d[^:\n]+)')
+VERSION_TAG_RE = re.compile(r'v?(\d[\w.+-]+)$')
 
-GITHUB_API_URL_BASE = 'https://api.github.com'
+GITHUB_DOWNLOAD_URL_BASE = 'https://raw.githubusercontent.com/vim/vim/'
+GITHUB_GRAPHQL_API_URL = 'https://api.github.com/graphql'
+
+GITHUB_GRAPHQL_QUERIES = {
+    'GetRefs': '''
+        query GetRefs {
+          repository(owner: "vim", name: "vim") {
+            defaultBranchRef {
+              target {
+                oid
+              }
+            }
+            refs(refPrefix: "refs/tags/",
+                 orderBy: {field: TAG_COMMIT_DATE, direction: DESC},
+                 first: 5) {
+              nodes {
+                name
+              }
+            }
+          }
+        }
+        ''',
+    'GetDir': '''
+        query GetDir($expr: String) {
+          repository(owner: "vim", name: "vim") {
+            object(expression: $expr) {
+              ... on Tree {
+                entries {
+                  type
+                  name
+                  oid
+                }
+              }
+            }
+          }
+        }
+        '''
+}
 
 FAQ_BASE_URL = 'https://raw.githubusercontent.com/chrisbra/vim_faq/master/doc/'
 
 PFD_MAX_PART_LEN = 995000
-
-# Request header name
-HTTP_HDR_IF_NONE_MATCH = 'If-None-Match'
-
-# Response header name
-HTTP_HDR_ETAG = 'ETag'
 
 
 class UpdateHandler(flask.views.MethodView):
@@ -129,7 +125,7 @@ class UpdateHandler(flask.views.MethodView):
 
             with ndb_client.context():
                 self._g_changed = False
-                self._update_g(wipe=force)
+                self._refresh_g(wipe=force)
                 self._do_update(no_rfi=force)
 
                 if self._g_changed:
@@ -144,6 +140,12 @@ class UpdateHandler(flask.views.MethodView):
 
     def _do_update(self, no_rfi):
 
+        old_vim_version = self._g.vim_version
+        old_master_sha = self._g.master_sha
+
+        # Kick off retrieval of some Git refs/tags
+        get_git_refs_greenlet = self._spawn(self._get_git_refs)
+
         # Kick off retrieval of all RawFileInfo entities from the Datastore
         if no_rfi:
             all_rfi_greenlet = None
@@ -151,13 +153,23 @@ class UpdateHandler(flask.views.MethodView):
             all_rfi_greenlet = self._spawn_ndb(lambda:
                                                RawFileInfo.query().fetch())
 
-        # Kick off check for new vim version
-        refresh_vim_version_greenlet = self._spawn(self._refresh_vim_version)
+        # Check whether the master branch is updated, and whether we have a new
+        # vim version
+        get_git_refs_greenlet.get()
+        is_master_updated = self._g.master_sha != old_master_sha
+        is_new_vim_version = self._g.vim_version != old_vim_version
 
-        # Kick off retrieval of 'runtime/doc' dir listing in github
-        docdir_greenlet = self._spawn(self._vim_github_request,
-                                      '/repos/vim/vim/contents/runtime/doc',
-                                      self._g.docdir_etag)
+        if is_master_updated:
+            # Kick off retrieval of 'runtime/doc' dir listing in GitHub. This is
+            # against the 'master' branch, since the docs often get updated
+            # after the tagged commits that introduce the relevant changes.
+            docdir_expr = self._g.master_sha + ":runtime/doc"
+            docdir_greenlet = self._spawn(self._github_graphql_request,
+                                          'GetDir',
+                                          variables={"expr": docdir_expr},
+                                          etag=self._g.docdir_etag)
+        else:
+            docdir_greenlet = None
 
         # Put all RawFileInfo entites into a map
         if all_rfi_greenlet is not None:
@@ -175,7 +187,8 @@ class UpdateHandler(flask.views.MethodView):
         def queue_urlfetch(name, url, git_sha=None):
             rfi = rfi_map.get(name)
             etag = rfi.etag if rfi is not None else None
-            logging.info("Queueing URL fetch for '%s' (etag: %s)", name, etag)
+            logging.info("Queueing URL fetch for '%s' (etag=%s git_sha=%s)",
+                         name, etag, git_sha)
             processor_greenlet = self._spawn(ProcessorHTTP.create, name,
                                              git_sha,
                                              client_pool=self._http_client_pool,
@@ -189,32 +202,37 @@ class UpdateHandler(flask.views.MethodView):
         # Iterating over 'runtime/doc' dir listing, kick off download for all
         # modified items
 
-        docdir = docdir_greenlet.get()
+        if docdir_greenlet is not None:
+            docdir = docdir_greenlet.get()
 
-        if docdir.status_code == HTTPStatus.NOT_MODIFIED:
+        if docdir_greenlet is None:
+            logging.info("no need to get new doc dir listing")
+        elif docdir.status_code == HTTPStatus.NOT_MODIFIED:
             logging.info("doc dir not modified")
         elif docdir.status_code == HTTPStatus.OK:
-            self._g.docdir_etag = docdir.header(HTTP_HDR_ETAG).encode()
+            etag = docdir.header('ETag')
+            self._g.docdir_etag = etag.encode() if etag is not None else None
             self._g_changed = True
             logging.info("doc dir modified, new etag is %s",
-                         docdir.header(HTTP_HDR_ETAG))
-            for item in json.loads(docdir.body):
+                         docdir.header('ETag'))
+            resp = json.loads(docdir.body)['data']
+            for item in resp['repository']['object']['entries']:
                 name = item['name']
-                if item['type'] == 'file' and DOC_ITEM_RE.match(name):
-                    assert name not in fetcher_greenlets_by_name
-                    git_sha = item['sha'].encode()
-                    rfi = rfi_map.get(name)
-                    if rfi is not None and rfi.git_sha == git_sha:
-                        logging.debug("Found unchanged '%s'", name)
-                        continue
-                    elif rfi is None:
-                        logging.info("Found new '%s'", name)
-                    else:
-                        logging.info("Found changed '%s'", name)
-                    queue_urlfetch(name, item['download_url'], git_sha)
-
-        # Check if we have a new vim version
-        is_new_vim_version = refresh_vim_version_greenlet.get()
+                if item['type'] != 'blob' or not DOC_ITEM_RE.match(name):
+                    continue
+                assert name not in fetcher_greenlets_by_name
+                git_sha = item['oid'].encode()
+                rfi = rfi_map.get(name)
+                if rfi is not None and rfi.git_sha == git_sha:
+                    logging.debug("Found unchanged '%s'", name)
+                    continue
+                elif rfi is None:
+                    logging.info("Found new '%s'", name)
+                else:
+                    logging.info("Found changed '%s'", name)
+                download_url = GITHUB_DOWNLOAD_URL_BASE + self._g.master_sha + \
+                    '/runtime/doc/' + name
+                queue_urlfetch(name, download_url, git_sha)
 
         # If there is no new vim version, and if the only file we're
         # downloading is the FAQ, and if the FAQ was not modified, then there
@@ -257,14 +275,13 @@ class UpdateHandler(flask.views.MethodView):
 
         # Construct the vimhelp-to-html converter, providing it the tags file,
         # and adding on the FAQ for extra tags
-        h2h = vimh2h.VimH2H(tags_body.decode(),
-                            version=self._g.vim_version.decode())
+        h2h = vimh2h.VimH2H(tags_body.decode(), version=self._g.vim_version)
         logging.info("Adding FAQ tags")
         h2h.add_tags(FAQ_NAME, faq_greenlet.get().decode())
 
         processor_greenlets = [self._spawn_ndb(save_tags_json, h2h)]
 
-        # Wait for urlfetches and Datastore accesses to return; kick off the
+        # Wait for HTTP fetches and Datastore accesses to return; kick off the
         # processing as they do so
 
         logging.info("Waiting for fetchers")
@@ -289,60 +306,41 @@ class UpdateHandler(flask.views.MethodView):
 
         logging.info("All done")
 
-    def _refresh_vim_version(self):
-        # Check if the Vim version has changed; we display it on our front
-        # page, so we must keep it updated even if nothing else has changed
-
-        # TODO: find a better way... this doesn't find the current vim version
-        # if the latest commit did not bump the version (only a problem if we
-        # don't already have the vim version in the datastore)
-        #
-        # should probably use the Events API:
-        # https://developer.github.com/v3/activity/events/types/#pushevent
-        # this is also (somewhat) compatible with webhook payloads
-        # or perhaps better to use
-        # https://developer.github.com/v3/repos/commits/ since that does not
-        # include events we're not interested in
-
-        is_new_vim_version = False
-
-        # Kick off retrieval of data about latest commit on master branch,
-        # which we will use to figure out if there is a new vim version
-        master = self._vim_github_request('/repos/vim/vim/branches/master',
-                                          self._g.master_etag)
-        if master.status_code == HTTPStatus.OK:
-            message = json.loads(master.body)['commit']['commit']['message']
-            m = COMMIT_MSG_RE.match(message)
-            if m:
-                new_vim_version = m.group(1)
-                new_vim_version_b = new_vim_version.encode()
-                if new_vim_version_b != self._g.vim_version:
-                    logging.info("Found new vim version '%s' (was: '%s')",
-                                 new_vim_version, self._g.vim_version)
-                    is_new_vim_version = True
-                    self._g.vim_version = new_vim_version_b
-                    self._g_changed = True
-                else:
-                    logging.warn("master branch has moved forward, but vim "
-                                 "version from commit message is unchanged: "
-                                 "'%s' -> version '%s'", message,
-                                 self._g.vim_version)
-            else:
-                logging.warn("master branch has moved forward, but no new vim "
-                             "version found in commit msg ('%s'), so keeping "
-                             "old one ('%s')", message, self._g.vim_version)
-            self._g.master_etag = master.header(HTTP_HDR_ETAG).encode()
+    def _get_git_refs(self):
+        r = self._github_graphql_request('GetRefs', etag=self._g.refs_etag)
+        if r.status_code == HTTPStatus.OK:
+            etag = r.header('ETag')
+            self._g.refs_etag = etag.encode() if etag is not None else None
             self._g_changed = True
-        elif self._g.master_etag and \
-                master.status_code == HTTPStatus.NOT_MODIFIED:
-            logging.info("master branch is unchanged, so no new vim version")
+            resp = json.loads(r.body)['data']['repository']
+            latest_sha = resp['defaultBranchRef']['target']['oid']
+            if latest_sha == self._g.master_sha:
+                logging.info("master SHA unchanged (%s)", latest_sha)
+            else:
+                logging.info("master SHA changed: %s -> %s", self._g.master_sha,
+                             latest_sha)
+                self._g.master_sha = latest_sha
+                self._g_changed = True
+            tags = resp['refs']['nodes']
+            latest_version = None
+            for tag in tags:
+                if m := VERSION_TAG_RE.match(tag['name']):
+                    latest_version = m.group(1)
+                    break
+            if latest_version == self._g.vim_version:
+                logging.info("Vim version unchanged (%s)", latest_version)
+            else:
+                logging.info("Vim version changed: %s -> %s",
+                             self._g.vim_version, latest_version)
+                self._g.vim_version = latest_version
+                self._g_changed = True
+        elif r.status_code == HTTPStatus.NOT_MODIFIED and self._g.refs_etag:
+            logging.info("Initial GraphQL request: HTTP Not Modified")
         else:
-            logging.warn("Failed to get master branch: HTTP status %d",
-                         master.status_code)
+            logging.warn("Initial GraphQL request: bad HTTP status %d",
+                         r.status_code)
 
-        return is_new_vim_version
-
-    def _update_g(self, wipe):
+    def _refresh_g(self, wipe):
         g = GlobalInfo.get_by_id('global')
 
         if wipe:
@@ -353,9 +351,7 @@ class UpdateHandler(flask.views.MethodView):
             ]
             if g:
                 greenlets.append(self._spawn_ndb(g.key.delete))
-                # Make sure we preserve at least the vim version; necessary in
-                # case the latest commit on master doesn't specify it
-                g = GlobalInfo(id='global', vim_version=g.vim_version)
+                g = None
             gevent.joinall(greenlets)
 
         if not g:
@@ -367,13 +363,28 @@ class UpdateHandler(flask.views.MethodView):
 
         self._g = g
 
-    def _vim_github_request(self, document, etag):
+    def _github_graphql_request(self, query_name, variables=None, etag=None):
+        logging.info("Making GitHub GraphQL query: %s", query_name)
         headers = {
-            'Accept':        'application/vnd.github.v3+json',
             'Authorization': 'token ' + secret.GITHUB_ACCESS_TOKEN,
         }
-        return urlfetch(self._http_client_pool, GITHUB_API_URL_BASE + document,
-                        etag, headers=headers)
+        if etag is not None:
+            headers['If-None-Match'] = etag.decode()
+        body = {"query": GITHUB_GRAPHQL_QUERIES[query_name]}
+        if variables is not None:
+            body["variables"] = variables
+        url = geventhttpclient.URL(GITHUB_GRAPHQL_API_URL)
+        try:
+            client = self._http_client_pool.get_client(url)
+            result = client.post(url.request_uri,
+                                 body=json.dumps(body),
+                                 headers=headers)
+        except Exception as e:
+            logging.error(e)
+            raise UrlfetchError(e, url)
+        logging.info("GitHub %s HTTP status: %s", query_name,
+                     result.status_code)
+        return UrlfetchResponse(result)
 
     def _spawn(self, f, *args, **kwargs):
         return self._greenlet_pool.apply_async(f, args, kwargs)
@@ -417,11 +428,22 @@ class ProcessorHTTP:
         if r.status_code == HTTPStatus.OK:
             encoding = do_process(self._name, self.raw_content(), h2h)
             do_save_rawfile(self._name, self._git_sha, self.raw_content(),
-                            encoding.encode(), r.header(HTTP_HDR_ETAG))
+                            encoding.encode(), r.header('ETag'))
 
     @staticmethod
-    def create(name, git_sha, **urlfetch_args):
-        result = urlfetch(**urlfetch_args)
+    def create(name, git_sha, client_pool, url, etag):
+        headers = {}
+        if etag is not None:
+            headers['If-None-Match'] = etag.decode()
+        logging.info("Fetching %s", url)
+        url = geventhttpclient.URL(url)
+        try:
+            result = client_pool.get_client(url).get(url.request_uri, headers)
+        except Exception as e:
+            logging.error(e)
+            raise UrlfetchError(e, url)
+        logging.info("Fetched %s -> HTTP %s", url, result.status_code)
+        result = UrlfetchResponse(result)
         return ProcessorHTTP(name, git_sha, result)
 
 
@@ -524,22 +546,6 @@ def to_html(name, content, encoding, h2h):
         phead.numparts = 1
         phead.data0 = html
     return phead, pparts, encoding
-
-
-def urlfetch(client_pool, url, etag, headers=None):
-    if headers is None:
-        headers = {}
-    if etag is not None:
-        headers[HTTP_HDR_IF_NONE_MATCH] = etag.decode()
-    logging.info("Fetching %s with headers %s", url, headers)
-    url = geventhttpclient.URL(url)
-    try:
-        result = client_pool.get_client(url).get(url.request_uri, headers)
-    except Exception as e:
-        logging.error(e)
-        raise UrlfetchError(e, url)
-    logging.info("Fetched %s -> HTTP %s", url, result.status_code)
-    return UrlfetchResponse(result)
 
 
 class UrlfetchResponse:
