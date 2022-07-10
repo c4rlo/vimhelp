@@ -1,5 +1,11 @@
 # Regularly scheduled update: check which files need updating and process them
 
+# TODO: Do user requests still get processed at all during the update process?
+#       Would be nice if we could make them take priority.
+#       Maybe doing the work in a separate thread and waiting for that thread
+#       would help (that waiting greenlet should hopefully be very much
+#       interruptible)?
+
 # TODO: migrate to GitHub API v4, which uses GraphQL. Example query below -- use
 # https://developer.github.com/v4/explorer/ to try it out (need to use the
 # actual node IDs returned):
@@ -30,7 +36,6 @@
 #     }
 #   }
 # }
-
 
 import base64
 import hashlib

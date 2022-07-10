@@ -72,7 +72,7 @@ class ProcessedFileHead(ndb.Model):
 # Part of a processed file; keyname is basename + ":" + partnum (1-based), e.g.
 # "help.txt:1".
 # This chunking is necessary because the maximum entity size in the Datastore
-# is 1 MB: see https://cloud.google.com/appengine/docs/python/ndb/
+# is 1 MB: see https://cloud.google.com/datastore/docs/concepts/limits
 # NOTE: vimhelp.py currently relies on the keynames, when sorted
 # lexicographically, yielding the correct order; this implies that we must
 # never have a partnum with more than one digit.
