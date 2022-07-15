@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
+import argparse
+import pathlib
 import sys
-import os
-import os.path
-# import cProfile
 
 sys.path.append('.')
 
@@ -22,38 +21,64 @@ def usage():
 
 
 def main():
-    if len(sys.argv) < 3:
-        sys.exit(usage())
+    parser = argparse.ArgumentParser(description="Convert Vim help files to "
+                                                 "HTML")
+    parser.add_argument("--in-dir", "-i", required=True, type=pathlib.Path,
+                        help="Directory of Vim doc files")
+    parser.add_argument("--out-dir", "-o", type=pathlib.Path,
+                        help="Output directory (omit for no output)")
+    parser.add_argument("--no-tags", "-T", action="store_true",
+                        help="Ignore any tags file, always recreate tags from "
+                             "scratch")
+    parser.add_argument("--profile", "-p", action="store_true",
+                        help="Profile performance")
+    parser.add_argument("basenames", nargs="*",
+                        help="List of files to process (default: all)")
+    args = parser.parse_args()
 
-    in_dir = sys.argv[1]
-    out_dir = sys.argv[2]
-    basenames = sys.argv[3:]
+    if args.profile:
+        import cProfile
+        import pstats
+        with cProfile.Profile() as pr:
+            run(args)
+        stats = pstats.Stats(pr).sort_stats("cumulative")
+        stats.print_stats()
+    else:
+        run(args)
 
-    print("Processing tags...")
-    h2h = VimH2H(slurp(os.path.join(in_dir, 'tags')).decode(),
-                 is_web_version=False)
 
-    if len(basenames) == 0:
-        basenames = os.listdir(in_dir)
+def run(args):
+    if not args.in_dir.is_dir():
+        raise RuntimeError(f"{args.in_dir} is not a directory")
 
-    for basename in basenames:
-        if os.path.splitext(basename)[1] != '.txt' and basename != 'tags':
-            print("Ignoring " + basename)
+    if not args.no_tags and (tags_file := args.in_dir / "tags").is_file():
+        print("Processing tags file...")
+        h2h = VimH2H(tags_file.read_text(), is_web_version=False)
+        faq = args.in_dir / "vim_faq.txt"
+        if faq.is_file():
+            print("Processing FAQ tags...")
+            h2h.add_tags(faq.name, faq.read_text())
+    else:
+        print("Initializing tags...")
+        h2h = VimH2H("", is_web_version=False)
+        for infile in args.in_dir.iterdir():
+            if infile.suffix == ".txt":
+                h2h.add_tags(infile.name, infile.read_text())
+
+    if args.out_dir is not None:
+        args.out_dir.mkdir(exist_ok=True)
+
+    for infile in args.in_dir.iterdir():
+        if len(args.basenames) != 0 and infile.name not in args.basenames:
             continue
-        print("Processing " + basename + "...")
-        path = os.path.join(in_dir, basename)
-        content = slurp(path)
-        try:
-            encoding = 'UTF-8'
-            content_str = content.decode(encoding)
-        except UnicodeError:
-            encoding = 'ISO-8859-1'
-            content_str = content.decode(encoding)
-        outpath = os.path.join(out_dir, basename + '.html')
-        of = open(outpath, 'wb')
-        of.write(h2h.to_html(basename, content_str, encoding).encode())
-        of.close()
+        if infile.suffix != ".txt" and infile.name != "tags":
+            print(f"Ignoring {infile}")
+            continue
+        content = infile.read_text()
+        print(f"Processing {infile}...")
+        html = h2h.to_html(infile.name, content, 'UTF-8')
+        if args.out_dir is not None:
+            (args.out_dir / f"{infile.name}.html").write_text(html)
 
 
 main()
-# cProfile.run('main()')

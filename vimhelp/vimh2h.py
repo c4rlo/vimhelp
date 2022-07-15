@@ -86,7 +86,7 @@ PAT_WORDCHAR = '[!#-)+-{}~\xC0-\xFF]'
 
 PAT_HEADER   = r'(^.*~$)'
 PAT_GRAPHIC  = r'(^.* `$)'
-PAT_PIPEWORD = r'(?<!\\)\|([#-)!+-~]+)\|'
+PAT_PIPEWORD = r'(?<!\\)\|([#-)!+-{}~]+)\|'
 PAT_STARWORD = r'\*([#-)!+-~]+)\*(?:(?=\s)|$)'
 PAT_COMMAND  = r'`([^` ]+)`'
 PAT_OPTWORD  = r"('(?:[a-z]{2,}|t_..)')"
@@ -122,9 +122,9 @@ RE_TAGWORD = re.compile(
 RE_NEWLINE   = re.compile(r'[\r\n]')
 RE_HRULE     = re.compile(r'[-=]{3,}.*[-=]{3,3}$')
 RE_EG_START  = re.compile(r'(?:.* )?>$')
-RE_EG_END    = re.compile(r'\S')
+RE_EG_END    = re.compile(r'[^ \t]')
 RE_SECTION   = re.compile(r'[-A-Z .][-A-Z0-9 .()]*(?=\s+\*)')
-RE_STARTAG   = re.compile(r'\s\*([^ \t|]+)\*(?:\s|$)')
+RE_STARTAG   = re.compile(r'\*([^ \t"*]+)\*(?:\s|$)')
 RE_LOCAL_ADD = re.compile(r'LOCAL ADDITIONS:\s+\*local-additions\*$')
 
 
@@ -132,7 +132,10 @@ class Link:
     def __init__(self, filename, htmlfilename, tag):
         self.filename = filename
         self._htmlfilename = htmlfilename
-        self._tag_quoted = urllib.parse.quote_plus(tag)
+        if tag == 'help-tags' and filename == 'tags':
+            self._tag_quoted = None
+        else:
+            self._tag_quoted = urllib.parse.quote_plus(tag)
         self._tag_escaped = html_escape(tag)
         self._cssclass = 'd'
         if m := RE_LINKWORD.match(tag):
@@ -143,6 +146,8 @@ class Link:
 
     @functools.cache
     def href(self, is_same_doc):
+        if self._tag_quoted is None:
+            return self._htmlfilename
         doc = '' if is_same_doc else self._htmlfilename
         return f"{doc}#{self._tag_quoted}"
 
@@ -162,11 +167,21 @@ class VimH2H:
             if m := RE_TAGLINE.match(line):
                 tag, filename = m.group(1, 2)
                 self.do_add_tag(filename, tag)
+        self._urls['help-tags'] = Link('tags', 'tags.html', 'help-tags')
 
     def add_tags(self, filename, contents):
-        for match in RE_STARTAG.finditer(contents):
-            tag = match.group(1).replace('\\', '\\\\').replace('/', '\\/')
-            self.do_add_tag(str(filename), tag)
+        in_example = False
+        for line in RE_NEWLINE.split(contents):
+            if in_example:
+                if RE_EG_END.match(line):
+                    in_example = False
+                else:
+                    continue
+            for anchor in RE_STARTAG.finditer(line):
+                tag = anchor.group(1)
+                self.do_add_tag(filename, tag)
+            if RE_EG_START.match(line):
+                in_example = True
 
     def do_add_tag(self, filename, tag):
         if self._is_web_version and filename == 'help.txt':
@@ -195,8 +210,7 @@ class VimH2H:
     def to_html(self, filename, contents, encoding):
         out = []
 
-        inexample = 0
-        filename = str(filename)
+        in_example = False
         is_help_txt = (filename == 'help.txt')
         faq_line = False
         for line in RE_NEWLINE.split(contents):
@@ -206,9 +220,9 @@ class VimH2H:
             if RE_HRULE.match(line):
                 out.extend(('<span class="h">', line, '</span>\n'))
                 continue
-            if inexample == 2:
+            if in_example:
                 if RE_EG_END.match(line):
-                    inexample = 0
+                    in_example = False
                     if line[0] == '<':
                         line = line[1:]
                 else:
@@ -216,7 +230,7 @@ class VimH2H:
                                '</span>\n'))
                     continue
             if RE_EG_START.match(line_tabs):
-                inexample = 1
+                in_example = True
                 line = line[:-1]
             if RE_SECTION.match(line_tabs):
                 m = RE_SECTION.match(line)
@@ -265,8 +279,6 @@ class VimH2H:
             if lastpos < len(line):
                 out.append(html_escape(line[lastpos:]))
             out.append('\n')
-            if inexample == 1:
-                inexample = 2
             if faq_line:
                 out.append(VIM_FAQ_LINE)
                 faq_line = False
