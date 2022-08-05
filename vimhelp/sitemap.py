@@ -6,16 +6,21 @@ import flask
 
 from . import dbmodel
 
-BASE_URL = 'https://vimhelp.org/'
+BASE_URL = "https://vimhelp.org/"
 
 
 def handle_sitemap():
     with dbmodel.ndb_client.context():
-        all_names = dbmodel.ProcessedFileHead.query() \
-            .map(operator.methodcaller('string_id'), keys_only=True)
+        all_names = dbmodel.ProcessedFileHead.query().map(
+            operator.methodcaller("string_id"), keys_only=True
+        )
     return flask.Response(
-        BASE_URL + '\n' + ''.join(
-            BASE_URL + name + '.html\n'
+        BASE_URL
+        + "\n"
+        + "".join(
+            BASE_URL + name + ".html\n"
             for name in sorted(all_names)
-            if name != 'help.txt'),
-        mimetype='text/plain')
+            if name != "help.txt"
+        ),
+        mimetype="text/plain",
+    )

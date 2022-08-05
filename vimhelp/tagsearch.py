@@ -30,8 +30,7 @@ def handle_tagsearch(cache):
     items = cache.get(CACHE_KEY)
     if not items:
         with dbmodel.ndb_client.context():
-            items = [TagItem(*tag) for tag in
-                     dbmodel.TagsInfo.get_by_id("tags").tags]
+            items = [TagItem(*tag) for tag in dbmodel.TagsInfo.get_by_id("tags").tags]
             cache.put(CACHE_KEY, items)
 
     results = do_handle_tagsearch(items, query)

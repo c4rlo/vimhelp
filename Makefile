@@ -17,6 +17,7 @@ venv:
 
 lint:
 	flake8
+	black --check .
 
 run:
 	GOOGLE_APPLICATION_CREDENTIALS=~/private/gcloud-creds/vimhelp-staging-owner.json \

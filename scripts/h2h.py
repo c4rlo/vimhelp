@@ -4,13 +4,13 @@ import argparse
 import pathlib
 import sys
 
-sys.path.append('.')
+sys.path.append(".")
 
 from vimhelp.vimh2h import VimH2H  # noqa: E402
 
 
 def slurp(filename):
-    f = open(filename, 'rb')
+    f = open(filename, "rb")
     c = f.read()
     f.close()
     return c
@@ -21,24 +21,38 @@ def usage():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert Vim help files to "
-                                                 "HTML")
-    parser.add_argument("--in-dir", "-i", required=True, type=pathlib.Path,
-                        help="Directory of Vim doc files")
-    parser.add_argument("--out-dir", "-o", type=pathlib.Path,
-                        help="Output directory (omit for no output)")
-    parser.add_argument("--no-tags", "-T", action="store_true",
-                        help="Ignore any tags file, always recreate tags from "
-                             "scratch")
-    parser.add_argument("--profile", "-p", action="store_true",
-                        help="Profile performance")
-    parser.add_argument("basenames", nargs="*",
-                        help="List of files to process (default: all)")
+    parser = argparse.ArgumentParser(description="Convert Vim help files to HTML")
+    parser.add_argument(
+        "--in-dir",
+        "-i",
+        required=True,
+        type=pathlib.Path,
+        help="Directory of Vim doc files",
+    )
+    parser.add_argument(
+        "--out-dir",
+        "-o",
+        type=pathlib.Path,
+        help="Output directory (omit for no output)",
+    )
+    parser.add_argument(
+        "--no-tags",
+        "-T",
+        action="store_true",
+        help="Ignore any tags file, always recreate tags from " "scratch",
+    )
+    parser.add_argument(
+        "--profile", "-p", action="store_true", help="Profile performance"
+    )
+    parser.add_argument(
+        "basenames", nargs="*", help="List of files to process (default: all)"
+    )
     args = parser.parse_args()
 
     if args.profile:
         import cProfile
         import pstats
+
         with cProfile.Profile() as pr:
             run(args)
         stats = pstats.Stats(pr).sort_stats("cumulative")
@@ -76,7 +90,7 @@ def run(args):
             continue
         content = infile.read_text()
         print(f"Processing {infile}...")
-        html = h2h.to_html(infile.name, content, 'UTF-8')
+        html = h2h.to_html(infile.name, content, "UTF-8")
         if args.out_dir is not None:
             (args.out_dir / f"{infile.name}.html").write_text(html)
 

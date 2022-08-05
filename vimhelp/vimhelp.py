@@ -17,15 +17,15 @@ def handle_vimhelp(filename, cache):
     req = flask.request
 
     if not filename:
-        filename = 'help.txt'
-    elif not filename.endswith('.html'):
+        filename = "help.txt"
+    elif not filename.endswith(".html"):
         raise werkzeug.exceptions.NotFound()
     else:
         filename = filename[:-5]  # strip ".html"
 
-    if not filename.endswith('.txt') and filename != 'tags':
+    if not filename.endswith(".txt") and filename != "tags":
         logging.info("redirecting %s.html to %s.txt.html", filename, filename)
-        return redirect('/' + filename + '.txt.html')
+        return redirect("/" + filename + ".txt.html")
 
     logging.info("filename: %s", filename)
 
@@ -53,7 +53,7 @@ def handle_vimhelp(filename, cache):
 
 
 def prepare_response(req, head, now):
-    resp = flask.Response(mimetype='text/html')
+    resp = flask.Response(mimetype="text/html")
     resp.charset = head.encoding
     resp.last_modified = head.modified
     resp.expires = util.next_update_time(now)
@@ -63,9 +63,13 @@ def prepare_response(req, head, now):
 
 def complete_response(resp, head, parts):
     if resp.status_code != HTTPStatus.NOT_MODIFIED:
-        logging.info("writing %d-part response, modified %s, expires %s",
-                     1 + len(parts), resp.last_modified, resp.expires)
-        resp.data = head.data0 + b''.join(p.data for p in parts)
+        logging.info(
+            "writing %d-part response, modified %s, expires %s",
+            1 + len(parts),
+            resp.last_modified,
+            resp.expires,
+        )
+        resp.data = head.data0 + b"".join(p.data for p in parts)
     return resp
 
 
@@ -82,8 +86,10 @@ def get_parts(head):
         return []
     logging.info("retrieving %d extra part(s)", head.numparts - 1)
     filename = head.key.string_id()
-    keys = [ndb.Key('ProcessedFilePart', filename + ':' + str(i))
-            for i in range(1, head.numparts)]
+    keys = [
+        ndb.Key("ProcessedFilePart", filename + ":" + str(i))
+        for i in range(1, head.numparts)
+    ]
     num_tries = 0
     while True:
         num_tries += 1
