@@ -16,8 +16,7 @@ venv:
 	.venv/bin/pip install -U --upgrade-strategy=eager -r requirements.txt
 
 lint:
-	python3 -m flake8 --max-line-length=80 --exclude=.venv/,vimhelp/vimh2h.py \
-	    --per-file-ignores='vimhelp/vimh2h.py:E221,E221,E272,E501,E701'
+	flake8
 
 run:
 	GOOGLE_APPLICATION_CREDENTIALS=~/private/gcloud-creds/vimhelp-staging-owner.json \
