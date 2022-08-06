@@ -59,24 +59,23 @@ def do_handle_tagsearch(items, query):
         else:
             break
 
-    # If we didn't find enough, and the query is all-lowercase, add all
-    # case-insensitive matches.
+    # If we didn't find enough, and the query is all-lowercase, add all case-insensitive
+    # matches.
     if is_lower:
         for item in items:
             if item.tag_lower.startswith(query):
                 if add_result(item):
                     return results
 
-    # If we still didn't find enough, additionally find all tags that contain
-    # query as a substring.
+    # If we still didn't find enough, additionally find all tags that contain query as a
+    # substring.
     for item in items:
         if query in item.tag:
             if add_result(item):
                 return results
 
-    # If we still didn't find enough, and the query is all-lowercase,
-    # additionally find all tags that contain query as a substring
-    # case-insensitively.
+    # If we still didn't find enough, and the query is all-lowercase, additionally find
+    # all tags that contain query as a substring case-insensitively.
     if is_lower:
         for item in items:
             if query in item.tag_lower:

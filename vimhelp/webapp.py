@@ -75,9 +75,8 @@ def create_app():
     app.add_url_rule("/enqueue_update", view_func=update.handle_enqueue_update)
     app.add_url_rule("/sitemap.txt", view_func=sitemap.handle_sitemap)
 
-    # These are only needed for dev. When deployed to Google App Engine,
-    # these static files are served outside the scope of this app, as
-    # configured in app.yaml.
+    # These are only needed for dev. When deployed to Google App Engine, these static
+    # files are served outside the scope of this app, as configured in app.yaml.
     @app.route("/vimhelp.css")
     @app.route("/vimhelp.js")
     @app.route("/favicon.ico")
@@ -95,8 +94,8 @@ def create_app():
 def _add_default_headers(response: flask.Response) -> flask.Response:
     h = response.headers
     h.setdefault("Content-Security-Policy", _CSP)
-    # The following is needed for local dev scenarios where one is accessing
-    # an HTML file on disk ('file://' protocol) and wants it to be able to
-    # consume the tagsearch API.
+    # The following is needed for local dev scenarios where one is accessing an HTML
+    # file on disk ('file://' protocol) and wants it to be able to consume the tagsearch
+    # API.
     # h.setdefault("Access-Control-Allow-Origin", "*")
     return response

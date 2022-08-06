@@ -78,10 +78,10 @@ def redirect(url):
 
 
 def get_parts(head):
-    # We could alternatively achieve this via an ancestor query (retrieving the
-    # head and its parts simultaneously) to give us strong consistency. But the
-    # downside of that is that it bypasses the automatic memcache layer built
-    # into ndb, which we want to take advantage of.
+    # We could alternatively achieve this via an ancestor query (retrieving the head and
+    # its parts simultaneously) to give us strong consistency. But the downside of that
+    # is that it bypasses the automatic memcache layer built into ndb, which we want to
+    # take advantage of.
     if head.numparts == 1:
         return []
     logging.info("retrieving %d extra part(s)", head.numparts - 1)
