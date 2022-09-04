@@ -11,6 +11,7 @@ ndb_client = ndb.Client()
 class GlobalInfo(ndb.Model):
     refs_etag = ndb.BlobProperty()
     # HTTP ETag of GraphQL query for latest refs/tags
+    # (useless in practice since the GitHub GraphQL endpoint seems to not support ETag)
 
     docdir_etag = ndb.BlobProperty()
     # HTTP ETag of the vim repository request for the 'runtime/doc' subdirectory
