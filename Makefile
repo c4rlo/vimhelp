@@ -3,7 +3,7 @@
 help:
 	@echo "Makefile targets:"; \
 	echo "  venv   - Create virtualenv with required dependencies"; \
-	echo "  lint   - Run flake8 on sources"; \
+	echo "  lint   - Run linters on sources"; \
 	echo "  run    - Run app locally (assumes vimhelp-staging creds exist"; \
 	echo "           in the expected filesystem location)"; \
 	echo "  stage  - Deploy to staging env (vimhelp-staging.appspot.com)"; \
