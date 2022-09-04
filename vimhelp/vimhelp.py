@@ -25,7 +25,7 @@ def handle_vimhelp(filename, cache):
 
     if not filename.endswith(".txt") and filename != "tags":
         logging.info("redirecting %s.html to %s.txt.html", filename, filename)
-        return redirect("/" + filename + ".txt.html")
+        return redirect(f"/{filename}.txt.html")
 
     logging.info("filename: %s", filename)
 

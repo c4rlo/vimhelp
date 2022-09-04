@@ -516,7 +516,7 @@ def do_process(name, content, h2h, encoding=None):
     logging.info("Translating '%s' to HTML", name)
     phead, pparts, encoding = to_html(name, content, encoding, h2h)
     logging.info(
-        "Saving HTML translation of '%s' (encoded as %s) to " "Datastore",
+        "Saving HTML translation of '%s' (encoded as %s) to Datastore",
         name,
         encoding,
     )

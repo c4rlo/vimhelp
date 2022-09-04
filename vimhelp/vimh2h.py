@@ -77,10 +77,7 @@ FOOTER2 = """
 </html>
 """
 
-VIM_FAQ_LINE = (
-    '<a href="vim_faq.txt.html#vim_faq.txt" class="l">'
-    "vim_faq.txt</a>   Frequently Asked Questions\n"
-)
+VIM_FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">vim_faq.txt</a>   Frequently Asked Questions\n'
 
 RE_TAGLINE = re.compile(r"(\S+)\s+(\S+)")
 
@@ -109,31 +106,22 @@ PAT_WORD = (
 )
 
 RE_LINKWORD = re.compile(PAT_OPTWORD + "|" + PAT_CTRL + "|" + PAT_SPECIAL)
+# fmt: off
 RE_TAGWORD = re.compile(
-    PAT_HEADER
-    + "|"
-    + PAT_GRAPHIC
-    + "|"
-    + PAT_PIPEWORD
-    + "|"
-    + PAT_STARWORD
-    + "|"
-    + PAT_COMMAND
-    + "|"
-    + PAT_OPTWORD
-    + "|"
-    + PAT_CTRL
-    + "|"
-    + PAT_SPECIAL
-    + "|"
-    + PAT_TITLE
-    + "|"
-    + PAT_NOTE
-    + "|"
-    + PAT_URL
-    + "|"
-    + PAT_WORD
+    PAT_HEADER + "|" +
+    PAT_GRAPHIC + "|" +
+    PAT_PIPEWORD + "|" +
+    PAT_STARWORD + "|" +
+    PAT_COMMAND + "|" +
+    PAT_OPTWORD + "|" +
+    PAT_CTRL + "|" +
+    PAT_SPECIAL + "|" +
+    PAT_TITLE + "|" +
+    PAT_NOTE + "|" +
+    PAT_URL + "|" +
+    PAT_WORD
 )
+# fmt: on
 RE_NEWLINE = re.compile(r"[\r\n]")
 RE_HRULE = re.compile(r"[-=]{3,}.*[-=]{3,3}$")
 RE_EG_START = re.compile(r"(?:.* )?>$")
@@ -254,7 +242,7 @@ class VimH2H:
                 line = line[:-1]
             if RE_SECTION.match(line_tabs):
                 m = RE_SECTION.match(line)
-                out.extend((r'<span class="c">', m.group(0), r"</span>"))
+                out.extend(('<span class="c">', m.group(0), "</span>"))
                 line = line[m.end() :]
             if is_help_txt and RE_LOCAL_ADD.match(line_tabs):
                 faq_line = True
@@ -264,20 +252,10 @@ class VimH2H:
                 if pos > lastpos:
                     out.append(html_escape(line[lastpos:pos]))
                 lastpos = match.end()
-                (
-                    header,
-                    graphic,
-                    pipeword,
-                    starword,
-                    command,
-                    opt,
-                    ctrl,
-                    special,
-                    title,
-                    note,
-                    url,
-                    word,
-                ) = match.groups()
+                # fmt: off
+                (header, graphic, pipeword, starword, command, opt, ctrl, special,
+                 title, note, url, word) = match.groups()
+                # fmt: on
                 if pipeword is not None:
                     out.append(self.maplink(pipeword, filename, "l"))
                 elif starword is not None:
