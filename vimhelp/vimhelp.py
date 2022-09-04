@@ -38,7 +38,7 @@ def handle_vimhelp(filename, cache):
     with dbmodel.ndb_client.context():
         head = dbmodel.ProcessedFileHead.get_by_id(filename)
         if not head:
-            logging.warn("%s not found in db", filename)
+            logging.warning("%s not found in db", filename)
             raise werkzeug.exceptions.NotFound()
         logging.info("responding from db")
         now = datetime.datetime.utcnow()
@@ -98,6 +98,6 @@ def get_parts(head):
             raise werkzeug.exceptions.InternalServerError()
         parts = ndb.get_multi(keys)
         if any(p.etag != head.etag for p in parts):
-            logging.warn("got differing etags, retrying")
+            logging.warning("got differing etags, retrying")
         else:
             return sorted(parts, key=lambda p: p.key.string_id())

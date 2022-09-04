@@ -157,7 +157,8 @@ class UpdateHandler(flask.views.MethodView):
 
         # Check whether the master branch is updated, and whether we have a new vim
         # version
-        get_git_refs_greenlet.get()
+        if not get_git_refs_greenlet.get():
+            return
         is_master_updated = self._g.master_sha != old_master_sha
         is_new_vim_version = self._g.vim_version != old_vim_version
 
@@ -206,13 +207,13 @@ class UpdateHandler(flask.views.MethodView):
             docdir = docdir_greenlet.get()
 
         if docdir_greenlet is None:
-            logging.info("no need to get new doc dir listing")
+            logging.info("No need to get new doc dir listing")
         elif docdir.status_code == HTTPStatus.NOT_MODIFIED:
-            logging.info("doc dir not modified")
+            logging.info("Doc dir not modified")
         elif docdir.status_code == HTTPStatus.OK:
             etag = docdir.header("ETag")
             self._g.docdir_etag = etag.encode() if etag is not None else None
-            logging.info("doc dir modified, new etag is %s", docdir.header("ETag"))
+            logging.info("Doc dir modified, new etag is %s", docdir.header("ETag"))
             resp = json.loads(docdir.body)["data"]
             for item in resp["repository"]["object"]["entries"]:
                 name = item["name"]
@@ -232,6 +233,9 @@ class UpdateHandler(flask.views.MethodView):
                     f"{GITHUB_DOWNLOAD_URL_BASE}{self._g.master_sha}/runtime/doc/{name}"
                 )
                 queue_urlfetch(name, download_url, git_sha)
+        else:
+            logging.warning("Bad doc dir HTTP status %d; aborting", docdir.status_code)
+            return
 
         # If there is no new vim version, and if the only file we're downloading is the
         # FAQ, and if the FAQ was not modified, then there is nothing to do for us, so
@@ -240,6 +244,7 @@ class UpdateHandler(flask.views.MethodView):
         if not is_new_vim_version and len(fetcher_greenlets) == 1:
             faq_processor = fetcher_greenlets[FAQ_NAME].get()
             if faq_processor.status_code() == HTTPStatus.NOT_MODIFIED:
+                logging.info("Nothing to do")
                 return
 
         def get_content(name):
@@ -334,10 +339,15 @@ class UpdateHandler(flask.views.MethodView):
                     "Vim version changed: %s -> %s", self._g.vim_version, latest_version
                 )
                 self._g.vim_version = latest_version
+            return True
         elif r.status_code == HTTPStatus.NOT_MODIFIED and self._g.refs_etag:
             logging.info("Initial GraphQL request: HTTP Not Modified")
+            return True
         else:
-            logging.warn("Initial GraphQL request: bad HTTP status %d", r.status_code)
+            logging.warning(
+                "Initial GraphQL request: bad HTTP status %d", r.status_code
+            )
+            return False
 
     def _init_g(self, wipe):
         g = GlobalInfo.get_by_id("global")
@@ -428,6 +438,10 @@ class ProcessorHTTP:
                 self.raw_content(),
                 encoding.encode(),
                 r.header("ETag"),
+            )
+        else:
+            logging.info(
+                "Not translating '%s' due to HTTP status %d", self._name, r.status_code
             )
 
     @staticmethod
