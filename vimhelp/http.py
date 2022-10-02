@@ -21,7 +21,7 @@ class HttpClient:
         except Exception as e:
             logging.error(e)
             raise HttpError(e, url)
-        return HttpResponse(response)
+        return HttpResponse(response, url)
 
     def post(self, url, json, headers):
         try:
@@ -33,14 +33,15 @@ class HttpClient:
         except Exception as e:
             logging.error(e)
             raise HttpError(e, url)
-        return HttpResponse(response)
+        return HttpResponse(response, url)
 
     def close(self):
         self._pool.close()
 
 
 class HttpResponse:
-    def __init__(self, response):
+    def __init__(self, response, url):
+        self.url = url
         self.body = bytes(response.read())
         response.release()
         self._response = response

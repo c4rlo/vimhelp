@@ -90,7 +90,7 @@ def run(args):
             continue
         content = infile.read_text()
         print(f"Processing {infile}...")
-        html = h2h.to_html(infile.name, content, "UTF-8")
+        html = h2h.to_html(infile.name, content)
         if args.out_dir is not None:
             (args.out_dir / f"{infile.name}.html").write_text(html)
 

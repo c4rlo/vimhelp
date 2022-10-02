@@ -10,7 +10,7 @@ HEAD = """\
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="{encoding}">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Vim help pages, always up-to-date">
 <title>Vim: {filename}</title>
@@ -216,7 +216,7 @@ class VimH2H:
         else:
             return html_escape(tag)
 
-    def to_html(self, filename, contents, encoding):
+    def to_html(self, filename, contents):
         out = []
 
         in_example = False
@@ -300,7 +300,7 @@ class VimH2H:
                 faq_line = False
 
         header = []
-        header.append(HEAD.format(encoding=encoding, filename=filename))
+        header.append(HEAD.format(filename=filename))
         if self._is_web_version:
             header.append(SEARCH_HEADERS)
         header.append(HEAD_END)
