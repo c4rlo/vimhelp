@@ -16,6 +16,9 @@ from . import util
 def handle_vimhelp(filename, cache):
     req = flask.request
 
+    if req.host == "neo.vimhelp.org":
+        return flask.Response("Neovim help pages coming soon!")
+
     if not filename:
         filename = "help.txt"
     elif not filename.endswith(".html"):

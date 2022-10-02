@@ -2,4 +2,3 @@ cron:
 - description: fetch and process vim docs
   url: /enqueue_update
   schedule: every 30 minutes synchronized
-
