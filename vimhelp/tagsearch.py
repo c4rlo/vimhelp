@@ -26,12 +26,11 @@ class TagItem:
         return self.tag < query
 
 
-def handle_tagsearch(cache, project_override=None):
-    req = flask.request
-    project = project_override or req.blueprint
+def handle_tagsearch(cache):
+    project = flask.g.project
     cache_key = (project, CACHE_KEY_ID)
     items = cache.get(cache_key)
-    query = req.args.get("q", "")
+    query = flask.request.args.get("q", "")
     if not items:
         with dbmodel.ndb_context():
             entity = dbmodel.TagsInfo.get_by_id(project)

@@ -25,6 +25,9 @@ handlers:
 - url: /(?:robots|sitemap)\.txt
   script: auto
   secure: always
+- url: /favicon\.ico
+  script: auto
+  secure: always
 - url: /(?:enqueue_)?update
   script: auto
   secure: always

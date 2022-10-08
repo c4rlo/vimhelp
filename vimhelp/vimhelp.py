@@ -13,9 +13,9 @@ from . import dbmodel
 from . import util
 
 
-def handle_vimhelp(filename, cache, project_override=None):
+def handle_vimhelp(filename, cache):
     req = flask.request
-    project = project_override or req.blueprint
+    project = flask.g.project
 
     if filename in ("help.txt", "help"):
         return redirect("./")

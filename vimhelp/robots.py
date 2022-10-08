@@ -13,14 +13,13 @@ BASE_URLS = {
 
 
 def handle_robots_txt():
-    project = flask.request.blueprint
     return flask.Response(
-        f"Sitemap: {BASE_URLS[project]}/sitemap.txt\n", mimetype="text/plain"
+        f"Sitemap: {BASE_URLS[flask.g.project]}/sitemap.txt\n", mimetype="text/plain"
     )
 
 
 def handle_sitemap_txt():
-    project = flask.request.blueprint
+    project = flask.g.project
     base_url = BASE_URLS[project]
 
     with dbmodel.ndb_context():

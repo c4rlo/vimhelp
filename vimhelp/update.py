@@ -125,7 +125,7 @@ class UpdateHandler(flask.views.MethodView):
         elif b"project=neovim" in request_data:
             self._project = "neovim"
         else:
-            self._project = req.blueprint
+            self._project = flask.g.project
 
         logging.info(
             "Starting %supdate for %s", "forced " if is_force else "", self._project
@@ -676,11 +676,14 @@ def handle_enqueue_update():
     queue_name = client.queue_path(
         os.environ["GOOGLE_CLOUD_PROJECT"], "us-central1", "update2"
     )
+    body = req.query_string
+    if b"project=" not in body:
+        body += b"&project=" + flask.g.project.encode()
     task = {
         "app_engine_http_request": {
             "http_method": "POST",
             "relative_uri": "/update",
-            "body": req.query_string,
+            "body": body,
         }
     }
     response = client.create_task(parent=queue_name, task=task)
