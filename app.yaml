@@ -22,7 +22,7 @@ handlers:
 - url: /api/.+
   script: auto
   secure: always
-- url: /sitemap\.txt
+- url: /(?:robots|sitemap)\.txt
   script: auto
   secure: always
 - url: /(?:enqueue_)?update

@@ -67,14 +67,14 @@ def run(args):
 
     if not args.no_tags and (tags_file := args.in_dir / "tags").is_file():
         print("Processing tags file...")
-        h2h = VimH2H(tags_file.read_text(), is_web_version=False)
+        h2h = VimH2H(tags=tags_file.read_text(), is_web_version=False)
         faq = args.in_dir / "vim_faq.txt"
         if faq.is_file():
             print("Processing FAQ tags...")
             h2h.add_tags(faq.name, faq.read_text())
     else:
         print("Initializing tags...")
-        h2h = VimH2H("", is_web_version=False)
+        h2h = VimH2H(is_web_version=False)
         for infile in args.in_dir.iterdir():
             if infile.suffix == ".txt":
                 h2h.add_tags(infile.name, infile.read_text())

@@ -6,7 +6,7 @@ help:
 	echo "  lint   - Run linters on sources"; \
 	echo "  run    - Run app locally (assumes vimhelp-staging creds exist"; \
 	echo "           in the expected filesystem location)"; \
-	echo "  stage  - Deploy to staging env (vimhelp-staging.appspot.com)"; \
+	echo "  stage  - Deploy to staging env (staging.vimhelp.org)"; \
 	echo "  deploy - Deploy to prod env (vimhelp.org)"; \
 	echo "  clean  - Delete build artefacts"
 
@@ -19,7 +19,17 @@ lint:
 	flake8
 	black --check .
 
+show-routes:
+	GOOGLE_APPLICATION_CREDENTIALS=~/private/gcloud-creds/vimhelp-staging-owner.json \
+	    GOOGLE_CLOUD_PROJECT=vimhelp-staging VIMHELP_ENV=dev \
+	    .venv/bin/flask --app vimhelp.webapp routes
+
 run:
+	GOOGLE_APPLICATION_CREDENTIALS=~/private/gcloud-creds/vimhelp-staging-owner.json \
+	    GOOGLE_CLOUD_PROJECT=vimhelp-staging VIMHELP_ENV=dev \
+	    .venv/bin/flask --app vimhelp.webapp --debug run
+
+run-gunicorn:
 	GOOGLE_APPLICATION_CREDENTIALS=~/private/gcloud-creds/vimhelp-staging-owner.json \
 	    GOOGLE_CLOUD_PROJECT=vimhelp-staging VIMHELP_ENV=dev \
 	    .venv/bin/gunicorn -k gevent --reload 'vimhelp.webapp:create_app()'

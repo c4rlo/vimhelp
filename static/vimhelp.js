@@ -7,7 +7,7 @@ $(() => {
             placeholder: "Go to keyword",
             width: "100%",
             ajax: {
-                url: "/api/tagsearch"
+                url: "api/tagsearch"
             },
             minimumInputLength: 1
         })

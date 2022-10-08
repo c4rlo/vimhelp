@@ -1,4 +1,5 @@
 import bisect
+import logging
 
 import flask
 
@@ -11,7 +12,7 @@ from . import dbmodel
 
 
 MAX_RESULTS = 30
-CACHE_KEY = "api/tag-items"
+CACHE_KEY_ID = "api/tag-items"
 
 
 class TagItem:
@@ -25,13 +26,20 @@ class TagItem:
         return self.tag < query
 
 
-def handle_tagsearch(cache):
-    query = flask.request.args.get("q", "")
-    items = cache.get(CACHE_KEY)
+def handle_tagsearch(cache, project_override=None):
+    req = flask.request
+    project = project_override or req.blueprint
+    cache_key = (project, CACHE_KEY_ID)
+    items = cache.get(cache_key)
+    query = req.args.get("q", "")
     if not items:
-        with dbmodel.ndb_client.context():
-            items = [TagItem(*tag) for tag in dbmodel.TagsInfo.get_by_id("tags").tags]
-            cache.put(CACHE_KEY, items)
+        with dbmodel.ndb_context():
+            entity = dbmodel.TagsInfo.get_by_id(project)
+            if entity is None:
+                logging.info("falling back to project-less tags entity")
+                entity = dbmodel.TagsInfo.get_by_id("tags")
+            items = [TagItem(*tag) for tag in entity.tags]
+            cache.put(cache_key, items)
 
     results = do_handle_tagsearch(items, query)
     return flask.jsonify({"results": results})

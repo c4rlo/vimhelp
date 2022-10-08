@@ -1,4 +1,4 @@
-# converts vim documentation to html
+# Translates Vim documentation to HTML
 
 import functools
 import html
@@ -6,62 +6,63 @@ import re
 import urllib.parse
 from itertools import chain
 
-HEAD = """\
+HEAD_FMT = """\
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Vim help pages, always up-to-date">
-<title>Vim: {filename}</title>
+<meta name="description" content="{project.name} help pages, always up-to-date">
+<title>{project.name}: {filename}</title>
 <link rel="shortcut icon" href="favicon.ico">
-<!-- favicon is based on http://amnoid.de/tmp/vim_solidbright_512.png and is used with permission by its author -->
-<link rel="stylesheet" href="vimhelp.css" type="text/css">
+<!-- {project.favicon_notice} -->
+<link rel="stylesheet" href="/vimhelp.css" type="text/css">
 """
 
 SEARCH_HEADERS = """
 <link rel="stylesheet" class="select2-css" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" integrity="sha256-zaSoHBhwFdle0scfGEFUCwggPN7F+ip9XRglo8IWb4w=" crossorigin="anonymous" disabled>
 <script defer src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" integrity="sha256-9yRP/2EFlblE92vzCA10469Ctd0jT48HnmmMw5rJZrA=" crossorigin="anonymous"></script>
-<script defer src="vimhelp.js"></script>
+<script defer src="/vimhelp.js"></script>
 """
 
 HEAD_END = "</head><body>"
 
-INTRO = """
-<h1>Vim help files</h1>
-<p>This is an HTML version of the <a href="http://www.vim.org/" target="_blank" rel="noopener noreferrer">Vim</a> help pages{vers-note}.
+INTRO_FMT = """
+<h1>{project.name} help files</h1>
+<p>This is an HTML version of the <a href="{project.url}" target="_blank" rel="noopener noreferrer">{project.name}</a> help pages, current as of {project.name} {version}.
 They are kept up-to-date <a href="https://github.com/c4rlo/vimhelp" target="_blank" rel="noopener noreferrer" class="d">automatically</a>
-from the <a href="https://github.com/vim/vim/tree/master/runtime/doc" target="_blank" rel="noopener noreferrer" class="d">Vim source repository</a>.
-Also included is the <a href="vim_faq.txt.html">Vim FAQ</a>, kept up to date from its
-<a href="https://github.com/chrisbra/vim_faq" target="_blank" rel="noopener noreferrer" class="d">GitHub repository</a>.</p>
+from the <a href="{project.doc_src_url}" target="_blank" rel="noopener noreferrer" class="d">{project.name} source repository</a>.{project.faq_note}</p>
+
+<p><a href="https://{project.other.vimdoc_site}/">Help pages</a> are also available for
+<a href="{project.other.url}" target="_blank" rel="noopener noreferrer">{project.other.contrasted_name}</a>.</p>
 """
 
-VERSION_NOTE = ", current as of Vim {version}"
+VIM_FAQ_NOTE = """
+Also included is the <a href="vim_faq.txt.html">Vim FAQ</a>, kept up to date from its
+<a href="https://github.com/chrisbra/vim_faq" target="_blank" rel="noopener noreferrer" class="d">GitHub repository</a>.
+"""
 
-SITENAVI_LINKS = """
+SITENAVI_LINKS_NEOVIM_FMT = """
 Quick links:
-<a href="/">help overview</a> &middot;
+<a href="./">help overview</a> &middot;
 <a href="quickref.txt.html">quick reference</a> &middot;
 <a href="usr_toc.txt.html">user manual toc</a> &middot;
-<a href="{helptxt}#reference_toc">reference manual toc</a> &middot;
-<a href="vim_faq.txt.html">faq</a>
+<a href="{helptxt}#reference_toc">reference manual toc</a>
 """
 
-SITENAVI_LINKS_PLAIN = SITENAVI_LINKS.format(helptxt="help.txt.html")
-SITENAVI_LINKS_WEB = SITENAVI_LINKS.format(helptxt="/")
+SITENAVI_LINKS_VIM_FMT = (
+    SITENAVI_LINKS_NEOVIM_FMT + '&middot; <a href="vim_faq.txt.html">faq</a>'
+)
 
-SITENAVI_PLAIN = f"<p>{SITENAVI_LINKS_PLAIN}</p>"
-SITENAVI_WEB = f"<p>{SITENAVI_LINKS_WEB}</p>"
-
-SITENAVI_SEARCH = f"""
+SITENAVI_SEARCH_FMT = """
 <div class="bar">
-  <div class="ql">{SITENAVI_LINKS_WEB}</div>
+  <div class="ql">{sitenavi_links}</div>
   <div class="srch">
     <select id="vh-select-tag"></select>
   </div>
   <form class="srch" action="https://duckduckgo.com" method="get" target="_blank" rel="noopener noreferrer">
-    <input type="hidden" name="sites" value="vimhelp.org">
+    <input type="hidden" name="sites" value="{project.vimdoc_site}">
     <input type="search" name="q" id="site-search-input" placeholder="Site search">
   </form>
 </div>
@@ -77,7 +78,36 @@ FOOTER2 = """
 </html>
 """
 
-VIM_FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">vim_faq.txt</a>   Frequently Asked Questions\n'
+FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">vim_faq.txt</a>   Frequently Asked Questions\n'
+
+
+class VimProject:
+    name = "Vim"
+    contrasted_name = "the original Vim"
+    url = "https://www.vim.org/"
+    vimdoc_site = "vimhelp.org"
+    doc_src_url = "https://github.com/vim/vim/tree/master/runtime/doc"
+    favicon_notice = "favicon is based on http://amnoid.de/tmp/vim_solidbright_512.png and is used with permission by its author"
+    faq_note = VIM_FAQ_NOTE
+    sitenavi_links_fmt = SITENAVI_LINKS_VIM_FMT
+
+
+class NeovimProject:
+    name = "Neovim"
+    contrasted_name = "Neovim"
+    url = "https://neovim.io/"
+    vimdoc_site = "neo.vimhelp.org"
+    doc_src_url = "https://github.com/neovim/neovim/tree/master/runtime/doc"
+    favicon_notice = "favicon taken from https://neovim.io/favicon.ico, which is licensed under CC-BY-3.0: https://creativecommons.org/licenses/by/3.0/"
+    faq_note = ""
+    sitenavi_links_fmt = SITENAVI_LINKS_NEOVIM_FMT
+
+
+VimProject.other = NeovimProject
+NeovimProject.other = VimProject
+
+
+PROJECTS = {"vim": VimProject, "neovim": NeovimProject}
 
 RE_TAGLINE = re.compile(r"(\S+)\s+(\S+)")
 
@@ -89,14 +119,14 @@ PAT_PIPEWORD = r"(?<!\\)\|([#-)!+-{}~]+)\|"
 PAT_STARWORD = r"\*([#-)!+-~]+)\*(?:(?=\s)|$)"
 PAT_COMMAND = r"`([^` ]+)`"
 PAT_OPTWORD = r"('(?:[a-z]{2,}|t_..)')"
-PAT_CTRL = r"(CTRL-(?:W_)?(?:\{char\}|<[A-Za-z]+?>|.)?)"
+PAT_CTRL = r"((?:CTRL|META|ALT)-(?:W_)?(?:\{char\}|<[A-Za-z]+?>|.)?)"
 PAT_SPECIAL = (
     r"(<.+?>|\{.+?}|"
     r"\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|"
     r"arg|arguments|ident|addr|group)]|"
     r"(?<=\s)\[[-a-z^A-Z0-9_]{2,}])"
 )
-PAT_TITLE = r"(Vim version [0-9.a-z]+|VIM REFERENCE.*)"
+PAT_TITLE = r"(Vim version [0-9.a-z]+|N?VIM REFERENCE.*)"
 PAT_NOTE = (
     r"((?<!" + PAT_WORDCHAR + r")(?:note|NOTE|Notes?):?(?!" + PAT_WORDCHAR + r"))"
 )
@@ -162,19 +192,21 @@ class Link:
         cssclass = "l" if is_pipe else self._cssclass
         return (
             f'<a href="{self.href(is_same_doc)}" class="{cssclass}">'
-            + f"{self._tag_escaped}</a>"
+            f"{self._tag_escaped}</a>"
         )
 
 
 class VimH2H:
-    def __init__(self, tags, version=None, is_web_version=True):
+    def __init__(self, project="vim", tags=None, version=None, is_web_version=True):
         self._urls = {}
+        self._project = PROJECTS[project]
         self._version = version
         self._is_web_version = is_web_version
-        for line in RE_NEWLINE.split(tags):
-            if m := RE_TAGLINE.match(line):
-                tag, filename = m.group(1, 2)
-                self.do_add_tag(filename, tag)
+        if tags is not None:
+            for line in RE_NEWLINE.split(tags):
+                if m := RE_TAGLINE.match(line):
+                    tag, filename = m.group(1, 2)
+                    self.do_add_tag(filename, tag)
         self._urls["help-tags"] = Link("tags", "tags.html", "help-tags")
 
     def add_tags(self, filename, contents):
@@ -244,7 +276,11 @@ class VimH2H:
                 m = RE_SECTION.match(line)
                 out.extend(('<span class="c">', m.group(0), "</span>"))
                 line = line[m.end() :]
-            if is_help_txt and RE_LOCAL_ADD.match(line_tabs):
+            if (
+                self._project is VimProject
+                and is_help_txt
+                and RE_LOCAL_ADD.match(line_tabs)
+            ):
                 faq_line = True
             lastpos = 0
             for match in RE_TAGWORD.finditer(line):
@@ -296,28 +332,43 @@ class VimH2H:
                 out.append(html_escape(line[lastpos:]))
             out.append("\n")
             if faq_line:
-                out.append(VIM_FAQ_LINE)
+                out.append(FAQ_LINE)
                 faq_line = False
 
-        header = []
-        header.append(HEAD.format(filename=filename))
+        header = [
+            HEAD_FMT.format(
+                project=self._project,
+                filename=filename,
+            )
+        ]
+
         if self._is_web_version:
             header.append(SEARCH_HEADERS)
+
         header.append(HEAD_END)
+
         if self._is_web_version and is_help_txt:
-            vers_note = (
-                VERSION_NOTE.replace("{version}", self._version)
-                if self._version
-                else ""
+            header.append(
+                INTRO_FMT.format(project=self._project, version=self._version)
             )
-            header.append(INTRO.replace("{vers-note}", vers_note))
+
+        sitenavi_links_fmt = self._project.sitenavi_links_fmt
         if self._is_web_version:
-            header.append(SITENAVI_SEARCH)
-            sitenavi_footer = SITENAVI_WEB
+            sitenavi_links = sitenavi_links_fmt.format(helptxt="")
+            header.append(
+                SITENAVI_SEARCH_FMT.format(
+                    project=self._project, sitenavi_links=sitenavi_links
+                )
+            )
+            sitenavi_footer = f"<p>{sitenavi_links}</p>"
         else:
-            header.append(SITENAVI_PLAIN)
-            sitenavi_footer = SITENAVI_PLAIN
+            sitenavi_links = sitenavi_links_fmt.format(helptxt="help.txt.html")
+            sitenavi = f"<p>{sitenavi_links}</p>"
+            header.append(sitenavi)
+            sitenavi_footer = sitenavi
+
         header.append(TEXTSTART)
+
         return "".join(chain(header, out, (FOOTER, sitenavi_footer, FOOTER2)))
 
 

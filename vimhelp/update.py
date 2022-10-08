@@ -1,4 +1,4 @@
-# Regularly scheduled update: check which files need updating and process them
+# Regularly scheduled update: check which files need updating and translate them
 
 # Ugh, the GitHub GraphQL API does not seem to support ETag:
 # https://github.com/github-community/community/discussions/10799
@@ -27,7 +27,7 @@ from .dbmodel import (
     RawFileContent,
     RawFileInfo,
     TagsInfo,
-    ndb_client,
+    ndb_context,
 )
 from .http import HttpClient, HttpResponse
 from . import secret
@@ -50,13 +50,13 @@ HELP_NAME = "help.txt"
 DOC_ITEM_RE = re.compile(r"(?:[-\w]+\.txt|tags)$")
 VERSION_TAG_RE = re.compile(r"v?(\d[\w.+-]+)$")
 
-GITHUB_DOWNLOAD_URL_BASE = "https://raw.githubusercontent.com/vim/vim/"
+GITHUB_DOWNLOAD_URL_BASE = "https://raw.githubusercontent.com/"
 GITHUB_GRAPHQL_API_URL = "https://api.github.com/graphql"
 
 GITHUB_GRAPHQL_QUERIES = {
     "GetRefs": """
-        query GetRefs {
-          repository(owner: "vim", name: "vim") {
+        query GetRefs($org: String!, $repo: String!) {
+          repository(owner: $org, name: $repo) {
             defaultBranchRef {
               target {
                 oid
@@ -73,8 +73,8 @@ GITHUB_GRAPHQL_QUERIES = {
         }
         """,
     "GetDir": """
-        query GetDir($expr: String) {
-          repository(owner: "vim", name: "vim") {
+        query GetDir($org: String!, $repo: String!, $expr: String!) {
+          repository(owner: $org, name: $repo) {
             object(expression: $expr) {
               ... on Tree {
                 entries {
@@ -120,18 +120,32 @@ class UpdateHandler(flask.views.MethodView):
 
         is_force = b"force" in request_data
 
-        logging.info("Starting %supdate", "forced " if is_force else "")
+        if b"project=vim" in request_data:
+            self._project = "vim"
+        elif b"project=neovim" in request_data:
+            self._project = "neovim"
+        else:
+            self._project = req.blueprint
+
+        logging.info(
+            "Starting %supdate for %s", "forced " if is_force else "", self._project
+        )
 
         self._http_client = HttpClient(CONCURRENCY)
 
         try:
             self._greenlet_pool = gevent.pool.Pool(size=CONCURRENCY)
 
-            with ndb_client.context():
+            with ndb_context():
                 self._g = self._init_g(wipe=is_force)
                 self._g_dict_pre = self._g.to_dict()
                 self._had_exception = False
-                self._do_update(no_rfi=is_force)
+                if self._project == "vim":
+                    self._do_update_vim(no_rfi=is_force)
+                elif self._project == "neovim":
+                    self._do_update_neovim(no_rfi=is_force)
+                else:
+                    raise RuntimeError(f"unknown project '{self._project}'")
 
                 if not self._had_exception and self._g_dict_pre != self._g.to_dict():
                     self._g.put()
@@ -145,13 +159,13 @@ class UpdateHandler(flask.views.MethodView):
 
     def _init_g(self, wipe):
         """Initialize 'self._g' (GlobalInfo)"""
-        g = GlobalInfo.get_by_id("global")
+        g = GlobalInfo.get_by_id(self._project)
 
         if wipe:
             logging.info("Deleting global info and raw files from Datastore")
             greenlets = [
-                self._spawn(wipe_db, RawFileContent),
-                self._spawn(wipe_db, RawFileInfo),
+                self._spawn(wipe_db, RawFileContent, self._project),
+                self._spawn(wipe_db, RawFileInfo, self._project),
             ]
             if g:
                 greenlets.append(self._spawn(g.key.delete))
@@ -159,7 +173,7 @@ class UpdateHandler(flask.views.MethodView):
             gevent.joinall(greenlets)
 
         if not g:
-            g = GlobalInfo(id="global")
+            g = GlobalInfo(id=self._project)
 
         logging.info(
             "Global info: %s",
@@ -168,96 +182,65 @@ class UpdateHandler(flask.views.MethodView):
 
         return g
 
-    def _do_update(self, no_rfi):
+    def _do_update_vim(self, no_rfi):
 
-        old_vim_version = self._g.vim_version
+        old_vim_version_tag = self._g.vim_version_tag
         old_master_sha = self._g.master_sha
 
         # Kick off retrieval of master branch SHA and vim version from GitHub
         get_git_refs_greenlet = self._spawn(self._get_git_refs)
 
         # Kick off retrieval of all RawFileInfo entities from the Datastore
-        if not no_rfi:
-            all_rfi_greenlet = self._spawn(lambda: RawFileInfo.query().fetch())
+        rfi_greenlet = self._spawn(self._get_all_rfi, no_rfi)
 
         # Check whether the master branch is updated, and whether we have a new vim
         # version
         get_git_refs_greenlet.get()
         is_master_updated = self._g.master_sha != old_master_sha
-        is_new_vim_version = self._g.vim_version != old_vim_version
+        is_new_vim_version = self._g.vim_version_tag != old_vim_version_tag
 
         if is_master_updated:
             # Kick off retrieval of 'runtime/doc' dir listing in GitHub. This is against
             # the 'master' branch, since the docs often get updated after the tagged
             # commits that introduce the relevant changes.
-            docdir_expr = self._g.master_sha + ":runtime/doc"
-            docdir_greenlet = self._spawn(
-                self._github_graphql_request,
-                "GetDir",
-                variables={"expr": docdir_expr},
-                etag=self._g.docdir_etag,
-            )
+            docdir_greenlet = self._spawn(self._list_docs_dir, self._g.master_sha)
         else:
+            # No need to list doc dir if nothing changed
             docdir_greenlet = None
 
-        # Put all RawFileInfo entites into a map
-        self._rfi_map = {}
-        if not no_rfi:
-            self._rfi_map = {r.key.id(): r for r in all_rfi_greenlet.get()}
+        # Put all RawFileInfo entities into a map
+        self._rfi_map = rfi_greenlet.get()
 
         # Kick off FAQ download
         faq_greenlet = self._spawn(
-            self._get_file, "http", FAQ_NAME, base_url=FAQ_BASE_URL
+            self._get_file, FAQ_NAME, "http", base_url=FAQ_BASE_URL
         )
 
-        # Iterate over 'runtime/doc' dir listing and collect list of changed files
-        changed_file_names = set()
-
-        if docdir_greenlet is not None:
-            docdir = docdir_greenlet.get()
-
+        # Iterate over 'runtime/doc' dir listing (which also updates the items in
+        # 'self._rfi_map') and collect list of new/modified files
         if docdir_greenlet is None:
             logging.info("No need to get new doc dir listing")
-        elif docdir.status_code == HTTPStatus.NOT_MODIFIED:
-            logging.info("Doc dir not modified")
-        elif docdir.status_code == HTTPStatus.OK:
-            etag = docdir.header("ETag")
-            self._g.docdir_etag = etag.encode() if etag is not None else None
-            logging.info("Doc dir modified, new etag is %s", etag)
-            resp = json.loads(docdir.body)["data"]
-            for item in resp["repository"]["object"]["entries"]:
-                name = item["name"]
-                if item["type"] != "blob" or not DOC_ITEM_RE.match(name):
-                    continue
-                git_sha = item["oid"].encode()
-                rfi = self._rfi_map.get(name)
-                if rfi is None:
-                    logging.info("Found new '%s'", name)
-                elif rfi.git_sha == git_sha:
-                    logging.debug("Found unchanged '%s'", name)
-                    continue
-                else:
-                    logging.info("Found changed '%s'", name)
-                    rfi.git_sha = git_sha
-                changed_file_names.add(name)
+            updated_file_names = set()
         else:
-            raise RuntimeError(f"Bad doc dir HTTP status {docdir.status_code}")
+            updated_file_names = {
+                name for name, is_modified in docdir_greenlet.get() if is_modified
+            }
 
         # Check FAQ download result
         faq_result = faq_greenlet.get()
         if not faq_result.is_modified:
-            if len(changed_file_names) == 0:
+            if len(updated_file_names) == 0:
                 logging.info("Nothing to do")
                 return
             faq_result = None
-            faq_greenlet = self._spawn(self._get_file, "db", FAQ_NAME)
+            faq_greenlet = self._spawn(self._get_file, FAQ_NAME, "db")
 
         # Get tags file from GitHub or datastore, depending on whether it was changed
-        if TAGS_NAME in changed_file_names:
-            changed_file_names.remove(TAGS_NAME)
-            tags_greenlet = self._spawn(self._get_file, "http,db", TAGS_NAME)
+        if TAGS_NAME in updated_file_names:
+            updated_file_names.remove(TAGS_NAME)
+            tags_greenlet = self._spawn(self._get_file, TAGS_NAME, "http,db")
         else:
-            tags_greenlet = self._spawn(self._get_file, "db", TAGS_NAME)
+            tags_greenlet = self._spawn(self._get_file, TAGS_NAME, "db")
 
         if faq_result is None:
             faq_result = faq_greenlet.get()
@@ -266,10 +249,12 @@ class UpdateHandler(flask.views.MethodView):
 
         logging.info("Beginning vimhelp-to-HTML conversions")
 
-        # Construct the vimhelp-to-html converter, providing it the tags file content,
+        # Construct the vimhelp-to-html translator, providing it the tags file content,
         # and adding on the FAQ for extra tags
         self._h2h = vimh2h.VimH2H(
-            tags_result.content.decode(), version=self._g.vim_version
+            project="vim",
+            tags=tags_result.content.decode(),
+            version=version_from_tag(self._g.vim_version_tag),
         )
         self._h2h.add_tags(FAQ_NAME, faq_result.content.decode())
 
@@ -281,53 +266,106 @@ class UpdateHandler(flask.views.MethodView):
         # Save tags JSON
         greenlets.append(self._spawn(self._save_tags_json))
 
-        # Process tags file if it was modified
+        # Translate tags file if it was modified
         if tags_result.is_modified:
-            track_spawn(self._process, TAGS_NAME, tags_result.content)
+            track_spawn(self._translate, TAGS_NAME, tags_result.content)
 
-        # Process FAQ if it was modified, or if tags file was modified (because it could
-        # lead to a different set of links in the FAQ)
+        # Translate FAQ if it was modified, or if tags file was modified (because it
+        # could lead to a different set of links in the FAQ)
         if faq_result.is_modified or tags_result.is_modified:
-            track_spawn(self._process, FAQ_NAME, faq_result.content)
+            track_spawn(self._translate, FAQ_NAME, faq_result.content)
 
-        # If we found a new vim version, ensure we process help.txt, since we're
+        # If we found a new vim version, ensure we translate help.txt, since we're
         # displaying the current vim version in the rendered help.txt.html
         if is_new_vim_version:
             track_spawn(
-                self._get_file_and_process, HELP_NAME, process_if_not_modified=True
+                self._get_file_and_translate, HELP_NAME, translate_if_not_modified=True
             )
-            changed_file_names.discard(HELP_NAME)
+            updated_file_names.discard(HELP_NAME)
 
-        # Process all other modified files, after retrieving them from GitHub or
+        # Translate all other modified files, after retrieving them from GitHub or
         # datastore
-        # TODO: theoretically we should re-process all files (whether in
-        # changed_file_names or not) if the tags file was modified
-        for name in changed_file_names:
-            track_spawn(self._get_file_and_process, name, process_if_not_modified=False)
+        # TODO: theoretically we should re-translate all files (whether in
+        # updated_file_names or not) if the tags file was modified
+        for name in updated_file_names:
+            track_spawn(
+                self._get_file_and_translate, name, translate_if_not_modified=False
+            )
 
         logging.info("Waiting for everything to finish")
 
-        # We can't just iterate over the greenlets in the pool directly
-        # ("for greenlet in self._greenlet_pool") because that set can drop elements (as
-        # greenlets finish) while we're iterating over it; hence the need for our local
-        # 'greenlets' list.
-        for greenlet in greenlets:
-            try:
-                greenlet.get()
-            except Exception as e:
-                logging.error(e)
-                self._had_exception = True
+        self._join_greenlets(greenlets)
 
-        self._greenlet_pool.join()
+        logging.info("All done")
+
+    def _do_update_neovim(self, no_rfi):
+
+        # Check whether we have a new Neovim version
+        old_vim_version_tag = self._g.vim_version_tag
+        self._get_git_refs()
+        if self._g.vim_version_tag == old_vim_version_tag:
+            logging.info(
+                "Neovim version tag (%s) unchanged: nothing to do", old_vim_version_tag
+            )
+            return
+
+        # Kick off retrieval of all RawFileInfo entities from the Datastore
+        rfi_greenlet = self._spawn(self._get_all_rfi, no_rfi)
+
+        # Kick off retrieval of 'runtime/doc' dir listing in GitHub for the current
+        # version.
+        docdir_greenlet = self._spawn(self._list_docs_dir, self._g.vim_version_tag)
+
+        # Put all RawFileInfo entities into a map
+        self._rfi_map = rfi_greenlet.get()
+
+        self._h2h = vimh2h.VimH2H(
+            project="neovim", version=version_from_tag(self._g.vim_version_tag)
+        )
+
+        # Iterate over 'runtime/doc' dir listing (which also updates the items in
+        # 'self._rfi_map'), kicking off retrieval of files and addition of help tags to
+        # 'self._h2h'
+        all_file_names = set()
+        for name, is_modified in docdir_greenlet.get():
+            all_file_names.add(name)
+            sources = "http,db" if is_modified else "db"
+            self._spawn(self._get_file_and_add_tags, name, sources)
+
+        # Wait for all tag additions to complete
+        self._greenlet_pool.join(raise_error=True)
+
+        # Save tags JSON
+        greenlets = [self._spawn(self._save_tags_json)]
+
+        logging.info("Beginning vimhelp-to-HTML conversions")
+
+        # Kick off processing of all files, reading file contents from the Datastore,
+        # where we just saved them all
+        for name in all_file_names:
+            greenlets.append(
+                self._spawn(
+                    self._get_file_and_translate,
+                    name,
+                    translate_if_not_modified=True,
+                    sources="db",
+                )
+            )
+
+        self._join_greenlets(greenlets)
 
         logging.info("All done")
 
     def _get_git_refs(self):
         """
-        Populate 'master_sha', 'vim_version, 'refs_etag' members of 'self._g'
+        Populate 'master_sha', 'vim_version_tag, 'refs_etag' members of 'self._g'
         (GlobalInfo)
         """
-        r = self._github_graphql_request("GetRefs", etag=self._g.refs_etag)
+        r = self._github_graphql_request(
+            "GetRefs",
+            variables={"org": self._project, "repo": self._project},
+            etag=self._g.refs_etag,
+        )
         if r.status_code == HTTPStatus.OK:
             etag_str = r.header("ETag")
             etag = etag_str.encode() if etag_str is not None else None
@@ -348,18 +386,21 @@ class UpdateHandler(flask.views.MethodView):
                 )
                 self._g.master_sha = latest_sha
             tags = resp["refs"]["nodes"]
-            latest_version = None
+            latest_version_tag = None
             for tag in tags:
-                if m := VERSION_TAG_RE.match(tag["name"]):
-                    latest_version = m.group(1)
+                tag_name = tag["name"]
+                if VERSION_TAG_RE.match(tag_name):
+                    latest_version_tag = tag_name
                     break
-            if latest_version == self._g.vim_version:
-                logging.info("Vim version unchanged (%s)", latest_version)
+            if latest_version_tag == self._g.vim_version_tag:
+                logging.info("Vim version tag unchanged (%s)", latest_version_tag)
             else:
                 logging.info(
-                    "Vim version changed: %s -> %s", self._g.vim_version, latest_version
+                    "Vim version tag changed: %s -> %s",
+                    self._g.vim_version_tag,
+                    latest_version_tag,
                 )
-                self._g.vim_version = latest_version
+                self._g.vim_version_tag = latest_version_tag
         elif r.status_code == HTTPStatus.NOT_MODIFIED and self._g.refs_etag:
             logging.info("Initial GraphQL request: HTTP Not Modified")
         else:
@@ -367,7 +408,56 @@ class UpdateHandler(flask.views.MethodView):
                 f"Initial GraphQL request: bad HTTP status {r.status_code}"
             )
 
+    def _list_docs_dir(self, git_ref):
+        """
+        Generator that yields '(name: str, is_modified: bool)' pairs on iteration,
+        representing the set of filenames in the 'runtime/doc' directory of the current
+        project, and whether each one is new/modified or not.
+        'git_ref' is the Git ref to use when looking up the directory.
+        This function both reads and writes 'self._rfi_map'.
+        """
+        response = self._github_graphql_request(
+            "GetDir",
+            variables={
+                "org": self._project,
+                "repo": self._project,
+                "expr": git_ref + ":runtime/doc",
+            },
+            etag=self._g.docdir_etag,
+        )
+        if response.status_code == HTTPStatus.NOT_MODIFIED:
+            logging.info("Doc dir not modified")
+            return
+        if response.status_code != HTTPStatus.OK:
+            raise RuntimeError(f"Bad doc dir HTTP status {response.status_code}")
+        etag = response.header("ETag")
+        self._g.docdir_etag = etag.encode() if etag is not None else None
+        logging.info("Doc dir modified, new etag is %s", etag)
+        resp = json.loads(response.body)["data"]
+        for item in resp["repository"]["object"]["entries"]:
+            name = item["name"]
+            if item["type"] != "blob" or not DOC_ITEM_RE.match(name):
+                continue
+            git_sha = item["oid"].encode()
+            rfi = self._rfi_map.get(name)
+            if rfi is None:
+                logging.info("Found new '%s'", name)
+                self._rfi_map[name] = RawFileInfo(
+                    id=f"{self._project}:{name}", project=self._project, git_sha=git_sha
+                )
+                yield name, True
+            elif rfi.git_sha == git_sha:
+                logging.debug("Found unchanged '%s'", name)
+                yield name, False
+            else:
+                logging.info("Found changed '%s'", name)
+                rfi.git_sha = git_sha
+                yield name, True
+
     def _github_graphql_request(self, query_name, variables=None, etag=None):
+        """
+        Make GitHub GraphQL API request.
+        """
         logging.info("Making GitHub GraphQL query: %s", query_name)
         headers = {
             "Authorization": "token " + secret.GITHUB_ACCESS_TOKEN,
@@ -384,34 +474,58 @@ class UpdateHandler(flask.views.MethodView):
         return response
 
     def _save_tags_json(self):
+        """
+        Obtain list of tag/link pairs from 'self._h2h' and save to Datastore.
+        """
         tags = self._h2h.sorted_tag_href_pairs()
         logging.info("Saving %d tag, href pairs", len(tags))
-        TagsInfo(id="tags", tags=tags).put()
+        TagsInfo(id=self._project, tags=tags).put()
 
-    def _get_file_and_process(self, name, process_if_not_modified):
-        sources = "http,db" if process_if_not_modified else "http"
-        result = self._get_file(sources, name)
-        if process_if_not_modified or result.is_modified:
-            self._process(name, result.content)
+    def _get_file_and_translate(self, name, translate_if_not_modified, sources=None):
+        """
+        Get file with given 'name' and translate to HTML.
+        'translate_if_not_modified' controls whether to translate to HTML even if the
+        file was not modified.
+        'sources' is as for '_get_file'; a sensible default based on
+        'translate_if_not_modified' is chosen if not provided.
+        """
+        if sources is None:
+            sources = "http,db" if translate_if_not_modified else "http"
+        result = self._get_file(name, sources)
+        if translate_if_not_modified or result.is_modified:
+            self._translate(name, result.content)
 
-    def _get_file(self, sources, name, base_url=None):
+    def _get_file_and_add_tags(self, name, sources):
         """
-        Get file via HTTP and/or from the Datastore, based on 'sources', which should
-        be one of "http", "db", "http,db"
+        Get file with given 'name' and add tags from it to 'self._h2h'.
+        'sources' is as for '_get_file'.
         """
-        sources_set = set(sources.split(","))
+        result = self._get_file(name, sources)
+        self._h2h.add_tags(name, result.content.decode())
+
+    def _get_file(self, name, sources, base_url=None):
+        """
+        Get file with given 'name' via HTTP and/or from the Datastore, based on
+        'sources', which should be one of "http", "db", "http,db". If a new/modified
+        file was retrieved via HTTP, save raw file (info) to Datastore as needed.
+        """
         rfi = self._rfi_map.get(name)
-        if rfi is None:
-            rfi = self._rfi_map[name] = RawFileInfo(id=name)
         result = None
+        sources_set = set(sources.split(","))
 
         if "http" in sources_set:
             if base_url is None:
                 base_url = (
-                    f"{GITHUB_DOWNLOAD_URL_BASE}{self._g.master_sha}/runtime/doc/"
+                    GITHUB_DOWNLOAD_URL_BASE
+                    + f"{self._project}/{self._project}/{self._g.master_sha}/"
+                    "runtime/doc/"
                 )
             url = base_url + name
             headers = {}
+            if rfi is None:
+                rfi = self._rfi_map[name] = RawFileInfo(
+                    id=f"{self._project}:{name}", project=self._project
+                )
             if rfi.etag is not None:
                 headers["If-None-Match"] = rfi.etag.decode()
             logging.info("Fetching %s", url)
@@ -426,24 +540,42 @@ class UpdateHandler(flask.views.MethodView):
 
         if "db" in sources_set:
             logging.info("Fetching %s from datastore", name)
-            rfc = RawFileContent.get_by_id(name)
+            rfc = RawFileContent.get_by_id(f"{self._project}:{name}")
             logging.info("Fetched %s from datastore", name)
             return GetFileResult(rfc)
 
         return result
 
-    def _process(self, name, content):
+    def _translate(self, name, content):
+        """
+        Translate given file to HTML and save to Datastore.
+        """
         logging.info("Translating '%s' to HTML", name)
-        phead, pparts = to_html(name, content, self._h2h)
+        phead, pparts = to_html(self._project, name, content, self._h2h)
         logging.info("Saving HTML translation of '%s' to Datastore", name)
         save_transactional([phead] + pparts)
 
+    def _get_all_rfi(self, no_rfi):
+        if no_rfi:
+            return {}
+        else:
+            rfi_list = RawFileInfo.query(RawFileInfo.project == self._project).fetch()
+            return {r.key.id().split(":")[1]: r for r in rfi_list}
+
     def _spawn(self, f, *args, **kwargs):
         def g():
-            with ndb_client.context():
+            with ndb_context():
                 return f(*args, **kwargs)
 
         return self._greenlet_pool.spawn(g)
+
+    def _join_greenlets(self, greenlets):
+        for greenlet in gevent.iwait(greenlets):
+            try:
+                greenlet.get()
+            except Exception as e:
+                logging.error(e)
+                self._had_exception = True
 
 
 class GetFileResult:
@@ -463,12 +595,14 @@ class GetFileResult:
             self.is_modified = False
 
 
-def to_html(name, content, h2h):
+def to_html(project, name, content, h2h):
     content_str = content.decode()
     html = h2h.to_html(name, content_str).encode()
     etag = base64.b64encode(sha1(html))
     datalen = len(html)
-    phead = ProcessedFileHead(id=name, encoding=b"UTF-8", etag=etag)
+    phead = ProcessedFileHead(
+        id=f"{project}:{name}", project=project, encoding=b"UTF-8", etag=etag
+    )
     pparts = []
     if datalen > PFD_MAX_PART_LEN:
         phead.numparts = 0
@@ -477,7 +611,7 @@ def to_html(name, content, h2h):
             if i == 0:
                 phead.data0 = part
             else:
-                partname = f"{name}:{phead.numparts}"
+                partname = f"{project}:{name}:{phead.numparts}"
                 pparts.append(ProcessedFilePart(id=partname, data=part, etag=etag))
             phead.numparts += 1
     else:
@@ -487,24 +621,34 @@ def to_html(name, content, h2h):
 
 
 def save_raw_file(rfi, content):
-    name = rfi.key.id()
-    if name in (HELP_NAME, FAQ_NAME, TAGS_NAME):
-        logging.info("Saving raw file '%s' (info and content) to Datastore", name)
-        rfc = RawFileContent(id=name, data=content, encoding=b"UTF-8")
+    rfi_id = rfi.key.id()
+    project, name = rfi_id.split(":")
+    if project == "neovim" or name in (HELP_NAME, FAQ_NAME, TAGS_NAME):
+        logging.info("Saving raw file '%s' (info and content) to Datastore", rfi_id)
+        rfc = RawFileContent(
+            id=rfi_id, project=project, data=content, encoding=b"UTF-8"
+        )
         save_transactional([rfi, rfc])
     else:
-        logging.info("Saving raw file '%s' (info only) to Datastore", name)
+        logging.info("Saving raw file '%s' (info only) to Datastore", rfi_id)
         rfi.put()
 
 
-def wipe_db(model):
-    all_keys = model.query().fetch(keys_only=True)
-    google.cloud.ndb.delete_multi(all_keys)
+def wipe_db(model, project):
+    keys = model.query(model.project == project).fetch(keys_only=True)
+    google.cloud.ndb.delete_multi(keys)
 
 
 @google.cloud.ndb.transactional(xg=True)
 def save_transactional(entities):
     google.cloud.ndb.put_multi(entities)
+
+
+def version_from_tag(version_tag):
+    if m := VERSION_TAG_RE.match(version_tag):
+        return m.group(1)
+    else:
+        return version_tag
 
 
 def sha1(content):

@@ -13,37 +13,38 @@ from . import dbmodel
 from . import util
 
 
-def handle_vimhelp(filename, cache):
+def handle_vimhelp(filename, cache, project_override=None):
     req = flask.request
+    project = project_override or req.blueprint
 
-    if req.host == "neo.vimhelp.org":
-        return flask.Response("Neovim help pages coming soon!")
+    if filename in ("help.txt", "help"):
+        return redirect("./")
 
-    if not filename:
+    if filename == "":
         filename = "help.txt"
-    elif not filename.endswith(".html"):
-        raise werkzeug.exceptions.NotFound()
-    else:
-        filename = filename[:-5]  # strip ".html"
 
     if not filename.endswith(".txt") and filename != "tags":
-        logging.info("redirecting %s.html to %s.txt.html", filename, filename)
-        return redirect(f"/{filename}.txt.html")
+        return redirect(f"{filename}.txt.html")
 
-    logging.info("filename: %s", filename)
+    logging.info("serving %s:%s", project, filename)
 
-    if entry := cache.get(filename):
+    if entry := cache.get((project, filename)):
         logging.info("responding from inproc cache entry")
         head, parts = entry
         resp = prepare_response(req, head, datetime.datetime.utcnow())
         return complete_response(resp, head, parts)
 
-    with dbmodel.ndb_client.context():
-        head = dbmodel.ProcessedFileHead.get_by_id(filename)
-        if not head:
-            logging.warning("%s not found in db", filename)
-            raise werkzeug.exceptions.NotFound()
+    with dbmodel.ndb_context():
         logging.info("responding from db")
+        head = dbmodel.ProcessedFileHead.get_by_id(f"{project}:{filename}")
+        if not head:
+            head = dbmodel.ProcessedFileHead.get_by_id(filename)
+            if not head:
+                logging.warning(
+                    "%s:%s not found in db, nor fallback", project, filename
+                )
+                raise werkzeug.exceptions.NotFound()
+            logging.info("falling back to project-less entity")
         now = datetime.datetime.utcnow()
         resp = prepare_response(req, head, now)
         parts = []
@@ -51,7 +52,7 @@ def handle_vimhelp(filename, cache):
             parts = get_parts(head)
             complete_response(resp, head, parts)
         if head.numparts == 1 or parts:
-            cache.put(filename, (head, parts))
+            cache.put((project, filename), (head, parts))
         return resp
 
 
@@ -77,6 +78,7 @@ def complete_response(resp, head, parts):
 
 
 def redirect(url):
+    logging.info("redirecting %s to %s", flask.request.path, url)
     return flask.redirect(url, HTTPStatus.MOVED_PERMANENTLY)
 
 
@@ -88,10 +90,9 @@ def get_parts(head):
     if head.numparts == 1:
         return []
     logging.info("retrieving %d extra part(s)", head.numparts - 1)
-    filename = head.key.string_id()
+    head_id = head.key.id()
     keys = [
-        ndb.Key("ProcessedFilePart", filename + ":" + str(i))
-        for i in range(1, head.numparts)
+        ndb.Key("ProcessedFilePart", f"{head_id}:{i}") for i in range(1, head.numparts)
     ]
     num_tries = 0
     while True:
