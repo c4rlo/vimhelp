@@ -2,22 +2,14 @@
 
 import argparse
 import pathlib
+import shutil
 import sys
 
-sys.path.append(".")
+root_path = pathlib.Path(__file__).parent.parent
+
+sys.path.append(str(root_path))
 
 from vimhelp.vimh2h import VimH2H  # noqa: E402
-
-
-def slurp(filename):
-    f = open(filename, "rb")
-    c = f.read()
-    f.close()
-    return c
-
-
-def usage():
-    return "usage: " + sys.argv[0] + " IN_DIR OUT_DIR [BASENAMES...]"
 
 
 def main():
@@ -36,13 +28,20 @@ def main():
         help="Output directory (omit for no output)",
     )
     parser.add_argument(
+        "--project",
+        "-p",
+        choices=("vim", "neovim"),
+        default="vim",
+        help="Vim flavour (default: vim)",
+    )
+    parser.add_argument(
         "--no-tags",
         "-T",
         action="store_true",
         help="Ignore any tags file, always recreate tags from " "scratch",
     )
     parser.add_argument(
-        "--profile", "-p", action="store_true", help="Profile performance"
+        "--profile", "-P", action="store_true", help="Profile performance"
     )
     parser.add_argument(
         "basenames", nargs="*", help="List of files to process (default: all)"
@@ -74,7 +73,7 @@ def run(args):
             h2h.add_tags(faq.name, faq.read_text())
     else:
         print("Initializing tags...")
-        h2h = VimH2H(is_web_version=False)
+        h2h = VimH2H(project=args.project, is_web_version=False)
         for infile in args.in_dir.iterdir():
             if infile.suffix == ".txt":
                 h2h.add_tags(infile.name, infile.read_text())
@@ -93,6 +92,16 @@ def run(args):
         html = h2h.to_html(infile.name, content)
         if args.out_dir is not None:
             (args.out_dir / f"{infile.name}.html").write_text(html)
+
+    if args.out_dir is not None:
+        print("Copying static files...")
+        shutil.copy(root_path / "static/vimhelp.css", args.out_dir)
+        shutil.copy(
+            root_path / f"static/favicon-{args.project}.ico",
+            args.out_dir / "favicon.ico",
+        )
+
+    print("Done.")
 
 
 main()

@@ -16,7 +16,7 @@ HEAD_FMT = """\
 <title>{project.name}: {filename}</title>
 <link rel="shortcut icon" href="favicon.ico">
 <!-- {project.favicon_notice} -->
-<link rel="stylesheet" href="/vimhelp.css" type="text/css">
+<link rel="stylesheet" href="{css_path}vimhelp.css" type="text/css">
 """
 
 SEARCH_HEADERS = """
@@ -339,6 +339,7 @@ class VimH2H:
             HEAD_FMT.format(
                 project=self._project,
                 filename=filename,
+                css_path=("/" if self._is_web_version else ""),
             )
         ]
 
