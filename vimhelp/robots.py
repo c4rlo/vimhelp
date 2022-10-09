@@ -27,13 +27,6 @@ def handle_sitemap_txt():
             dbmodel.ProcessedFileHead.project == project
         )
         names = set(query.map(lambda key: key.id().split(":")[-1], keys_only=True))
-        if project == "vim":
-            # Add in the legacy project-less entities
-            names.update(
-                key.id()
-                for key in dbmodel.ProcessedFileHead.query().fetch(keys_only=True)
-                if ":" not in key.id()
-            )
         names.discard("help.txt")
 
     return flask.Response(

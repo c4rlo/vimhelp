@@ -35,9 +35,6 @@ def handle_vimhelp(filename, cache):
     with dbmodel.ndb_context():
         logging.info("serving '%s:%s' from datastore", project, filename)
         head = dbmodel.ProcessedFileHead.get_by_id(f"{project}:{filename}")
-        if head is None and project == "vim":
-            logging.info("falling back to project-less entity")
-            head = dbmodel.ProcessedFileHead.get_by_id(filename)
         if head is None:
             logging.warning("%s:%s not found in datastore", project, filename)
             raise werkzeug.exceptions.NotFound()

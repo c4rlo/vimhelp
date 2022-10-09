@@ -1,5 +1,4 @@
 import bisect
-import logging
 
 import flask
 import werkzeug.exceptions
@@ -35,9 +34,6 @@ def handle_tagsearch(cache):
     if not items:
         with dbmodel.ndb_context():
             entity = dbmodel.TagsInfo.get_by_id(project)
-            if entity is None and project == "vim":
-                logging.info("falling back to project-less tags entity")
-                entity = dbmodel.TagsInfo.get_by_id("tags")
             if entity is None:
                 raise werkzeug.exceptions.NotFound()
             items = [TagItem(*tag) for tag in entity.tags]
