@@ -31,7 +31,7 @@ _URL_PREFIX_REDIRECTS = (
     ),
     (
         ("http://neo.vimhelp.org/",),
-        "https://vimhelp.org",
+        "https://neo.vimhelp.org",
     ),
 )
 
@@ -74,9 +74,9 @@ def create_app():
                     logging.info("redirecting to %s", new_url)
                     return flask.redirect(new_url, HTTPStatus.MOVED_PERMANENTLY)
 
-        # Flask's subdomain matching doesn't seem compatible with having multiple valid
-        # server names (in particular, Google Cloud calls the /update endpoint with
-        # something other than vimhelp.org), so we do it this way.
+        # Flask's subdomain/host matching doesn't seem compatible with having multiple
+        # valid server names (in particular, App Engine calls the /enqueue_update
+        # endpoint with something other than vimhelp.org), so we do it this way.
         flask.g.project = (
             "neovim"
             if req.blueprint == "neovim" or req.host.startswith("neo.")

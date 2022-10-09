@@ -26,22 +26,20 @@ def handle_vimhelp(filename, cache):
     if not filename.endswith(".txt") and filename != "tags":
         return redirect(f"{filename}.txt.html")
 
-    logging.info("serving %s:%s", project, filename)
-
     if entry := cache.get((project, filename)):
-        logging.info("responding from inproc cache entry")
+        logging.info("serving '%s:%s' from inproc cache", project, filename)
         head, parts = entry
         resp = prepare_response(req, head, datetime.datetime.utcnow())
         return complete_response(resp, head, parts)
 
     with dbmodel.ndb_context():
-        logging.info("responding from db")
+        logging.info("serving '%s:%s' from datastore", project, filename)
         head = dbmodel.ProcessedFileHead.get_by_id(f"{project}:{filename}")
         if head is None and project == "vim":
             logging.info("falling back to project-less entity")
             head = dbmodel.ProcessedFileHead.get_by_id(filename)
         if head is None:
-            logging.warning("%s:%s not found in db", project, filename)
+            logging.warning("%s:%s not found in datastore", project, filename)
             raise werkzeug.exceptions.NotFound()
         now = datetime.datetime.utcnow()
         resp = prepare_response(req, head, now)
