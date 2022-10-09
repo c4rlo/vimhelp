@@ -354,7 +354,7 @@ class VimH2H:
 
         sitenavi_links_fmt = self._project.sitenavi_links_fmt
         if self._is_web_version:
-            sitenavi_links = sitenavi_links_fmt.format(helptxt="")
+            sitenavi_links = sitenavi_links_fmt.format(helptxt="./")
             header.append(
                 SITENAVI_SEARCH_FMT.format(
                     project=self._project, sitenavi_links=sitenavi_links

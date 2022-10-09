@@ -37,14 +37,12 @@ def handle_vimhelp(filename, cache):
     with dbmodel.ndb_context():
         logging.info("responding from db")
         head = dbmodel.ProcessedFileHead.get_by_id(f"{project}:{filename}")
-        if not head:
-            head = dbmodel.ProcessedFileHead.get_by_id(filename)
-            if not head:
-                logging.warning(
-                    "%s:%s not found in db, nor fallback", project, filename
-                )
-                raise werkzeug.exceptions.NotFound()
+        if head is None and project == "vim":
             logging.info("falling back to project-less entity")
+            head = dbmodel.ProcessedFileHead.get_by_id(filename)
+        if head is None:
+            logging.warning("%s:%s not found in db", project, filename)
+            raise werkzeug.exceptions.NotFound()
         now = datetime.datetime.utcnow()
         resp = prepare_response(req, head, now)
         parts = []
