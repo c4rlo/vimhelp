@@ -149,9 +149,13 @@ class UpdateHandler(flask.views.MethodView):
 
                 if not self._had_exception and self._g_dict_pre != self._g.to_dict():
                     self._g.put()
-                    logging.info("Finished update, updated global info")
+                    logging.info(
+                        "Finished %s update, updated global info", self._project
+                    )
                 else:
-                    logging.info("Finished update, global info not updated")
+                    logging.info(
+                        "Finished %s update, global info not updated", self._project
+                    )
 
             self._greenlet_pool.join()
         finally:
@@ -162,7 +166,9 @@ class UpdateHandler(flask.views.MethodView):
         g = GlobalInfo.get_by_id(self._project)
 
         if wipe:
-            logging.info("Deleting global info and raw files from Datastore")
+            logging.info(
+                "Deleting %s global info and raw files from Datastore", self._project
+            )
             greenlets = [
                 self._spawn(wipe_db, RawFileContent, self._project),
                 self._spawn(wipe_db, RawFileInfo, self._project),
@@ -176,7 +182,8 @@ class UpdateHandler(flask.views.MethodView):
             g = GlobalInfo(id=self._project)
 
         logging.info(
-            "Global info: %s",
+            "%s global info: %s",
+            self._project,
             ", ".join("{} = {}".format(n, getattr(g, n)) for n in g._properties.keys()),
         )
 
@@ -211,7 +218,8 @@ class UpdateHandler(flask.views.MethodView):
         # Put all RawFileInfo entities into a map
         self._rfi_map = rfi_greenlet.get()
 
-        # Kick off FAQ download
+        # Kick off FAQ download (this also writes the raw file to the datastore, if
+        # modified)
         faq_greenlet = self._spawn(
             self._get_file, FAQ_NAME, "http", base_url=FAQ_BASE_URL
         )
@@ -247,7 +255,7 @@ class UpdateHandler(flask.views.MethodView):
 
         tags_result = tags_greenlet.get()
 
-        logging.info("Beginning vimhelp-to-HTML conversions")
+        logging.info("Beginning vimhelp-to-HTML translations")
 
         # Construct the vimhelp-to-html translator, providing it the tags file content,
         # and adding on the FAQ for extra tags
@@ -284,7 +292,7 @@ class UpdateHandler(flask.views.MethodView):
             updated_file_names.discard(HELP_NAME)
 
         # Translate all other modified files, after retrieving them from GitHub or
-        # datastore
+        # datastore (this also writes the raw file info to the datastore, if modified)
         # TODO: theoretically we should re-translate all files (whether in
         # updated_file_names or not) if the tags file was modified
         for name in updated_file_names:
@@ -296,17 +304,13 @@ class UpdateHandler(flask.views.MethodView):
 
         self._join_greenlets(greenlets)
 
-        logging.info("All done")
-
     def _do_update_neovim(self, no_rfi):
 
         # Check whether we have a new Neovim version
         old_vim_version_tag = self._g.vim_version_tag
         self._get_git_refs()
         if self._g.vim_version_tag == old_vim_version_tag:
-            logging.info(
-                "Neovim version tag (%s) unchanged: nothing to do", old_vim_version_tag
-            )
+            logging.info("Nothing to do")
             return
 
         # Kick off retrieval of all RawFileInfo entities from the Datastore
@@ -325,7 +329,8 @@ class UpdateHandler(flask.views.MethodView):
 
         # Iterate over 'runtime/doc' dir listing (which also updates the items in
         # 'self._rfi_map'), kicking off retrieval of files and addition of help tags to
-        # 'self._h2h'
+        # 'self._h2h'; file retrieval also includes writing the raw file to the
+        # datastore if modified
         all_file_names = set()
         for name, is_modified in docdir_greenlet.get():
             all_file_names.add(name)
@@ -354,8 +359,6 @@ class UpdateHandler(flask.views.MethodView):
 
         self._join_greenlets(greenlets)
 
-        logging.info("All done")
-
     def _get_git_refs(self):
         """
         Populate 'master_sha', 'vim_version_tag, 'refs_etag' members of 'self._g'
@@ -370,19 +373,27 @@ class UpdateHandler(flask.views.MethodView):
             etag_str = r.header("ETag")
             etag = etag_str.encode() if etag_str is not None else None
             if etag == self._g.refs_etag:
-                logging.info("GetRefs query ETag unchanged (%s)", etag)
+                logging.info(
+                    "%s GetRefs query ETag unchanged (%s)", self._project, etag
+                )
             else:
                 logging.info(
-                    "GetRefs query ETag changed: %s -> %s", self._g.refs_etag, etag
+                    "%s GetRefs query ETag changed: %s -> %s",
+                    self._project,
+                    self._g.refs_etag,
+                    etag,
                 )
                 self._g.refs_etag = etag
             resp = json.loads(r.body)["data"]["repository"]
             latest_sha = resp["defaultBranchRef"]["target"]["oid"]
             if latest_sha == self._g.master_sha:
-                logging.info("master SHA unchanged (%s)", latest_sha)
+                logging.info("%s master SHA unchanged (%s)", self._project, latest_sha)
             else:
                 logging.info(
-                    "master SHA changed: %s -> %s", self._g.master_sha, latest_sha
+                    "%s master SHA changed: %s -> %s",
+                    self._project,
+                    self._g.master_sha,
+                    latest_sha,
                 )
                 self._g.master_sha = latest_sha
             tags = resp["refs"]["nodes"]
@@ -393,19 +404,23 @@ class UpdateHandler(flask.views.MethodView):
                     latest_version_tag = tag_name
                     break
             if latest_version_tag == self._g.vim_version_tag:
-                logging.info("Vim version tag unchanged (%s)", latest_version_tag)
+                logging.info(
+                    "%s version tag unchanged (%s)", self._project, latest_version_tag
+                )
             else:
                 logging.info(
-                    "Vim version tag changed: %s -> %s",
+                    "%s version tag changed: %s -> %s",
+                    self._project,
                     self._g.vim_version_tag,
                     latest_version_tag,
                 )
                 self._g.vim_version_tag = latest_version_tag
         elif r.status_code == HTTPStatus.NOT_MODIFIED and self._g.refs_etag:
-            logging.info("Initial GraphQL request: HTTP Not Modified")
+            logging.info("Initial %s GraphQL request: HTTP Not Modified", self._project)
         else:
             raise RuntimeError(
-                f"Initial GraphQL request: bad HTTP status {r.status_code}"
+                f"Initial {self._project} GraphQL request: "
+                f"bad HTTP status {r.status_code}"
             )
 
     def _list_docs_dir(self, git_ref):
@@ -426,13 +441,13 @@ class UpdateHandler(flask.views.MethodView):
             etag=self._g.docdir_etag,
         )
         if response.status_code == HTTPStatus.NOT_MODIFIED:
-            logging.info("Doc dir not modified")
+            logging.info("%s doc dir not modified", self._project)
             return
         if response.status_code != HTTPStatus.OK:
             raise RuntimeError(f"Bad doc dir HTTP status {response.status_code}")
         etag = response.header("ETag")
         self._g.docdir_etag = etag.encode() if etag is not None else None
-        logging.info("Doc dir modified, new etag is %s", etag)
+        logging.info("%s doc dir modified, new etag is %s", self._project, etag)
         resp = json.loads(response.body)["data"]
         for item in resp["repository"]["object"]["entries"]:
             name = item["name"]
@@ -441,16 +456,16 @@ class UpdateHandler(flask.views.MethodView):
             git_sha = item["oid"].encode()
             rfi = self._rfi_map.get(name)
             if rfi is None:
-                logging.info("Found new '%s'", name)
+                logging.info("Found new '%s:%s'", self._project, name)
                 self._rfi_map[name] = RawFileInfo(
                     id=f"{self._project}:{name}", project=self._project, git_sha=git_sha
                 )
                 yield name, True
             elif rfi.git_sha == git_sha:
-                logging.debug("Found unchanged '%s'", name)
+                logging.debug("Found unchanged '%s:%s'", self._project, name)
                 yield name, False
             else:
-                logging.info("Found changed '%s'", name)
+                logging.info("Found changed '%s:%s'", self._project, name)
                 rfi.git_sha = git_sha
                 yield name, True
 
@@ -458,7 +473,7 @@ class UpdateHandler(flask.views.MethodView):
         """
         Make GitHub GraphQL API request.
         """
-        logging.info("Making GitHub GraphQL query: %s", query_name)
+        logging.info("Making %s GitHub GraphQL query: %s", self._project, query_name)
         headers = {
             "Authorization": "token " + secret.GITHUB_ACCESS_TOKEN,
         }
@@ -470,7 +485,12 @@ class UpdateHandler(flask.views.MethodView):
         response = self._http_client.post(
             GITHUB_GRAPHQL_API_URL, json=body, headers=headers
         )
-        logging.info("GitHub %s HTTP status: %s", query_name, response.status_code)
+        logging.info(
+            "%s GitHub %s HTTP status: %s",
+            self._project,
+            query_name,
+            response.status_code,
+        )
         return response
 
     def _save_tags_json(self):
@@ -478,7 +498,7 @@ class UpdateHandler(flask.views.MethodView):
         Obtain list of tag/link pairs from 'self._h2h' and save to Datastore.
         """
         tags = self._h2h.sorted_tag_href_pairs()
-        logging.info("Saving %d tag, href pairs", len(tags))
+        logging.info("Saving %d %s (tag, href) pairs", len(tags), self._project)
         TagsInfo(id=self._project, tags=tags).put()
 
     def _get_file_and_translate(self, name, translate_if_not_modified, sources=None):
@@ -539,9 +559,9 @@ class UpdateHandler(flask.views.MethodView):
                 return result
 
         if "db" in sources_set:
-            logging.info("Fetching %s from datastore", name)
+            logging.info("Fetching '%s:%s' from datastore", self._project, name)
             rfc = RawFileContent.get_by_id(f"{self._project}:{name}")
-            logging.info("Fetched %s from datastore", name)
+            logging.info("Fetched '%s:%s' from datastore", self._project, name)
             return GetFileResult(rfc)
 
         return result
@@ -550,9 +570,11 @@ class UpdateHandler(flask.views.MethodView):
         """
         Translate given file to HTML and save to Datastore.
         """
-        logging.info("Translating '%s' to HTML", name)
+        logging.info("Translating '%s:%s' to HTML", self._project, name)
         phead, pparts = to_html(self._project, name, content, self._h2h)
-        logging.info("Saving HTML translation of '%s' to Datastore", name)
+        logging.info(
+            "Saving HTML translation of '%s:%s' to Datastore", self._project, name
+        )
         save_transactional([phead] + pparts)
 
     def _get_all_rfi(self, no_rfi):
