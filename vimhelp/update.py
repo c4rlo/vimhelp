@@ -271,9 +271,9 @@ class UpdateHandler(flask.views.MethodView):
         def track_spawn(f, *args, **kwargs):
             greenlets.append(self._spawn(f, *args, **kwargs))
 
-        # Save tags JSON
-        # TODO: only do this if tags file or FAQ was modified
-        greenlets.append(self._spawn(self._save_tags_json))
+        # Save tags JSON if we may have updated tags
+        if tags_result.is_modified or faq_result.is_modified:
+            track_spawn(self._save_tags_json)
 
         # Translate tags file if it was modified
         if tags_result.is_modified:
