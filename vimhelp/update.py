@@ -237,7 +237,7 @@ class UpdateHandler(flask.views.MethodView):
         # Check FAQ download result
         faq_result = faq_greenlet.get()
         if not faq_result.is_modified:
-            if len(updated_file_names) == 0:
+            if len(updated_file_names) == 0 and not is_new_vim_version:
                 logging.info("Nothing to do")
                 return
             faq_result = None
@@ -272,6 +272,7 @@ class UpdateHandler(flask.views.MethodView):
             greenlets.append(self._spawn(f, *args, **kwargs))
 
         # Save tags JSON
+        # TODO: only do this if tags file or FAQ was modified
         greenlets.append(self._spawn(self._save_tags_json))
 
         # Translate tags file if it was modified
