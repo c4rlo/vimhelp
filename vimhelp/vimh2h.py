@@ -119,7 +119,7 @@ PAT_PIPEWORD = r"(?<!\\)\|([#-)!+-{}~]+)\|"
 PAT_STARWORD = r"\*([#-)!+-~]+)\*(?:(?=\s)|$)"
 PAT_COMMAND = r"`([^` ]+)`"
 PAT_OPTWORD = r"('(?:[a-z]{2,}|t_..)')"
-PAT_CTRL = r"((?:CTRL|META|ALT)-(?:W_)?(?:\{char\}|<[A-Za-z]+?>|.)?)"
+PAT_CTRL = r"((?:CTRL(?:-SHIFT)?|META|ALT)-(?:W_)?(?:\{char\}|<[A-Za-z]+?>|.)?)"
 PAT_SPECIAL = (
     r"(<.+?>|\{.+?}|"
     r"\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|"
@@ -153,10 +153,10 @@ RE_TAGWORD = re.compile(
 )
 # fmt: on
 RE_NEWLINE = re.compile(r"[\r\n]")
-RE_HRULE = re.compile(r"[-=]{3,}.*[-=]{3,3}$")
+RE_HRULE = re.compile(r"(?:===.*===|---.*---)$")
 RE_EG_START = re.compile(r"(?:.* )?>$")
 RE_EG_END = re.compile(r"[^ \t]")
-RE_SECTION = re.compile(r"[-A-Z .][-A-Z0-9 .()]*(?=\s+\*)")
+RE_SECTION = re.compile(r"(?!NOTE$|CTRL-|\.\.\.$)([A-Z.][-A-Z0-9 .,()_?]*)(?:\s+\*|$)")
 RE_STARTAG = re.compile(r'\*([^ \t"*]+)\*(?:\s|$)')
 RE_LOCAL_ADD = re.compile(r"LOCAL ADDITIONS:\s+\*local-additions\*$")
 
@@ -258,9 +258,6 @@ class VimH2H:
             line = line.rstrip("\r\n")
             line_tabs = line
             line = line.expandtabs()
-            if RE_HRULE.match(line):
-                out.extend(('<span class="h">', line, "</span>\n"))
-                continue
             if in_example:
                 if RE_EG_END.match(line):
                     in_example = False
@@ -269,13 +266,15 @@ class VimH2H:
                 else:
                     out.extend(('<span class="e">', html_escape(line), "</span>\n"))
                     continue
+            if RE_HRULE.match(line_tabs):
+                out.extend(('<span class="h">', line, "</span>\n"))
+                continue
             if RE_EG_START.match(line_tabs):
                 in_example = True
                 line = line[:-1]
-            if RE_SECTION.match(line_tabs):
-                m = RE_SECTION.match(line)
-                out.extend(('<span class="c">', m.group(0), "</span>"))
-                line = line[m.end() :]
+            if m := RE_SECTION.match(line_tabs):
+                out.extend(('<span class="c">', m.group(1), "</span>"))
+                line = line[m.end(1) :]
             if (
                 self._project is VimProject
                 and is_help_txt
