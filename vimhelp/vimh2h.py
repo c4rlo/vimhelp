@@ -34,8 +34,8 @@ INTRO_FMT = """
 They are kept up-to-date <a href="https://github.com/c4rlo/vimhelp" target="_blank" rel="noopener noreferrer" class="d">automatically</a>
 from the <a href="{project.doc_src_url}" target="_blank" rel="noopener noreferrer" class="d">{project.name} source repository</a>.{project.faq_note}</p>
 
-<p><a href="https://{project.other.vimdoc_site}/">Help pages</a> are also available for
-<a href="{project.other.url}" target="_blank" rel="noopener noreferrer">{project.other.contrasted_name}</a>.</p>
+<p><a href="https://{project.other.vimdoc_site}/">Help pages for {project.other.contrasted_name}</a>
+are also available.</p>
 """
 
 VIM_FAQ_NOTE = """
@@ -45,7 +45,7 @@ Also included is the <a href="vim_faq.txt.html">Vim FAQ</a>, kept up to date fro
 
 SITENAVI_LINKS_NEOVIM_FMT = """
 Quick links:
-<a href="./">help overview</a> &middot;
+<a href="{helptxt}">help overview</a> &middot;
 <a href="quickref.txt.html">quick reference</a> &middot;
 <a href="usr_toc.txt.html">user manual toc</a> &middot;
 <a href="{helptxt}#reference_toc">reference manual toc</a>
@@ -63,14 +63,23 @@ SITENAVI_SEARCH_FMT = """
   </div>
   <form class="srch" action="https://duckduckgo.com" method="get" target="_blank" rel="noopener noreferrer">
     <input type="hidden" name="sites" value="{project.vimdoc_site}">
-    <input type="search" name="q" id="site-search-input" placeholder="Site search">
+    <input type="search" name="q" id="vh-srch-input" placeholder="Site search">
   </form>
 </div>
 """
 
-TEXTSTART = "<pre>"
+TEXTSTART = """
+<main>
+<div id="vh-content">
+<pre>
+"""
 
-FOOTER = "</pre>"
+FOOTER_FMT = """
+</pre>
+</div>
+{sidebar}
+</main>
+"""
 
 FOOTER2 = """
 <footer>This site is maintained by Carlo Teubner (<i>(my first name) at cteubner dot net</i>).</footer>
@@ -121,7 +130,7 @@ PAT_COMMAND = r"`([^` ]+)`"
 PAT_OPTWORD = r"('(?:[a-z]{2,}|t_..)')"
 PAT_CTRL = r"((?:CTRL(?:-SHIFT)?|META|ALT)-(?:W_)?(?:\{char\}|<[A-Za-z]+?>|.)?)"
 PAT_SPECIAL = (
-    r"(<.+?>|\{.+?}|"
+    r"(<(?:[-a-zA-Z0-9_]+|[SCM]-.)>|\{.+?}|"
     r"\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|"
     r"arg|arguments|ident|addr|group)]|"
     r"(?<=\s)\[[-a-z^A-Z0-9_]{2,}])"
@@ -154,6 +163,12 @@ RE_TAGWORD = re.compile(
 # fmt: on
 RE_NEWLINE = re.compile(r"[\r\n]")
 RE_HRULE = re.compile(r"(?:===.*===|---.*---)$")
+RE_HRULE1 = re.compile(r"===.*===$")
+RE_HEADING = re.compile(
+    r"[0-9. *]*"
+    r"(?! *vim:| *Next chapter:| *Copyright: | *Table of contents:| *Advance information about|$)"
+    r"(.+?) *(?:\*|~?$)"
+)
 RE_EG_START = re.compile(r"(?:.* )?>$")
 RE_EG_END = re.compile(r"[^ \t]")
 RE_SECTION = re.compile(r"(?!NOTE$|CTRL-|\.\.\.$)([A-Z.][-A-Z0-9 .,()_?]*)(?:\s+\*|$)")
@@ -248,16 +263,38 @@ class VimH2H:
         else:
             return html_escape(tag)
 
-    def to_html(self, filename, contents):
-        out = []
+    def synthesize_tag(self, curr_filename, text):
+        def xform(c):
+            if c.isalnum():
+                return c.lower()
+            elif c in " ,.?!'\"":
+                return "-"
+            else:
+                return ""
 
-        in_example = False
+        base_tag = "_" + "".join(map(xform, text[:25]))
+        tag = base_tag
+        i = 0
+        while True:
+            link = self._urls.get(tag)
+            if link is None or link.filename != curr_filename:
+                return tag
+            tag + f"{base_tag}_{i}"
+            i += 1
+
+    def to_html(self, filename, contents):
         is_help_txt = filename == "help.txt"
-        faq_line = False
-        for line in RE_NEWLINE.split(contents):
-            line = line.rstrip("\r\n")
+        lines = [line.rstrip("\r\n") for line in RE_NEWLINE.split(contents)]
+
+        out = []
+        headings = []
+        in_example = False
+        for idx, line in enumerate(lines):
             line_tabs = line
             line = line.expandtabs()
+            prev_line_tabs = "" if idx == 0 else lines[idx - 1]
+            if prev_line_tabs == "" and idx > 1:
+                prev_line_tabs = lines[idx - 2]
             if in_example:
                 if RE_EG_END.match(line):
                     in_example = False
@@ -267,20 +304,31 @@ class VimH2H:
                     out.extend(('<span class="e">', html_escape(line), "</span>\n"))
                     continue
             if RE_HRULE.match(line_tabs):
-                out.extend(('<span class="h">', line, "</span>\n"))
+                out.extend(('<span class="h">', html_escape(line), "</span>\n"))
                 continue
             if RE_EG_START.match(line_tabs):
                 in_example = True
                 line = line[:-1]
+            span_opened = False
             if m := RE_SECTION.match(line_tabs):
                 out.extend(('<span class="c">', m.group(1), "</span>"))
                 line = line[m.end(1) :]
-            if (
+            elif RE_HRULE1.match(prev_line_tabs) and (m := RE_HEADING.match(line)):
+                heading = m.group(1)
+                if m := RE_STARTAG.search(line):
+                    tag = m.group(1)
+                else:
+                    tag = self.synthesize_tag(filename, heading)
+                    out.append(f'<span id="{tag}">')
+                    span_opened = True
+                tag_escaped = urllib.parse.quote_plus(tag)
+                heading_html = f'<a href="#{tag_escaped}">{html_escape(heading)}</a>'
+                headings.append(f"<li>{heading_html}</li>")
+            is_faq_line = (
                 self._project is VimProject
                 and is_help_txt
                 and RE_LOCAL_ADD.match(line_tabs)
-            ):
-                faq_line = True
+            )
             lastpos = 0
             for match in RE_TAGWORD.finditer(line):
                 pos = match.start()
@@ -329,10 +377,11 @@ class VimH2H:
                     out.append(self.maplink(word, filename))
             if lastpos < len(line):
                 out.append(html_escape(line[lastpos:]))
+            if span_opened:
+                out.append("</span>")
             out.append("\n")
-            if faq_line:
+            if is_faq_line:
                 out.append(FAQ_LINE)
-                faq_line = False
 
         header = [
             HEAD_FMT.format(
@@ -344,6 +393,8 @@ class VimH2H:
 
         if self._is_web_version:
             header.append(SEARCH_HEADERS)
+        else:
+            header.append('<script defer src="vimhelp.js"></script>')
 
         header.append(HEAD_END)
 
@@ -369,7 +420,17 @@ class VimH2H:
 
         header.append(TEXTSTART)
 
-        return "".join(chain(header, out, (FOOTER, sitenavi_footer, FOOTER2)))
+        if len(headings) > 0:
+            sidebar = (
+                '<div id="vh-sidebar"><ul><li><a href="#">↑Top↑</a></li>'
+                + "".join(headings)
+                + "</ul></div>"
+            )
+        else:
+            sidebar = ""
+        footer = FOOTER_FMT.format(sidebar=sidebar)
+
+        return "".join(chain(header, out, (footer, sitenavi_footer, FOOTER2)))
 
 
 @functools.cache

@@ -1,9 +1,6 @@
-README.md
-LICENSE
 TODO
 Makefile
 .flake8
-/scripts
 /vimhelp/secret.py
 /.venv/
 __pycache__/

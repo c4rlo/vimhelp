@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import os.path
 import pathlib
-import shutil
 import sys
 
 root_path = pathlib.Path(__file__).parent.parent
@@ -94,12 +94,17 @@ def run(args):
             (args.out_dir / f"{infile.name}.html").write_text(html)
 
     if args.out_dir is not None:
-        print("Copying static files...")
-        shutil.copy(root_path / "static/vimhelp.css", args.out_dir)
-        shutil.copy(
-            root_path / f"static/favicon-{args.project}.ico",
-            args.out_dir / "favicon.ico",
-        )
+        print("Symlinking static files...")
+        symlinks = [
+            ("vimhelp.css", "vimhelp.css"),
+            ("vimhelp.js", "vimhelp.js"),
+            ("favicon.ico", f"favicon-{args.project}.ico"),
+        ]
+        static_dir_rel = os.path.relpath(root_path / "static", args.out_dir)
+        for link, target in symlinks:
+            src = pathlib.Path(args.out_dir / link)
+            src.unlink(missing_ok=True)
+            src.symlink_to(f"{static_dir_rel}/{target}")
 
     print("Done.")
 

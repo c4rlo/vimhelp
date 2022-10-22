@@ -6,7 +6,7 @@ html { line-height: 1.15; font-family: georgia, palatino, serif; }
 .bar { margin-bottom: 2em; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5em; }
 .ql { flex: 1 20 auto; }
 .srch { flex: 20 20 25ch; max-width: 45ch; }
-#site-search-input {  /* make it look like the select2 box next to it */
+#vh-srch-input {  /* make it look like the select2 box next to it */
     border: 1px solid #aaa;
     border-radius: 4px;
     height: 28px;
@@ -17,7 +17,7 @@ html { line-height: 1.15; font-family: georgia, palatino, serif; }
     font-family: georgia, palatino, serif;
     font-size: 1em;
 }
-#site-search-input::placeholder {
+#vh-srch-input::placeholder {
     color: #999;
     opacity: 1;
 }
@@ -31,7 +31,33 @@ select#vh-select-tag { display: none; }
     font-family: georgia, palatino, serif;
 }
 
-pre { font-family: monospace, monospace; width: 80ch; margin: 0 auto; }
+main {
+  display: flex;
+  align-items: start;
+}
+
+#vh-content {
+  order: 1;
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+}
+
+pre {
+  font-family: monospace, monospace;
+  width: 80ch;
+}
+
+#vh-sidebar {
+  visibility: hidden;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  margin-top: 18pt;
+  padding-right: 0.8em;
+  background: #eef;
+  border-radius: 15px;
+}
 
 footer { font-size: 85%; padding: 1em 0; }
 
