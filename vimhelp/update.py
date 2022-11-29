@@ -535,13 +535,7 @@ class UpdateHandler(flask.views.MethodView):
         sources_set = set(sources.split(","))
 
         if "http" in sources_set:
-            if base_url is None:
-                base_url = (
-                    GITHUB_DOWNLOAD_URL_BASE
-                    + f"{self._project}/{self._project}/{self._g.master_sha}/"
-                    "runtime/doc/"
-                )
-            url = base_url + name
+            url = (base_url or self._download_url_base()) + name
             headers = {}
             if rfi is None:
                 rfi = self._rfi_map[name] = RawFileInfo(
@@ -566,6 +560,13 @@ class UpdateHandler(flask.views.MethodView):
             return GetFileResult(rfc)
 
         return result
+
+    def _download_url_base(self):
+        sha = self._g.master_sha if self._project == "vim" else self._g.vim_version_tag
+        return (
+            GITHUB_DOWNLOAD_URL_BASE
+            + f"{self._project}/{self._project}/{sha}/runtime/doc/"
+        )
 
     def _translate(self, name, content):
         """
