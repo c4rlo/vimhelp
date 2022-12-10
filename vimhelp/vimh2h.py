@@ -11,6 +11,7 @@ HEAD_FMT = """\
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="color-scheme" content="light dark">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{project.name} help pages, always up-to-date">
 <title>{project.name}: {filename}</title>

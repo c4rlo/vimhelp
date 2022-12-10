@@ -1,6 +1,10 @@
 *, ::before, ::after { box-sizing: border-box; }
 
-html { line-height: 1.15; font-family: georgia, palatino, serif; }
+html { line-height: 1.15; font-family: georgia, palatino, serif; background-color: #FFF; color: #000; }
+
+@media(prefers-color-scheme: dark) {
+  html { line-height: 1.15; font-family: georgia, palatino, serif; background-color: #000; color: #FFF; }
+}
 
 /* top bar: quick links with search box */
 .bar { margin-bottom: 2em; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5em; }
@@ -100,3 +104,20 @@ a.l:active, a.l:hover { color: rgb(0, 200, 200); }
 
 /* external url */
 .u { color: rgb(250, 0, 250); }
+
+@media(prefers-color-scheme: dark) {
+  /* hidden links */
+  a.d { color: #FFF; }
+  a.d:link, a.d:visited { text-decoration: underline silver; }
+  a.d:active, a.d:hover { text-decoration: underline black; }
+
+  /* note */
+  .n { color: yellow; background-color: blue; }
+
+  .select2-container--default .select2-selection--single {
+    background-color: rgb(59, 59, 59) !important;
+  }
+  .select2-dropdown {
+    background-color: rgb(59, 59, 59) !important;
+  }
+}
