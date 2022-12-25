@@ -1,0 +1,17 @@
+{# This "prelude" is the initial portion of each page. It gets rendered
+dynamically in response to each request, based on user preferences (currently
+only the color theme). #}
+<!DOCTYPE html>
+{% if theme %}
+<html lang="en" class="{{theme}}">
+{% else %}
+<html lang="en">
+{% endif %}
+<head>
+<meta charset="UTF-8">
+{% if theme %}
+<meta name="color-scheme" content="only {{theme}}">
+{% else %}
+<meta name="color-scheme" content="light dark">
+{% endif %}
+{# rest of the page is in page.html #}

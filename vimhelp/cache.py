@@ -2,7 +2,7 @@ import datetime
 import logging
 import threading
 
-from . import util
+_MAX_AGE = datetime.timedelta(minutes=3)
 
 
 class Cache:
@@ -16,7 +16,7 @@ class Cache:
             if not entry:
                 return None
             timestamp, value = entry
-            if util.next_update_time(timestamp) <= datetime.datetime.utcnow():
+            if datetime.datetime.utcnow() - timestamp > _MAX_AGE:
                 logging.info("cache entry '%s' is expired", key)
                 del self._cache[key]
                 return None

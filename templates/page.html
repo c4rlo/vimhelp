@@ -1,0 +1,100 @@
+{# This is the main content of each page; it gets rendered ahead of time. The
+first few lines of HTML that are missing from here are are in prelude.html;
+those are the only ones that get rendered dynamically with each request. #}
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="{{project.name}} help pages, always up-to-date">
+<title>{{project.name}}: {{filename}}</title>
+<link rel="shortcut icon" href="favicon.ico">
+<!-- {{project.favicon_notice}} -->
+<link rel="stylesheet" href="{{static_dir}}vimhelp-v2.css" type="text/css">
+
+{% if mode != "offline" %}
+<link rel="stylesheet" class="select2-css" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" integrity="sha256-zaSoHBhwFdle0scfGEFUCwggPN7F+ip9XRglo8IWb4w=" crossorigin="anonymous" disabled>
+<script defer src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" integrity="sha256-9yRP/2EFlblE92vzCA10469Ctd0jT48HnmmMw5rJZrA=" crossorigin="anonymous"></script>
+{% endif %}
+
+<script defer src="{{static_dir}}vimhelp-v2.js"></script>
+</head>
+<body>
+
+{% set theme_switcher %}
+<div id="theme-switcher">
+  <button id="theme-current" title="Switch theme">Theme</button>
+  <div id="theme-dropdown"><ul>
+    <li><button id="theme-native" title="Switch to native theme">Native</button></li>
+    <li><button id="theme-light" title="Switch to light theme">Light</button></li>
+    <li><button id="theme-dark" title="Switch to dark theme">Dark</button></li>
+  </ul></div>
+</div>
+{% endset %}
+
+{% if mode != "offline" and filename == "help.txt" %}
+<div id="title-cont">
+<h1>{{project.name}} help files</h1>
+{{theme_switcher}}
+</div>
+<p>This is an HTML version of the <a href="{{project.url}}" target="_blank" rel="noopener noreferrer">{{project.name}}</a> help pages{% if version %}, current as of {{project.name}} {{version}}{% endif %}.
+They are kept up-to-date <a href="https://github.com/c4rlo/vimhelp" target="_blank" rel="noopener noreferrer" class="d">automatically</a>
+from the <a href="{{project.doc_src_url}}" target="_blank" rel="noopener noreferrer" class="d">{{project.name}} source repository</a>.
+{% if project.name == "Vim" %}
+Also included is the <a href="vim_faq.txt.html">Vim FAQ</a>, kept up to date from its
+<a href="https://github.com/chrisbra/vim_faq" target="_blank" rel="noopener noreferrer" class="d">GitHub repository</a>.
+{% endif %}
+</p>
+
+<p><a href="https://{{project.other.vimdoc_site}}/">Help pages for {{project.other.contrasted_name}}</a>
+are also available.</p>
+{% endif %}
+
+{% set sitenavi %}
+Quick links:
+<a href="{{helptxt}}">help overview</a> &middot;
+<a href="quickref.txt.html">quick reference</a> &middot;
+<a href="usr_toc.txt.html">user manual toc</a> &middot;
+<a href="{{helptxt}}#reference_toc">reference manual toc</a>
+{% if project.name == "Vim" %}
+&middot; <a href="vim_faq.txt.html">faq</a>
+{% endif %}
+{% endset %}
+
+{% if mode != "offline" %}
+<div class="bar">
+  <div class="ql">{{sitenavi}}</div>
+  <div class="srch">
+    <select id="vh-select-tag"></select>
+  </div>
+  <form class="srch" action="https://duckduckgo.com" method="get" target="_blank" rel="noopener noreferrer">
+    <input type="hidden" name="sites" value="{{project.vimdoc_site}}">
+    <input type="search" name="q" id="vh-srch-input" placeholder="Site search">
+  </form>
+  {% if filename != "help.txt" %}
+  {{theme_switcher}}
+  {% endif %}
+</div>
+{% else %}
+<p>{{sitenavi}}</p>
+{% endif %}
+
+<main>
+<div id="vh-content">
+<pre>
+{{content}}
+</pre>
+</div>
+
+{% if sidebar_headings %}
+<div id="vh-sidebar"><ul><li><a href="#">↑Top↑</a></li>
+{% for h in sidebar_headings %}
+<li>{{h}}</li>
+{% endfor %}
+</ul></div>
+{% endif %}
+
+</main>
+
+<p>{{sitenavi}}</p>
+
+<footer>This site is maintained by Carlo Teubner (<i>(my first name) at cteubner dot net</i>).</footer>
+</body>
+</html>

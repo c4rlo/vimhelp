@@ -56,7 +56,12 @@ def create_app():
         root_path=package_path,
         static_url_path="",
         static_folder="../static",
+        template_folder="../templates",
     )
+
+    app.jinja_options["autoescape"] = False
+    app.jinja_options["trim_blocks"] = True
+    app.jinja_options["lstrip_blocks"] = True
 
     is_dev = os.environ.get("VIMHELP_ENV") == "dev"
     if not is_dev:

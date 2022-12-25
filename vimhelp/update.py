@@ -131,6 +131,7 @@ class UpdateHandler(flask.views.MethodView):
             "Starting %supdate for %s", "forced " if is_force else "", self._project
         )
 
+        self._app = flask.current_app._get_current_object()
         self._http_client = HttpClient(CONCURRENCY)
 
         try:
@@ -260,9 +261,10 @@ class UpdateHandler(flask.views.MethodView):
         # Construct the vimhelp-to-html translator, providing it the tags file content,
         # and adding on the FAQ for extra tags
         self._h2h = vimh2h.VimH2H(
+            mode="online",
             project="vim",
-            tags=tags_result.content.decode(),
             version=version_from_tag(self._g.vim_version_tag),
+            tags=tags_result.content.decode(),
         )
         self._h2h.add_tags(FAQ_NAME, faq_result.content.decode())
 
@@ -325,7 +327,9 @@ class UpdateHandler(flask.views.MethodView):
         self._rfi_map = rfi_greenlet.get()
 
         self._h2h = vimh2h.VimH2H(
-            project="neovim", version=version_from_tag(self._g.vim_version_tag)
+            mode="online",
+            project="neovim",
+            version=version_from_tag(self._g.vim_version_tag),
         )
 
         # Iterate over 'runtime/doc' dir listing (which also updates the items in
@@ -588,7 +592,7 @@ class UpdateHandler(flask.views.MethodView):
 
     def _spawn(self, f, *args, **kwargs):
         def g():
-            with ndb_context():
+            with self._app.app_context(), ndb_context():
                 return f(*args, **kwargs)
 
         return self._greenlet_pool.spawn(g)

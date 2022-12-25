@@ -1,6 +1,5 @@
 # Retrieve a help page from the data store, and present to the user
 
-import datetime
 import logging
 from http import HTTPStatus
 
@@ -10,7 +9,7 @@ import werkzeug.exceptions
 from google.cloud import ndb
 
 from . import dbmodel
-from . import util
+from . import vimh2h
 
 
 def handle_vimhelp(filename, cache):
@@ -26,11 +25,15 @@ def handle_vimhelp(filename, cache):
     if not filename.endswith(".txt") and filename != "tags":
         return redirect(f"{filename}.txt.html")
 
+    theme = req.cookies.get("theme")
+    if theme not in ("light", "dark"):
+        theme = None
+
     if entry := cache.get((project, filename)):
         logging.info("serving '%s:%s' from inproc cache", project, filename)
         head, parts = entry
-        resp = prepare_response(req, head, datetime.datetime.utcnow())
-        return complete_response(resp, head, parts)
+        resp = prepare_response(req, head, theme)
+        return complete_response(resp, head, parts, theme)
 
     with dbmodel.ndb_context():
         logging.info("serving '%s:%s' from datastore", project, filename)
@@ -38,35 +41,41 @@ def handle_vimhelp(filename, cache):
         if head is None:
             logging.warning("%s:%s not found in datastore", project, filename)
             raise werkzeug.exceptions.NotFound()
-        now = datetime.datetime.utcnow()
-        resp = prepare_response(req, head, now)
+        resp = prepare_response(req, head, theme)
         parts = []
         if resp.status_code != HTTPStatus.NOT_MODIFIED:
             parts = get_parts(head)
-            complete_response(resp, head, parts)
+            complete_response(resp, head, parts, theme)
         if head.numparts == 1 or parts:
             cache.put((project, filename), (head, parts))
         return resp
 
 
-def prepare_response(req, head, now):
+def prepare_response(req, head, theme):
     resp = flask.Response(mimetype="text/html")
     resp.charset = head.encoding
     resp.last_modified = head.modified
-    resp.expires = util.next_update_time(now)
-    resp.set_etag(head.etag.decode())
+    resp.cache_control.max_age = 15 * 60
+    resp.vary.add("Cookie")
+    resp.set_etag(head.etag.decode() + (theme or ""))
     return resp.make_conditional(req)
 
 
-def complete_response(resp, head, parts):
+def complete_response(resp, head, parts, theme):
     if resp.status_code != HTTPStatus.NOT_MODIFIED:
         logging.info(
-            "writing %d-part response, modified %s, expires %s",
+            "writing %d-part response, modified %s",
             1 + len(parts),
             resp.last_modified,
-            resp.expires,
         )
-        resp.data = head.data0 + b"".join(p.data for p in parts)
+        if head.data0.startswith(b"<!DOCTYPE html>"):
+            logging.info("this is an old page, omitting prelude")
+            # It's an old page version that already includes its prelude
+            # (this case is temporary; TODO remove it)
+            prelude = b""
+        else:
+            prelude = vimh2h.VimH2H.prelude(theme=theme).encode()
+        resp.data = b"".join((prelude, head.data0, *(p.data for p in parts)))
     return resp
 
 

@@ -1,9 +1,15 @@
-#!/usr/bin/env python3
+#!/usr/bin/env .venv/bin/python3
+
+# This script is meant to be run from the top-level directory of the
+# repository, as 'scripts/h2h.py'. The virtualenv must already exist
+# (use "make venv" to create it).
 
 import argparse
 import os.path
 import pathlib
 import sys
+
+import flask
 
 root_path = pathlib.Path(__file__).parent.parent
 
@@ -35,10 +41,22 @@ def main():
         help="Vim flavour (default: vim)",
     )
     parser.add_argument(
+        "--web-version",
+        "-w",
+        action="store_true",
+        help="Generate the web version of the files (default: offline version)",
+    )
+    parser.add_argument(
+        "--theme",
+        "-t",
+        choices=("light", "dark"),
+        help="Color theme (default: OS-native)",
+    )
+    parser.add_argument(
         "--no-tags",
         "-T",
         action="store_true",
-        help="Ignore any tags file, always recreate tags from " "scratch",
+        help="Ignore any tags file, always recreate tags from scratch",
     )
     parser.add_argument(
         "--profile", "-P", action="store_true", help="Profile performance"
@@ -48,32 +66,48 @@ def main():
     )
     args = parser.parse_args()
 
-    if args.profile:
-        import cProfile
-        import pstats
+    app = flask.Flask(
+        __name__,
+        root_path=pathlib.Path(__file__).resolve().parent,
+        static_url_path="",
+        static_folder="../static",
+        template_folder="../templates",
+    )
+    app.jinja_options["autoescape"] = False
+    app.jinja_options["trim_blocks"] = True
+    app.jinja_options["lstrip_blocks"] = True
 
-        with cProfile.Profile() as pr:
+    with app.app_context():
+        if args.profile:
+            import cProfile
+            import pstats
+
+            with cProfile.Profile() as pr:
+                run(args)
+            stats = pstats.Stats(pr).sort_stats("cumulative")
+            stats.print_stats()
+        else:
             run(args)
-        stats = pstats.Stats(pr).sort_stats("cumulative")
-        stats.print_stats()
-    else:
-        run(args)
 
 
 def run(args):
     if not args.in_dir.is_dir():
         raise RuntimeError(f"{args.in_dir} is not a directory")
 
+    prelude = VimH2H.prelude(theme=args.theme)
+
+    mode = "hybrid" if args.web_version else "offline"
+
     if not args.no_tags and (tags_file := args.in_dir / "tags").is_file():
         print("Processing tags file...")
-        h2h = VimH2H(tags=tags_file.read_text(), is_web_version=False)
+        h2h = VimH2H(mode=mode, project=args.project, tags=tags_file.read_text())
         faq = args.in_dir / "vim_faq.txt"
         if faq.is_file():
             print("Processing FAQ tags...")
             h2h.add_tags(faq.name, faq.read_text())
     else:
         print("Initializing tags...")
-        h2h = VimH2H(project=args.project, is_web_version=False)
+        h2h = VimH2H(mode=mode, project=args.project)
         for infile in args.in_dir.iterdir():
             if infile.suffix == ".txt":
                 h2h.add_tags(infile.name, infile.read_text())
@@ -91,14 +125,22 @@ def run(args):
         print(f"Processing {infile}...")
         html = h2h.to_html(infile.name, content)
         if args.out_dir is not None:
-            (args.out_dir / f"{infile.name}.html").write_text(html)
+            with (args.out_dir / f"{infile.name}.html").open("w") as f:
+                f.write(prelude)
+                f.write(html)
 
     if args.out_dir is not None:
         print("Symlinking static files...")
         symlinks = [
-            ("vimhelp.css", "vimhelp.css"),
-            ("vimhelp.js", "vimhelp.js"),
+            ("vimhelp-v2.css", "vimhelp-v2.css"),
+            ("vimhelp-v2.js", "vimhelp-v2.js"),
             ("favicon.ico", f"favicon-{args.project}.ico"),
+            ("theme-native-light.svg", "theme-native-light.svg"),
+            ("theme-light-light.svg", "theme-light-light.svg"),
+            ("theme-dark-light.svg", "theme-dark-light.svg"),
+            ("theme-native-dark.svg", "theme-native-dark.svg"),
+            ("theme-light-dark.svg", "theme-light-dark.svg"),
+            ("theme-dark-dark.svg", "theme-dark-dark.svg"),
         ]
         static_dir_rel = os.path.relpath(root_path / "static", args.out_dir)
         for link, target in symlinks:
