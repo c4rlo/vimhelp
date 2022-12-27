@@ -131,8 +131,8 @@ def run(args):
     if args.out_dir is not None:
         print("Symlinking static files...")
         symlinks = [
-            ("vimhelp-v2.css", "vimhelp-v2.css"),
-            ("vimhelp-v2.js", "vimhelp-v2.js"),
+            ("vimhelp-v3.css", "vimhelp-v3.css"),
+            ("vimhelp-v3.js", "vimhelp-v3.js"),
             ("favicon.ico", f"favicon-{args.project}.ico"),
             ("theme-native-light.svg", "theme-native-light.svg"),
             ("theme-light-light.svg", "theme-light-light.svg"),
