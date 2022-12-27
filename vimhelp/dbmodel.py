@@ -29,6 +29,9 @@ class GlobalInfo(ndb.Model):
     vim_version_tag = ndb.TextProperty()
     # Git tag of current Vim version
 
+    last_update_time = ndb.DateTimeProperty(indexed=False)
+    # Time of last changes to generated files
+
 
 # Tags, for use with the "go to tag" feature; key name is "vim" or "neovim".
 class TagsInfo(ndb.Model):

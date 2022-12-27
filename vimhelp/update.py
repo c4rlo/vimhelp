@@ -4,6 +4,7 @@
 # https://github.com/github-community/community/discussions/10799
 
 import base64
+import datetime
 import hashlib
 import json
 import logging
@@ -180,7 +181,9 @@ class UpdateHandler(flask.views.MethodView):
             gevent.joinall(greenlets)
 
         if not g:
-            g = GlobalInfo(id=self._project)
+            g = GlobalInfo(
+                id=self._project, last_update_time=datetime.datetime.utcnow()
+            )
 
         logging.info(
             "%s global info: %s",
@@ -258,6 +261,8 @@ class UpdateHandler(flask.views.MethodView):
 
         logging.info("Beginning vimhelp-to-HTML translations")
 
+        self._g.last_update_time = datetime.datetime.utcnow()
+
         # Construct the vimhelp-to-html translator, providing it the tags file content,
         # and adding on the FAQ for extra tags
         self._h2h = vimh2h.VimH2H(
@@ -325,6 +330,8 @@ class UpdateHandler(flask.views.MethodView):
 
         # Put all RawFileInfo entities into a map
         self._rfi_map = rfi_greenlet.get()
+
+        self._g.last_update_time = datetime.datetime.utcnow()
 
         self._h2h = vimh2h.VimH2H(
             mode="online",
