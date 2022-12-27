@@ -68,13 +68,7 @@ def complete_response(resp, head, parts, theme):
             1 + len(parts),
             resp.last_modified,
         )
-        if head.data0.startswith(b"<!DOCTYPE html>"):
-            logging.info("this is an old page, omitting prelude")
-            # It's an old page version that already includes its prelude
-            # (this case is temporary; TODO remove it)
-            prelude = b""
-        else:
-            prelude = vimh2h.VimH2H.prelude(theme=theme).encode()
+        prelude = vimh2h.VimH2H.prelude(theme=theme).encode()
         resp.data = b"".join((prelude, head.data0, *(p.data for p in parts)))
     return resp
 
