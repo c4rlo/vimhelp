@@ -73,7 +73,6 @@ def main():
         static_folder="../static",
         template_folder="../templates",
     )
-    app.jinja_options["autoescape"] = False
     app.jinja_options["trim_blocks"] = True
     app.jinja_options["lstrip_blocks"] = True
 

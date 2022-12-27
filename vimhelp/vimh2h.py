@@ -242,7 +242,7 @@ class VimH2H:
                     span_opened = True
                 tag_escaped = urllib.parse.quote_plus(tag)
                 sidebar_headings.append(
-                    f'<a href="#{tag_escaped}">{html_escape(heading)}</a>'
+                    flask.Markup(f'<a href="#{tag_escaped}">{html_escape(heading)}</a>')
                 )
             is_faq_line = (
                 self._project is VimProject
@@ -314,7 +314,8 @@ class VimH2H:
             filename=filename,
             static_dir=static_dir,
             helptxt=helptxt,
-            content="".join(out),
+            content=flask.Markup("".join(out)),
+            sidebar_headings=sidebar_headings,
         )
 
 
