@@ -1,6 +1,4 @@
 TODO
-Makefile
-.flake8
 /vimhelp/secret.py
 /.venv/
 __pycache__/
