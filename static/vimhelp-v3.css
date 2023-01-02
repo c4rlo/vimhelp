@@ -183,22 +183,23 @@ select#vh-select-tag { display: none; }
   opacity: 1;
 }
 
+/* main = sidebar + content */
 main {
   display: flex;
   flex-wrap: wrap-reverse;
   align-items: start;
+  justify-content: end;
 }
 
+/* Nav sidebar */
 #vh-sidebar {
-  font-family: var(--font-mono);
   position: sticky;
   top: 10px;
-  min-width: min-content;
-  width: calc(50vw - 40ch);
+  width: min-content;
+  flex: auto;
   display: flex;
   justify-content: center;
 }
-
 #vh-sidebar > ul {
   font-family: var(--font-serif);
   padding: 1em 1em 1em 1.8em;
@@ -207,14 +208,11 @@ main {
   border-radius: 15px;
 }
 
-#vh-content {
-  flex-grow: 1;
-  display: flex;
-}
-
+/* Vim help content */
 #vh-content pre {
   font-family: var(--font-mono);
   width: 80ch;
+  margin-right: calc(50vw - 40ch);
 }
 
 /* standard links (also includes <a class="l">) */
