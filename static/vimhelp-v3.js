@@ -69,3 +69,20 @@ document.getElementById("theme-switcher").style.display = "revert";
 // tweak native theme button tooltip
 document.getElementById("theme-native").title = "Switch to native theme" +
     (matchMedia("(prefers-color-scheme: dark)").matches ? " (which is dark)" : " (which is light)");
+
+// hide sidebar when it wraps
+const onResize = (e) => {
+    const sidebar = document.getElementById("vh-sidebar");
+    const sidebarTop = sidebar.getBoundingClientRect().top;
+    const contentBottom = document.getElementById("vh-content").getBoundingClientRect().bottom;
+    if (sidebarTop >= contentBottom - 4) {
+        sidebar.style.visibility = "hidden";
+        sidebar.style.height = "0px";
+    }
+    else {
+        sidebar.style.visibility = null;
+        sidebar.style.height = null;
+    }
+};
+addEventListener("resize", onResize);
+onResize();
