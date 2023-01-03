@@ -2,29 +2,28 @@
 
 // "Go to keyword" entry
 
-if (typeof $ !== "undefined") {
-    $(() => {
-        $("link.select2-css").removeAttr("disabled");
-        $("select#vh-select-tag")
-            .select2({
-                placeholder: "Go to keyword",
-                width: "100%",
-                ajax: {
-                    url: "api/tagsearch"
-                },
-                minimumInputLength: 1
-            })
-            .on("select2:select", (e) => {
-                window.location = e.params.data.href;
-            })
-            // .on("select2:open", () => {
-            //     // Workaround for https://github.com/select2/select2/issues/5993
-            //     // (would be needed with jQuery 3.6.0)
-            //     $(".select2-container--open .select2-search__field")[0].focus();
-            // })
-            .show();
-    });
-}
+new TomSelect("#vh-select-tag", {
+    maxItems: 1,
+    loadThrottle: 250,
+    placeholder: "Go to keyword",
+    valueField: "href",
+    onFocus: () => {
+        const self = document.getElementById("vh-select-tag").tomselect;
+        self.clear();
+        self.clearOptions();
+    },
+    shouldLoad: (query) => query.length >= 1,
+    load: async (query, callback) => {
+        const url = "/api/tagsearch?q=" + encodeURIComponent(query);
+        const resp = await fetch(url);
+        callback((await resp.json()).results);
+    },
+    onChange: (value) => {
+        if (value) {
+            window.location = value;
+        }
+    }
+});
 
 // Theme switcher
 
@@ -62,9 +61,6 @@ document.getElementsByTagName("body")[0].addEventListener("click", (e) => {
     // hide theme dropdown (vimhelp.css has it as "display: none")
     document.getElementById("theme-dropdown").style.display = null;
 });
-
-// show theme switcher (defaults to invisible for non-JS browsers)
-document.getElementById("theme-switcher").style.display = "revert";
 
 // tweak native theme button tooltip
 document.getElementById("theme-native").title = "Switch to native theme" +

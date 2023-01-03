@@ -12,8 +12,9 @@ those are the only ones that get rendered dynamically with each request. #}
 <script defer src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.base.min.js" integrity="sha256-VeCH6ebBA+gAHG2QM4tOTOa04CpxQdsRtWPldi/dLQU=" crossorigin="anonymous"></script>
 {% endif %}
 
-<link rel="stylesheet" href="{{static_dir}}vimhelp-v4.css" type="text/css">
-<script defer src="{{static_dir}}vimhelp-v4.js"></script>
+<link rel="stylesheet" href="{{static_dir}}vimhelp-v5.css" type="text/css">
+<noscript><link rel="stylesheet" href="{{static_dir}}noscript.css" type="text/css"></noscript>
+<script defer src="{{static_dir}}vimhelp-v5.js"></script>
 </head>
 <body>
 
@@ -60,7 +61,7 @@ Quick links:
 {% if mode != "offline" %}
 <div class="bar">
   <div class="ql">{{sitenavi}}</div>
-  <div class="srch">
+  <div class="srch" id="go-to-tag">
     <select id="vh-select-tag"></select>
   </div>
   <form class="srch" action="https://duckduckgo.com" method="get" target="_blank" rel="noopener noreferrer">
