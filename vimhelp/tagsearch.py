@@ -28,8 +28,7 @@ class TagItem:
 
 def handle_tagsearch(cache):
     project = flask.g.project
-    cache_key = (project, CACHE_KEY_ID)
-    items = cache.get(cache_key)
+    items = cache.get(project, CACHE_KEY_ID)
     query = flask.request.args.get("q", "")
     if not items:
         with dbmodel.ndb_context():
@@ -37,7 +36,7 @@ def handle_tagsearch(cache):
             if entity is None:
                 raise werkzeug.exceptions.NotFound()
             items = [TagItem(*tag) for tag in entity.tags]
-            cache.put(cache_key, items)
+            cache.put(project, CACHE_KEY_ID, items)
 
     results = do_handle_tagsearch(items, query)
     return flask.jsonify({"results": results})

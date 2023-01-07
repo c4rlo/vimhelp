@@ -29,7 +29,7 @@ def handle_vimhelp(filename, cache):
     if theme not in ("light", "dark"):
         theme = None
 
-    if entry := cache.get((project, filename)):
+    if entry := cache.get(project, filename):
         logging.info("serving '%s:%s' from inproc cache", project, filename)
         head, parts = entry
         resp = prepare_response(req, head, theme)
@@ -47,7 +47,7 @@ def handle_vimhelp(filename, cache):
             parts = get_parts(head)
             complete_response(resp, head, parts, theme)
         if head.numparts == 1 or parts:
-            cache.put((project, filename), (head, parts))
+            cache.put(project, filename, (head, parts))
         return resp
 
 
@@ -80,9 +80,7 @@ def redirect(url):
 
 def get_parts(head):
     # We could alternatively achieve this via an ancestor query (retrieving the head and
-    # its parts simultaneously) to give us strong consistency. But the downside of that
-    # is that it bypasses the automatic memcache layer built into ndb, which we want to
-    # take advantage of.
+    # its parts simultaneously) to give us strong consistency.
     if head.numparts == 1:
         return []
     logging.info("retrieving %d extra part(s)", head.numparts - 1)
@@ -92,12 +90,11 @@ def get_parts(head):
     ]
     num_tries = 0
     while True:
+        parts = ndb.get_multi(keys)
+        if all(p.etag == head.etag for p in parts):
+            return sorted(parts, key=lambda p: p.key.string_id())
         num_tries += 1
         if num_tries >= 10:
             logging.error("tried too many times, giving up")
             raise werkzeug.exceptions.InternalServerError()
-        parts = ndb.get_multi(keys)
-        if any(p.etag != head.etag for p in parts):
-            logging.warning("got differing etags, retrying")
-        else:
-            return sorted(parts, key=lambda p: p.key.string_id())
+        logging.warning("got differing etags, retrying")

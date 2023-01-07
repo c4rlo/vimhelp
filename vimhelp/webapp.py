@@ -1,4 +1,4 @@
-# import gevent
+import gevent
 import gevent.monkey
 
 # gevent.config.track_greenlet_tree = False
@@ -87,12 +87,17 @@ def create_app():
             else "vim"
         )
 
-    @app.route(_WARMUP_PATH)
-    def warmup():
-        for project in ("vim", "neovim"):
+    def do_warmup(project):
+        logging.info("doing warmup request for %s", project)
+        with app.test_request_context():
             flask.g.project = project
             vimhelp.handle_vimhelp("", cache)
             tagsearch.handle_tagsearch(cache)
+
+    @app.route(_WARMUP_PATH)
+    def warmup():
+        for project in ("vim", "neovim"):
+            do_warmup(project)
         return flask.Response()
 
     bp = flask.Blueprint("bp", "vimhelp", root_path=package_path)
@@ -121,6 +126,10 @@ def create_app():
         app.register_blueprint(bp, name="neovim", url_prefix="/neovim")
 
     app.after_request(_add_default_headers)
+
+    gevent.spawn(cache.start_refresh_loop, do_warmup)
+
+    logging.info("app initialised")
 
     return app
 
