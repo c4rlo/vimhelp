@@ -74,8 +74,9 @@ def create_app():
         if req.path not in (_WARMUP_PATH, "/update"):
             for redir_from, redir_to in _URL_PREFIX_REDIRECTS:
                 if req.url_root in redir_from:
-                    new_url = redir_to + req.root_path + req.full_path
-                    logging.info("redirecting to %s", new_url)
+                    path = req.full_path if req.query_string else req.path
+                    new_url = redir_to + req.root_path + path
+                    logging.info("redirecting %s to %s", req.url, new_url)
                     return flask.redirect(new_url, HTTPStatus.MOVED_PERMANENTLY)
 
         # Flask's subdomain/host matching doesn't seem compatible with having multiple
