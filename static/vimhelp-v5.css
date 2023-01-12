@@ -209,7 +209,6 @@ main {
   display: flex;
   flex-wrap: wrap-reverse;
   align-items: start;
-  justify-content: end;
 }
 
 /* Nav sidebar */
@@ -218,7 +217,7 @@ main {
   top: 10px;
   width: min-content;
   flex: auto;
-  display: flex;
+  display: none;
   justify-content: center;
 }
 #vh-sidebar > ul {
@@ -233,7 +232,18 @@ main {
 #vh-content pre {
   font-family: var(--font-mono);
   width: 80ch;
-  margin-right: calc(50vw - 40ch);
+}
+
+@media (min-width: 900px) {
+  main {
+    justify-content: end;
+  }
+  #vh-sidebar {
+    display: flex;
+  }
+  #vh-content pre {
+    margin-right: calc(50vw - 40ch);
+  }
 }
 
 /* standard links (also includes <a class="l">) */
