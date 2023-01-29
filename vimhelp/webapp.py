@@ -93,6 +93,7 @@ def create_app():
         with app.test_request_context():
             flask.g.project = project
             vimhelp.handle_vimhelp("", cache)
+            vimhelp.handle_vimhelp("options.txt", cache)
             tagsearch.handle_tagsearch(cache)
 
     @app.route(_WARMUP_PATH)
