@@ -5,5 +5,5 @@
 /scripts
 /README.md
 /LICENSE
-/Makefile
+/tasks.py
 __pycache__/
