@@ -210,7 +210,6 @@ class VimH2H:
         in_example = False
         for idx, line in enumerate(lines):
             line_tabs = line
-            line = line.expandtabs()
             prev_line_tabs = "" if idx == 0 else lines[idx - 1]
             if prev_line_tabs == "" and idx > 1:
                 prev_line_tabs = lines[idx - 2]
@@ -250,10 +249,23 @@ class VimH2H:
                 and RE_LOCAL_ADD.match(line_tabs)
             )
             lastpos = 0
+
+            # Concealed chars in Vim still count towards hard tabs' spacing
+            # calculations even though they are hidden. We need to count them
+            # so we can insert that many spaces before we encounter a hard tab
+            # to nudge it to the right position.
+            accum_concealed_chars = 0
+
             for match in RE_TAGWORD.finditer(line):
                 pos = match.start()
                 if pos > lastpos:
-                    out.append(html_escape(line[lastpos:pos]))
+                    raw_text = line[lastpos:pos]
+                    if accum_concealed_chars > 0:
+                        tab_index = raw_text.find("\t")
+                        if tab_index != -1:
+                            raw_text = raw_text[:tab_index] + (" " * accum_concealed_chars) + raw_text[tab_index:]
+                            accum_concealed_chars = 0
+                    out.append(html_escape(raw_text))
                 lastpos = match.end()
                 # fmt: off
                 (header, graphic, pipeword, starword, command, opt, ctrl, special,
@@ -261,6 +273,7 @@ class VimH2H:
                 # fmt: on
                 if pipeword is not None:
                     out.append(self.maplink(pipeword, filename, "l"))
+                    accum_concealed_chars += 2
                 elif starword is not None:
                     out.extend(
                         (
@@ -271,8 +284,10 @@ class VimH2H:
                             "</span>",
                         )
                     )
+                    accum_concealed_chars += 2
                 elif command is not None:
                     out.extend(('<span class="e">', html_escape(command), "</span>"))
+                    accum_concealed_chars += 2
                 elif opt is not None:
                     out.append(self.maplink(opt, filename, "o"))
                 elif ctrl is not None:
@@ -296,7 +311,13 @@ class VimH2H:
                 elif word is not None:
                     out.append(self.maplink(word, filename))
             if lastpos < len(line):
-                out.append(html_escape(line[lastpos:]))
+                raw_text = line[lastpos:]
+                if accum_concealed_chars > 0:
+                    tab_index = raw_text.find("\t")
+                    if tab_index != -1:
+                        raw_text = raw_text[:tab_index] + (" " * accum_concealed_chars) + raw_text[tab_index:]
+                        accum_concealed_chars = 0
+                out.append(html_escape(raw_text))
             if span_opened:
                 out.append("</span>")
             out.append("\n")
