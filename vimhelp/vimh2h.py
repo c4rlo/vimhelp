@@ -84,7 +84,7 @@ RE_HEADING = re.compile(
     r"(?!\s*vim:|\s*Next chapter:|\s*Copyright:|\s*Table of contents:|\s*Advance information about|$)"
     r"(.+?)\s*(?:\*|~?$)"
 )
-RE_EG_START = re.compile(r"(?:.* )?>$")
+RE_EG_START = re.compile(r"(.* )?>(?:vim|lua)?$")
 RE_EG_END = re.compile(r"[^ \t]")
 RE_SECTION = re.compile(r"(?!NOTE$|CTRL-|\.\.\.$)([A-Z.][-A-Z0-9 .,()_?]*)(?:\s+\*|$)")
 RE_STARTAG = re.compile(r'\*([^ \t"*]+)\*(?:\s|$)')
@@ -242,9 +242,9 @@ class VimH2H:
             if RE_HRULE.match(line):
                 out.extend(('<span class="h">', html_escape(line), "</span>\n"))
                 continue
-            if RE_EG_START.match(line):
+            if m := RE_EG_START.match(line):
                 in_example = True
-                line = line[:-1]
+                line = m.group(1) or ""
             span_opened = False
             if m := RE_SECTION.match(line):
                 out.extend(('<span class="c">', m.group(1), "</span>"))
