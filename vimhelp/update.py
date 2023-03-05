@@ -194,7 +194,6 @@ class UpdateHandler(flask.views.MethodView):
         return g
 
     def _do_update_vim(self, no_rfi):
-
         old_vim_version_tag = self._g.vim_version_tag
         old_master_sha = self._g.master_sha
 
@@ -313,7 +312,6 @@ class UpdateHandler(flask.views.MethodView):
         self._join_greenlets(greenlets)
 
     def _do_update_neovim(self, no_rfi):
-
         # Check whether we have a new Neovim version
         old_vim_version_tag = self._g.vim_version_tag
         self._get_git_refs()
