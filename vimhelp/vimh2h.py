@@ -31,7 +31,7 @@ NeovimProject.other = VimProject
 
 PROJECTS = {"vim": VimProject, "neovim": NeovimProject}
 
-FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">vim_faq.txt</a>   Frequently Asked Questions\n'
+FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">vim_faq.txt</a>\tFrequently Asked Questions\n'
 
 RE_TAGLINE = re.compile(r"(\S+)\s+(\S+)")
 
@@ -41,7 +41,7 @@ PAT_HEADER = r"(^.*~$)"
 PAT_GRAPHIC = r"(^.* `$)"
 PAT_PIPEWORD = r"(?<!\\)\|([#-)!+-{}~]+)\|"
 PAT_STARWORD = r"\*([#-)!+-~]+)\*(?:(?=\s)|$)"
-PAT_COMMAND = r"`([^` ]+)`"
+PAT_COMMAND = r"`([^` \t]+)`"
 PAT_OPTWORD = r"('(?:[a-z]{2,}|t_..)')"
 PAT_CTRL = r"((?:CTRL(?:-SHIFT)?|META|ALT)-(?:W_)?(?:\{char\}|<[A-Za-z]+?>|.)?)"
 PAT_SPECIAL = (
@@ -80,9 +80,9 @@ RE_NEWLINE = re.compile(r"[\r\n]")
 RE_HRULE = re.compile(r"(?:===.*===|---.*---)$")
 RE_HRULE1 = re.compile(r"===.*===$")
 RE_HEADING = re.compile(
-    r"[0-9. *]*"
-    r"(?! *vim:| *Next chapter:| *Copyright: | *Table of contents:| *Advance information about|$)"
-    r"(.+?) *(?:\*|~?$)"
+    r"[0-9.\s*]*"
+    r"(?!\s*vim:|\s*Next chapter:|\s*Copyright:|\s*Table of contents:|\s*Advance information about|$)"
+    r"(.+?)\s*(?:\*|~?$)"
 )
 RE_EG_START = re.compile(r"(?:.* )?>$")
 RE_EG_END = re.compile(r"[^ \t]")
@@ -124,6 +124,25 @@ class Link:
             f'<a href="{self.href(is_same_doc)}" class="{cssclass}">'
             f"{self._tag_escaped}</a>"
         )
+
+
+# Concealed chars in Vim still count towards hard tabs' spacing calculations even though
+# they are hidden. We need to count them so we can insert that many spaces before we
+# encounter a hard tab to nudge it to the right position. This class helps with that.
+class TabFixer:
+    def __init__(self):
+        self._accum_concealed_chars = 0
+
+    def incr_concealed_chars(self, num):
+        self._accum_concealed_chars += num
+
+    def fix_tabs(self, text):
+        if self._accum_concealed_chars > 0:
+            if (tab_index := text.find("\t")) != -1:
+                adjustment = " " * self._accum_concealed_chars
+                self._accum_concealed_chars = 0
+                return f"{text[:tab_index]}{adjustment}{text[tab_index:]}"
+        return text
 
 
 class VimH2H:
@@ -209,11 +228,9 @@ class VimH2H:
         sidebar_headings = []
         in_example = False
         for idx, line in enumerate(lines):
-            line_tabs = line
-            line = line.expandtabs()
-            prev_line_tabs = "" if idx == 0 else lines[idx - 1]
-            if prev_line_tabs == "" and idx > 1:
-                prev_line_tabs = lines[idx - 2]
+            prev_line = "" if idx == 0 else lines[idx - 1]
+            if prev_line == "" and idx > 1:
+                prev_line = lines[idx - 2]
             if in_example:
                 if RE_EG_END.match(line):
                     in_example = False
@@ -222,17 +239,17 @@ class VimH2H:
                 else:
                     out.extend(('<span class="e">', html_escape(line), "</span>\n"))
                     continue
-            if RE_HRULE.match(line_tabs):
+            if RE_HRULE.match(line):
                 out.extend(('<span class="h">', html_escape(line), "</span>\n"))
                 continue
-            if RE_EG_START.match(line_tabs):
+            if RE_EG_START.match(line):
                 in_example = True
                 line = line[:-1]
             span_opened = False
-            if m := RE_SECTION.match(line_tabs):
+            if m := RE_SECTION.match(line):
                 out.extend(('<span class="c">', m.group(1), "</span>"))
                 line = line[m.end(1) :]
-            elif RE_HRULE1.match(prev_line_tabs) and (m := RE_HEADING.match(line)):
+            elif RE_HRULE1.match(prev_line) and (m := RE_HEADING.match(line)):
                 heading = m.group(1)
                 if m := RE_STARTAG.search(line):
                     tag = m.group(1)
@@ -245,15 +262,16 @@ class VimH2H:
                     flask.Markup(f'<a href="#{tag_escaped}">{html_escape(heading)}</a>')
                 )
             is_faq_line = (
-                self._project is VimProject
-                and is_help_txt
-                and RE_LOCAL_ADD.match(line_tabs)
+                self._project is VimProject and is_help_txt and RE_LOCAL_ADD.match(line)
             )
             lastpos = 0
+
+            tab_fixer = TabFixer()
+
             for match in RE_TAGWORD.finditer(line):
                 pos = match.start()
                 if pos > lastpos:
-                    out.append(html_escape(line[lastpos:pos]))
+                    out.append(html_escape(tab_fixer.fix_tabs(line[lastpos:pos])))
                 lastpos = match.end()
                 # fmt: off
                 (header, graphic, pipeword, starword, command, opt, ctrl, special,
@@ -261,6 +279,7 @@ class VimH2H:
                 # fmt: on
                 if pipeword is not None:
                     out.append(self.maplink(pipeword, filename, "l"))
+                    tab_fixer.incr_concealed_chars(2)
                 elif starword is not None:
                     out.extend(
                         (
@@ -271,8 +290,10 @@ class VimH2H:
                             "</span>",
                         )
                     )
+                    tab_fixer.incr_concealed_chars(2)
                 elif command is not None:
                     out.extend(('<span class="e">', html_escape(command), "</span>"))
+                    tab_fixer.incr_concealed_chars(2)
                 elif opt is not None:
                     out.append(self.maplink(opt, filename, "o"))
                 elif ctrl is not None:
@@ -296,7 +317,7 @@ class VimH2H:
                 elif word is not None:
                     out.append(self.maplink(word, filename))
             if lastpos < len(line):
-                out.append(html_escape(line[lastpos:]))
+                out.append(html_escape(tab_fixer.fix_tabs(line[lastpos:])))
             if span_opened:
                 out.append("</span>")
             out.append("\n")
