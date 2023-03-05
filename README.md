@@ -3,20 +3,26 @@
 This is the code behind the https://vimhelp.org website. It runs on
 [Google App Engine](https://cloud.google.com/appengine/).
 
-## Running on Google App Engine
-
 To make testing and deploying easier, a `tasks.py` file exists for use
-with the [Invoke](https://www.pyinvoke.org/) tool.
+with the [_Invoke_](https://www.pyinvoke.org/) tool (which is similar in
+spirit to _Make_).
 
-## Generating static site
+## Generating static pages
 
-To generate a static site instead of running on Google App Engine, run the
-following (replace the `-i` parameter with the Vim documentation location on
-your computer):
+To generate static HTML pages instead of running on Google App Engine:
 
-    python3 -m venv --upgrade-deps .venv
-    .venv/bin/pip install -r requirements.txt
-    scripts/h2h.py -i /usr/share/vim/vim90/doc/ -o html/
+- Create a virtualenv. If you have _Invoke_ installed, this is as easy as
+  `inv venv`. Alternatively:
+  ```
+  python3 -m venv --upgrade-deps .venv
+  .venv/bin/pip install -r requirements.txt
+  ```
+- Run the following (replace the `-i` parameter with the Vim documentation
+  location on your computer):
+  ```
+  scripts/h2h.py -i /usr/share/vim/vim90/doc/ -o html/
+  ```
+  The script offers a few options; run with `-h` to see what is available.
 
 ## License
 
