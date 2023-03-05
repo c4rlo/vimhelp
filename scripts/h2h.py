@@ -2,7 +2,7 @@
 
 # This script is meant to be run from the top-level directory of the
 # repository, as 'scripts/h2h.py'. The virtualenv must already exist
-# (use "make venv" to create it).
+# (use "inv venv" to create it).
 
 import argparse
 import os.path

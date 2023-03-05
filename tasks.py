@@ -1,11 +1,13 @@
 # Use with https://www.pyinvoke.org/
 
-from invoke import task
+from invoke import call, task
 
 import os
 import pathlib
-import shutil
 import sys
+
+
+os.chdir(pathlib.Path(__file__).parent)
 
 
 VENV_DIR = pathlib.Path(".venv")
@@ -14,33 +16,42 @@ REQ_TXT = pathlib.Path("requirements.txt")
 PRIV_DIR = pathlib.Path("~/private").expanduser()
 STAGING_CREDENTIALS = PRIV_DIR / "gcloud-creds/vimhelp-staging-owner.json"
 
+PROJECT_STAGING = "vimhelp-staging"
+PROJECT_PROD = "vimhelp-hrd"
+
 DEV_ENV = {
     "PYTHONDEVMODE": "1",
-    # "PYTHONTRACEMALLOC": "1",
     "PYTHONWARNINGS": (
         "default,"
-        "ignore:unclosed:ResourceWarning:werkzeug.serving,"
-        "ignore:unclosed:ResourceWarning:flask.cli,"
-        "ignore:setDaemon:DeprecationWarning:gunicorn.reloader"
+        "ignore:unclosed:ResourceWarning:sys,"
+        "ignore:setDaemon:DeprecationWarning:gunicorn.reloader,"
+        "ignore:Deprecated call to `pkg_resources.:DeprecationWarning:pkg_resources,"
+        "ignore:Deprecated call to `pkg_resources.:DeprecationWarning:google.rpc"
     ),
     "VIMHELP_ENV": "dev",
-    "GOOGLE_CLOUD_PROJECT": "vimhelp-staging",
+    "FLASK_DEBUG": "1",
+    "GOOGLE_CLOUD_PROJECT": PROJECT_STAGING,
     "GOOGLE_APPLICATION_CREDENTIALS": str(STAGING_CREDENTIALS),
 }
 
 
-os.chdir(pathlib.Path(__file__).parent)
-
-
-@task
-def venv(c):
+@task(help={"lazy": "Only update venv if out-of-date wrt requirements.txt"})
+def venv(c, lazy=False):
     """Populate virtualenv."""
-    if not os.path.exists(VENV_DIR):
+    if not VENV_DIR.exists():
         c.run(f"python -m venv --upgrade-deps {VENV_DIR}")
         c.run(f"{VENV_DIR}/bin/pip install -U wheel")
-        print("Initialised venv.")
-    c.run(f"{VENV_DIR}/bin/pip install -U --upgrade-strategy eager -r {REQ_TXT}")
-    print("Updated venv.")
+        print("Created venv.")
+        lazy = False
+    if not lazy or REQ_TXT.stat().st_mtime > VENV_DIR.stat().st_mtime:
+        c.run(f"{VENV_DIR}/bin/pip install -U --upgrade-strategy eager -r {REQ_TXT}")
+        c.run(f"touch {VENV_DIR}")
+        print("Updated venv.")
+    else:
+        print("venv was already up-to-date.")
+
+
+venv_lazy = call(venv, lazy=True)
 
 
 @task
@@ -50,33 +61,43 @@ def lint(c):
     c.run("black --check .")
 
 
-@task(help={"gunicorn": "Run using gunicorn instead of 'flask run'"})
-def run(c, gunicorn=False):
-    """Run app locally against vimhelp-staging database."""
+@task(
+    pre=[venv_lazy],
+    help={
+        "gunicorn": "Run using gunicorn instead of 'flask run'",
+        "tracemalloc": "Run with tracemalloc enabled",
+    },
+)
+def run(c, gunicorn=False, tracemalloc=False):
+    """Run app locally against staging database."""
     _ensure_private_mount(c)
     if gunicorn:
-        cmd = (
-            f"{VENV_DIR}/bin/gunicorn -k gevent --reload "
-            "'vimhelp.webapp:create_app()'"
-        )
+        cmd = f"{VENV_DIR}/bin/gunicorn -c gunicorn.conf.dev.py"
     else:
         cmd = f"{VENV_DIR}/bin/flask --app vimhelp.webapp --debug run"
-    c.run(cmd, env=DEV_ENV)
+    if tracemalloc:
+        env = DEV_ENV | {"PYTHONTRACEMALLOC": "1"}
+    else:
+        env = DEV_ENV
+    c.run(cmd, env=env)
 
 
-@task
+@task(pre=[venv_lazy])
 def show_routes(c):
     """Show Flask routes."""
-    c.run(f"{VENV_DIR}/bin/flask --app vimhelp.webapp routes", env=DEV_ENV)
+    _ensure_private_mount(c)
+    c.run(f"{VENV_DIR}/bin/flask --app vimhelp.webapp --debug routes", env=DEV_ENV)
 
 
-# fmt: off
-@task(pre=[lint],
-      help={
-          "target":
-          "Target environment: 'staging' (default), 'prod', 'all' (= staging + prod)"
-      })
-# fmt: on
+@task(
+    pre=[lint],
+    help={
+        # fmt: off
+        "target": "Target environment: 'staging' (default), 'prod', "
+                  "'all' (= staging + prod)"
+        # fmt: on
+    },
+)
 def deploy(c, target="stage"):
     """Deploy app."""
     _ensure_private_mount(c)
@@ -86,9 +107,9 @@ def deploy(c, target="stage"):
         targets = (target,)
     for t in targets:
         if t == "stage":
-            cmd = "gcloud app deploy --quiet --project=vimhelp-staging"
+            cmd = f"gcloud app deploy --quiet --project={PROJECT_STAGING}"
         elif t == "prod":
-            cmd = "gcloud app deploy --project=vimhelp-hrd"
+            cmd = f"gcloud app deploy --project={PROJECT_PROD}"
         else:
             sys.exit(f"Invalid target name: '{t}'")
         c.run(cmd, pty=True)
@@ -97,9 +118,9 @@ def deploy(c, target="stage"):
 @task
 def clean(c):
     """Clean up build artefacts (virtualenv, __pycache__)."""
-    for d in VENV_DIR, pathlib.Path("vimhelp/__pycache__"):
+    for d in VENV_DIR, pathlib.Path("__pycache__"), pathlib.Path("vimhelp/__pycache__"):
         if d.exists():
-            shutil.rmtree(d)
+            c.run(f"rm -rf {d}")
 
 
 def _ensure_private_mount(c):
