@@ -31,7 +31,7 @@ NeovimProject.other = VimProject
 
 PROJECTS = {"vim": VimProject, "neovim": NeovimProject}
 
-FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">vim_faq.txt</a>   Frequently Asked Questions\n'
+FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">vim_faq.txt</a>\tFrequently Asked Questions\n'
 
 RE_TAGLINE = re.compile(r"(\S+)\s+(\S+)")
 
@@ -41,7 +41,7 @@ PAT_HEADER = r"(^.*~$)"
 PAT_GRAPHIC = r"(^.* `$)"
 PAT_PIPEWORD = r"(?<!\\)\|([#-)!+-{}~]+)\|"
 PAT_STARWORD = r"\*([#-)!+-~]+)\*(?:(?=\s)|$)"
-PAT_COMMAND = r"`([^` ]+)`"
+PAT_COMMAND = r"`([^` \t]+)`"
 PAT_OPTWORD = r"('(?:[a-z]{2,}|t_..)')"
 PAT_CTRL = r"((?:CTRL(?:-SHIFT)?|META|ALT)-(?:W_)?(?:\{char\}|<[A-Za-z]+?>|.)?)"
 PAT_SPECIAL = (
@@ -80,9 +80,9 @@ RE_NEWLINE = re.compile(r"[\r\n]")
 RE_HRULE = re.compile(r"(?:===.*===|---.*---)$")
 RE_HRULE1 = re.compile(r"===.*===$")
 RE_HEADING = re.compile(
-    r"[0-9. *]*"
-    r"(?! *vim:| *Next chapter:| *Copyright: | *Table of contents:| *Advance information about|$)"
-    r"(.+?) *(?:\*|~?$)"
+    r"[0-9.\s*]*"
+    r"(?!\s*vim:|\s*Next chapter:|\s*Copyright:|\s*Table of contents:|\s*Advance information about|$)"
+    r"(.+?)\s*(?:\*|~?$)"
 )
 RE_EG_START = re.compile(r"(?:.* )?>$")
 RE_EG_END = re.compile(r"[^ \t]")
