@@ -8,8 +8,8 @@ those are the only ones that get rendered dynamically with each request. #}
 <!-- {{project.favicon_notice}} -->
 
 {% if mode != "offline" %}
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.min.css" integrity="sha256-5Bc7so4pANTN9OUAfDQL+L8DqtkYp6h6zkkjh+ubgbw=" crossorigin="anonymous">
-<script defer src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.base.min.js" integrity="sha256-VeCH6ebBA+gAHG2QM4tOTOa04CpxQdsRtWPldi/dLQU=" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="{{static_dir}}tom-select-2.2.2.min.css">
+<script defer src="{{static_dir}}tom-select-2.2.2.base.min.js"></script>
 {% endif %}
 
 <link rel="stylesheet" href="{{static_dir}}vimhelp-v5.css" type="text/css">

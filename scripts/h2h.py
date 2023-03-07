@@ -130,23 +130,18 @@ def run(args):
 
     if args.out_dir is not None:
         print("Symlinking static files...")
-        symlinks = [
-            ("noscript.css", "noscript.css"),
-            ("vimhelp-v5.css", "vimhelp-v5.css"),
-            ("vimhelp-v5.js", "vimhelp-v5.js"),
-            ("favicon.ico", f"favicon-{args.project}.ico"),
-            ("theme-native-light.svg", "theme-native-light.svg"),
-            ("theme-light-light.svg", "theme-light-light.svg"),
-            ("theme-dark-light.svg", "theme-dark-light.svg"),
-            ("theme-native-dark.svg", "theme-native-dark.svg"),
-            ("theme-light-dark.svg", "theme-light-dark.svg"),
-            ("theme-dark-dark.svg", "theme-dark-dark.svg"),
-        ]
         static_dir_rel = os.path.relpath(root_path / "static", args.out_dir)
-        for link, target in symlinks:
-            src = pathlib.Path(args.out_dir / link)
+        for target in (root_path / "static").iterdir():
+            target_name = target.name
+            if target_name == f"favicon-{args.project}.ico":
+                src_name = "favicon.ico"
+            elif target_name.startswith("favicon-"):
+                continue
+            else:
+                src_name = target_name
+            src = pathlib.Path(args.out_dir / src_name)
             src.unlink(missing_ok=True)
-            src.symlink_to(f"{static_dir_rel}/{target}")
+            src.symlink_to(f"{static_dir_rel}/{target_name}")
 
     print("Done.")
 
