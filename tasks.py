@@ -25,6 +25,7 @@ DEV_ENV = {
         "default,"
         "ignore:unclosed:ResourceWarning:sys,"
         "ignore:setDaemon:DeprecationWarning:gunicorn.reloader,"
+        "ignore:pkg_resources is deprecated as an API:DeprecationWarning:pkg_resources,"
         "ignore:Deprecated call to `pkg_resources.:DeprecationWarning:pkg_resources,"
         "ignore:Deprecated call to `pkg_resources.:DeprecationWarning:google.rpc"
     ),
