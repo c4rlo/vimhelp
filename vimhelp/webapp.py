@@ -16,7 +16,7 @@ import os  # noqa: E402
 import pathlib  # noqa: E402
 
 
-_CSP = "default-src 'self' https://cdn.jsdelivr.net"
+_CSP = "default-src 'self'"
 
 _URL_PREFIX_REDIRECTS = (
     (
