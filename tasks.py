@@ -99,15 +99,15 @@ def show_routes(c):
         # fmt: on
     },
 )
-def deploy(c, target="stage"):
+def deploy(c, target="staging"):
     """Deploy app."""
     _ensure_private_mount(c)
     if target == "all":
-        targets = "stage", "prod"
+        targets = "staging", "prod"
     else:
         targets = (target,)
     for t in targets:
-        if t == "stage":
+        if t == "staging":
             cmd = f"gcloud app deploy --quiet --project={PROJECT_STAGING}"
         elif t == "prod":
             cmd = f"gcloud app deploy --project={PROJECT_PROD}"
