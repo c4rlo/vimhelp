@@ -213,7 +213,7 @@ class VimH2H:
             link = self._urls.get(tag)
             if link is None or link.filename != curr_filename:
                 return tag
-            tag + f"{base_tag}_{i}"
+            tag = f"{base_tag}_{i}"
             i += 1
 
     @staticmethod
