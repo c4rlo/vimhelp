@@ -53,7 +53,6 @@ def handle_vimhelp(filename, cache):
 
 def prepare_response(req, head, theme):
     resp = flask.Response(mimetype="text/html")
-    resp.charset = head.encoding
     resp.last_modified = head.modified
     resp.cache_control.max_age = 15 * 60
     resp.vary.add("Cookie")

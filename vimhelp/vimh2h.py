@@ -1,10 +1,12 @@
 # Translates Vim documentation to HTML
 
-import flask
 import functools
 import html
 import re
 import urllib.parse
+
+import flask
+import markupsafe
 
 
 class VimProject:
@@ -259,7 +261,9 @@ class VimH2H:
                     span_opened = True
                 tag_escaped = urllib.parse.quote_plus(tag)
                 sidebar_headings.append(
-                    flask.Markup(f'<a href="#{tag_escaped}">{html_escape(heading)}</a>')
+                    markupsafe.Markup(
+                        f'<a href="#{tag_escaped}">{html_escape(heading)}</a>'
+                    )
                 )
             is_faq_line = (
                 self._project is VimProject and is_help_txt and RE_LOCAL_ADD.match(line)
@@ -335,7 +339,7 @@ class VimH2H:
             filename=filename,
             static_dir=static_dir,
             helptxt=helptxt,
-            content=flask.Markup("".join(out)),
+            content=markupsafe.Markup("".join(out)),
             sidebar_headings=sidebar_headings,
         )
 
