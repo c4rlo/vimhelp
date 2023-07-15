@@ -2,8 +2,12 @@
 /.gitignore
 /.gcloudignore
 /.venv
+/.flake8
+/.ruff_cache
 /scripts
 /README.md
 /LICENSE
+/TODO
 /tasks.py
+/gunicorn.conf.dev.py
 __pycache__/
