@@ -34,6 +34,7 @@ NeovimProject.other = VimProject
 PROJECTS = {"vim": VimProject, "neovim": NeovimProject}
 
 FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">vim_faq.txt</a>\tFrequently Asked Questions\n'
+MATCHIT_LINE = '<a href="matchit.txt.html#matchit.txt" class="l">matchit.txt</a>\tExtended "%" matching\n'
 
 RE_TAGLINE = re.compile(r"(\S+)\s+(\S+)")
 
@@ -287,9 +288,7 @@ class VimH2H:
             if skip_to_col is not None:
                 line = line[skip_to_col:]
 
-            is_faq_line = (
-                self._project is VimProject and is_help_txt and RE_LOCAL_ADD.match(line)
-            )
+            is_local_additions = is_help_txt and RE_LOCAL_ADD.match(line)
             lastpos = 0
 
             tab_fixer = TabFixer()
@@ -347,7 +346,9 @@ class VimH2H:
             if span_opened:
                 out.append("</span>")
             out.append("\n")
-            if is_faq_line:
+
+            if is_local_additions and self._project is VimProject:
+                out.append(MATCHIT_LINE)
                 out.append(FAQ_LINE)
 
         static_dir = "/" if self._mode == "online" else ""

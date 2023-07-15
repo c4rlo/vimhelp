@@ -6,6 +6,7 @@
 import base64
 import datetime
 import hashlib
+import itertools
 import json
 import logging
 import os
@@ -45,8 +46,9 @@ from . import vimh2h
 CONCURRENCY = 5
 
 TAGS_NAME = "tags"
-FAQ_NAME = "vim_faq.txt"
 HELP_NAME = "help.txt"
+FAQ_NAME = "vim_faq.txt"
+MATCHIT_NAME = "matchit.txt"
 
 DOC_ITEM_RE = re.compile(r"(?:[-\w]+\.txt|tags)$")
 VERSION_TAG_RE = re.compile(r"v?(\d[\w.+-]+)$")
@@ -73,10 +75,20 @@ GITHUB_GRAPHQL_QUERIES = {
           }
         }
         """,
-    "GetDir": """
-        query GetDir($org: String!, $repo: String!, $expr: String!) {
+    "GetDirs": """
+        query GetDirs($org: String!, $repo: String!,
+                      $expr1: String!, $expr2: String!) {
           repository(owner: $org, name: $repo) {
-            object(expression: $expr) {
+            dir1: object(expression: $expr1) {
+              ... on Tree {
+                entries {
+                  type
+                  name
+                  oid
+                }
+              }
+            }
+            dir2: object(expression: $expr2) {
               ... on Tree {
                 entries {
                   type
@@ -210,7 +222,7 @@ class UpdateHandler(flask.views.MethodView):
         is_new_vim_version = self._g.vim_version_tag != old_vim_version_tag
 
         if is_master_updated:
-            # Kick off retrieval of 'runtime/doc' dir listing in GitHub. This is against
+            # Kick off retrieval of doc dirs listing in GitHub. This is against
             # the 'master' branch, since the docs often get updated after the tagged
             # commits that introduce the relevant changes.
             docdir_greenlet = self._spawn(self._list_docs_dir, self._g.master_sha)
@@ -223,11 +235,9 @@ class UpdateHandler(flask.views.MethodView):
 
         # Kick off FAQ download (this also writes the raw file to the datastore, if
         # modified)
-        faq_greenlet = self._spawn(
-            self._get_file, FAQ_NAME, "http", base_url=FAQ_BASE_URL
-        )
+        faq_greenlet = self._spawn(self._get_file, FAQ_NAME, "http")
 
-        # Iterate over 'runtime/doc' dir listing (which also updates the items in
+        # Iterate over doc dirs listing (which also updates the items in
         # 'self._rfi_map') and collect list of new/modified files
         if docdir_greenlet is None:
             logging.info("No need to get new doc dir listing")
@@ -322,7 +332,7 @@ class UpdateHandler(flask.views.MethodView):
         # Kick off retrieval of all RawFileInfo entities from the Datastore
         rfi_greenlet = self._spawn(self._get_all_rfi, no_rfi)
 
-        # Kick off retrieval of 'runtime/doc' dir listing in GitHub for the current
+        # Kick off retrieval of doc dirs listing in GitHub for the current
         # version.
         docdir_greenlet = self._spawn(self._list_docs_dir, self._g.vim_version_tag)
 
@@ -337,7 +347,7 @@ class UpdateHandler(flask.views.MethodView):
             version=version_from_tag(self._g.vim_version_tag),
         )
 
-        # Iterate over 'runtime/doc' dir listing (which also updates the items in
+        # Iterate over doc dirs listing (which also updates the items in
         # 'self._rfi_map'), kicking off retrieval of files and addition of help tags to
         # 'self._h2h'; file retrieval also includes writing the raw file to the
         # datastore if modified
@@ -436,17 +446,19 @@ class UpdateHandler(flask.views.MethodView):
     def _list_docs_dir(self, git_ref):
         """
         Generator that yields '(name: str, is_modified: bool)' pairs on iteration,
-        representing the set of filenames in the 'runtime/doc' directory of the current
+        representing the set of filenames in the 'runtime/doc' and
+        'runtime/pack/dist/opt/matchit/doc' directories of the current
         project, and whether each one is new/modified or not.
         'git_ref' is the Git ref to use when looking up the directory.
         This function both reads and writes 'self._rfi_map'.
         """
         response = self._github_graphql_request(
-            "GetDir",
+            "GetDirs",
             variables={
                 "org": self._project,
                 "repo": self._project,
-                "expr": git_ref + ":runtime/doc",
+                "expr1": git_ref + ":runtime/doc",
+                "expr2": git_ref + ":runtime/pack/dist/opt/matchit/doc",
             },
             etag=self._g.docdir_etag,
         )
@@ -458,8 +470,8 @@ class UpdateHandler(flask.views.MethodView):
         etag = response.header("ETag")
         self._g.docdir_etag = etag.encode() if etag is not None else None
         logging.info("%s doc dir modified, new etag is %s", self._project, etag)
-        resp = json.loads(response.body)["data"]
-        for item in resp["repository"]["object"]["entries"]:
+        resp = json.loads(response.body)["data"]["repository"]
+        for item in itertools.chain(resp["dir1"]["entries"], resp["dir2"]["entries"]):
             name = item["name"]
             if item["type"] != "blob" or not DOC_ITEM_RE.match(name):
                 continue
@@ -533,7 +545,7 @@ class UpdateHandler(flask.views.MethodView):
         result = self._get_file(name, sources)
         self._h2h.add_tags(name, result.content.decode())
 
-    def _get_file(self, name, sources, base_url=None):
+    def _get_file(self, name, sources):
         """
         Get file with given 'name' via HTTP and/or from the Datastore, based on
         'sources', which should be one of "http", "db", "http,db". If a new/modified
@@ -544,7 +556,7 @@ class UpdateHandler(flask.views.MethodView):
         sources_set = set(sources.split(","))
 
         if "http" in sources_set:
-            url = (base_url or self._download_url_base()) + name
+            url = self._download_url(name)
             headers = {}
             if rfi is None:
                 rfi = self._rfi_map[name] = RawFileInfo(
@@ -570,12 +582,15 @@ class UpdateHandler(flask.views.MethodView):
 
         return result
 
-    def _download_url_base(self):
-        sha = self._g.master_sha if self._project == "vim" else self._g.vim_version_tag
-        return (
-            GITHUB_DOWNLOAD_URL_BASE
-            + f"{self._project}/{self._project}/{sha}/runtime/doc/"
-        )
+    def _download_url(self, name):
+        if name == FAQ_NAME:
+            return FAQ_BASE_URL + FAQ_NAME
+        ref = self._g.master_sha if self._project == "vim" else self._g.vim_version_tag
+        base = f"{GITHUB_DOWNLOAD_URL_BASE}{self._project}/{self._project}/{ref}"
+        if name == MATCHIT_NAME:
+            return f"{base}/runtime/pack/dist/opt/matchit/doc/{name}"
+        else:
+            return f"{base}/runtime/doc/{name}"
 
     def _translate(self, name, content):
         """
