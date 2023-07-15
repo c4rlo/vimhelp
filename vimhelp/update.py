@@ -256,24 +256,29 @@ class UpdateHandler(flask.views.MethodView):
             faq_result = None
             faq_greenlet = self._spawn(self._get_file, FAQ_NAME, "db")
 
-        # Get tags file from GitHub or datastore, depending on whether it was changed
-        if TAGS_NAME in updated_file_names:
-            updated_file_names.remove(TAGS_NAME)
-            tags_greenlet = self._spawn(self._get_file, TAGS_NAME, "http,db")
-        else:
-            tags_greenlet = self._spawn(self._get_file, TAGS_NAME, "db")
+        # Get these files from GitHub or datastore, depending on whether they were
+        # changed
+        content_needed_greenlets = {}
+        for name in (TAGS_NAME, MATCHIT_NAME):
+            if name in updated_file_names:
+                updated_file_names.remove(name)
+                sources = "http,db"
+            else:
+                sources = "db"
+            content_needed_greenlets[name] = self._spawn(self._get_file, name, sources)
 
         if faq_result is None:
             faq_result = faq_greenlet.get()
 
-        tags_result = tags_greenlet.get()
+        tags_result = content_needed_greenlets[TAGS_NAME].get()
+        matchit_result = content_needed_greenlets[MATCHIT_NAME].get()
 
         logging.info("Beginning vimhelp-to-HTML translations")
 
         self._g.last_update_time = datetime.datetime.utcnow()
 
         # Construct the vimhelp-to-html translator, providing it the tags file content,
-        # and adding on the FAQ for extra tags
+        # and adding on the FAQ and matchit.txt for extra tags
         self._h2h = vimh2h.VimH2H(
             mode="online",
             project="vim",
@@ -281,6 +286,7 @@ class UpdateHandler(flask.views.MethodView):
             tags=tags_result.content.decode(),
         )
         self._h2h.add_tags(FAQ_NAME, faq_result.content.decode())
+        self._h2h.add_tags(MATCHIT_NAME, matchit_result.content.decode())
 
         greenlets = []
 
@@ -299,6 +305,10 @@ class UpdateHandler(flask.views.MethodView):
         # could lead to a different set of links in the FAQ)
         if faq_result.is_modified or tags_result.is_modified:
             track_spawn(self._translate, FAQ_NAME, faq_result.content)
+
+        # Likewise for matchit.txt
+        if matchit_result.is_modified or tags_result.is_modified:
+            track_spawn(self._translate, MATCHIT_NAME, matchit_result.content)
 
         # If we found a new vim version, ensure we translate help.txt, since we're
         # displaying the current vim version in the rendered help.txt.html
