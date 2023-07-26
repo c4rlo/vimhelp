@@ -1,0 +1,20 @@
+[project]
+name = "vimhelp"
+version = "0.1"
+dynamic = ["dependencies"]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+# Note that Google App Engine requires a requirements.txt file,
+# otherwise we'd just specify them directly in here.
+dependencies = { file = "requirements.txt" }
+
+[tool.ruff]
+select = ["E", "F", "W", "I002", "N", "UP", "S", "B", "A", "C4", "DTZ", "SIM", "PTH", "PLE", "PLW", "RUF"]
+ignore = ["DTZ003", "PLW0603", "SIM102", "SIM108", "UP007"]
+
+[tool.ruff.per-file-ignores]
+"vimhelp/vimh2h.py" = ["E501", "PLW2901"]

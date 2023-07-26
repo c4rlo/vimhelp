@@ -20,7 +20,7 @@ class HttpClient:
             response = client.get(url.request_uri, headers=headers)
         except Exception as e:
             logging.error(e)
-            raise HttpError(e, url)
+            raise HttpError(url) from e
         return HttpResponse(response, url)
 
     def post(self, url, json, headers):
@@ -32,7 +32,7 @@ class HttpClient:
             )
         except Exception as e:
             logging.error(e)
-            raise HttpError(e, url)
+            raise HttpError(url) from e
         return HttpResponse(response, url)
 
     def close(self):
@@ -55,9 +55,8 @@ class HttpResponse:
 
 
 class HttpError(RuntimeError):
-    def __init__(self, e, url):
-        self._e = e
+    def __init__(self, url):
         self._url = url
 
     def __str__(self):
-        return f"Failed HTTP request for {self._url}: {self._e}"
+        return f"Failed HTTP request for {self._url}"

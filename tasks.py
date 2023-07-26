@@ -24,10 +24,10 @@ DEV_ENV = {
     "PYTHONWARNINGS": (
         "default,"
         "ignore:unclosed:ResourceWarning:sys,"
-        "ignore:setDaemon:DeprecationWarning:gunicorn.reloader,"
-        "ignore:pkg_resources is deprecated as an API:DeprecationWarning:pkg_resources,"
+        "ignore:pkg_resources is deprecated as an API:DeprecationWarning:google.cloud.ndb,"  # noqa: E501
         "ignore:Deprecated call to `pkg_resources.:DeprecationWarning:pkg_resources,"
-        "ignore:Deprecated call to `pkg_resources.:DeprecationWarning:google.rpc"
+        "ignore:Deprecated call to `pkg_resources.:DeprecationWarning:google.rpc,"
+        "ignore:ssl.match_hostname():DeprecationWarning:geventhttpclient.connectionpool"
     ),
     "VIMHELP_ENV": "dev",
     "FLASK_DEBUG": "1",
@@ -57,8 +57,8 @@ venv_lazy = call(venv, lazy=True)
 
 @task
 def lint(c):
-    """Run linters (flake8, black)."""
-    c.run("flake8")
+    """Run linters (ruff, black)."""
+    c.run("ruff check .")
     c.run("black --check .")
 
 
@@ -118,9 +118,9 @@ def deploy(c, target="staging"):
 
 @task
 def clean(c):
-    """Clean up build artefacts (virtualenv, __pycache__)."""
-    for d in VENV_DIR, pathlib.Path("__pycache__"), pathlib.Path("vimhelp/__pycache__"):
-        if d.exists():
+    """Clean up build artefacts."""
+    for d in VENV_DIR, "__pycache__", "vimhelp/__pycache__", ".ruff_cache":
+        if pathlib.Path(d).exists():
             c.run(f"rm -rf {d}")
 
 

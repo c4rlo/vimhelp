@@ -197,11 +197,10 @@ class UpdateHandler(flask.views.MethodView):
                 id=self._project, last_update_time=datetime.datetime.utcnow()
             )
 
-        logging.info(
-            "%s global info: %s",
-            self._project,
-            ", ".join("{} = {}".format(n, getattr(g, n)) for n in g._properties.keys()),
+        gs = ", ".join(
+            f"{n} = {getattr(g, n)}" for n in g._properties.keys()  # noqa: SIM118
         )
+        logging.info("%s global info: %s", self._project, gs)
 
         return g
 
@@ -611,7 +610,7 @@ class UpdateHandler(flask.views.MethodView):
         logging.info(
             "Saving HTML translation of '%s:%s' to Datastore", self._project, name
         )
-        save_transactional([phead] + pparts)
+        save_transactional([phead, *pparts])
 
     def _get_all_rfi(self, no_rfi):
         if no_rfi:
@@ -710,7 +709,7 @@ def version_from_tag(version_tag):
 
 
 def sha1(content):
-    digest = hashlib.sha1()
+    digest = hashlib.sha1()  # noqa: S324
     digest.update(content)
     return digest.digest()
 

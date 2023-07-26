@@ -116,14 +116,14 @@ class Link:
             elif special is not None:
                 self._cssclass = "s"
 
-    @functools.cache
+    @functools.cache  # noqa: B019
     def href(self, is_same_doc):
         if self._tag_quoted is None:
             return self._htmlfilename
         doc = "" if is_same_doc else self._htmlfilename
         return f"{doc}#{self._tag_quoted}"
 
-    @functools.cache
+    @functools.cache  # noqa: B019
     def html(self, is_pipe, is_same_doc):
         cssclass = "l" if is_pipe else self._cssclass
         return (
@@ -163,6 +163,10 @@ class VimH2H:
                     tag, filename = m.group(1, 2)
                     self.do_add_tag(filename, tag)
         self._urls["help-tags"] = Link("tags", "tags.html", "help-tags")
+
+    def __del__(self):
+        Link.href.cache_clear()
+        Link.html.cache_clear()
 
     def add_tags(self, filename, contents):
         in_example = False

@@ -1,6 +1,6 @@
 Flask ~= 2.3
-gevent ~= 22.10
+gevent ~= 23.7
 geventhttpclient ~= 2.0
-google-cloud-ndb ~= 2.1
-google-cloud-tasks ~= 2.13
-gunicorn ~= 20.1
+google-cloud-ndb ~= 2.2
+google-cloud-tasks ~= 2.14
+gunicorn ~= 21.2
