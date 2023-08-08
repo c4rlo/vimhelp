@@ -480,10 +480,12 @@ class UpdateHandler(flask.views.MethodView):
         self._g.docdir_etag = etag.encode() if etag is not None else None
         logging.info("%s doc dir modified, new etag is %s", self._project, etag)
         resp = json.loads(response.body)["data"]["repository"]
+        done = set()  # "tags" filename exists in both dirs, only want first one
         for item in itertools.chain(resp["dir1"]["entries"], resp["dir2"]["entries"]):
             name = item["name"]
-            if item["type"] != "blob" or not DOC_ITEM_RE.match(name):
+            if item["type"] != "blob" or not DOC_ITEM_RE.match(name) or name in done:
                 continue
+            done.add(name)
             git_sha = item["oid"].encode()
             rfi = self._rfi_map.get(name)
             if rfi is None:
