@@ -682,7 +682,7 @@ def to_html(project, name, content, h2h):
 def save_raw_file(rfi, content):
     rfi_id = rfi.key.id()
     project, name = rfi_id.split(":")
-    if project == "neovim" or name in (HELP_NAME, FAQ_NAME, TAGS_NAME):
+    if project == "neovim" or name in (HELP_NAME, FAQ_NAME, TAGS_NAME, MATCHIT_NAME):
         logging.info("Saving raw file '%s' (info and content) to Datastore", rfi_id)
         rfc = RawFileContent(
             id=rfi_id, project=project, data=content, encoding=b"UTF-8"
