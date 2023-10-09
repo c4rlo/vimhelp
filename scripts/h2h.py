@@ -24,6 +24,7 @@ def main():
         "--in-dir",
         "-i",
         required=True,
+        nargs="+",
         type=pathlib.Path,
         help="Directory of Vim doc files",
     )
@@ -90,43 +91,46 @@ def main():
 
 
 def run(args):
-    if not args.in_dir.is_dir():
-        raise RuntimeError(f"{args.in_dir} is not a directory")
+    for in_dir in args.in_dir:
+        if not in_dir.is_dir():
+            raise RuntimeError(f"--in-dir argument {in_dir} is not a directory")
 
     prelude = VimH2H.prelude(theme=args.theme)
 
     mode = "hybrid" if args.web_version else "offline"
 
-    if not args.no_tags and (tags_file := args.in_dir / "tags").is_file():
-        print("Processing tags file...")
-        h2h = VimH2H(mode=mode, project=args.project, tags=tags_file.read_text())
-        faq = args.in_dir / "vim_faq.txt"
-        if faq.is_file():
-            print("Processing FAQ tags...")
-            h2h.add_tags(faq.name, faq.read_text())
-    else:
-        print("Initializing tags...")
-        h2h = VimH2H(mode=mode, project=args.project)
-        for infile in args.in_dir.iterdir():
-            if infile.suffix == ".txt":
-                h2h.add_tags(infile.name, infile.read_text())
-
     if args.out_dir is not None:
         args.out_dir.mkdir(exist_ok=True)
 
-    for infile in args.in_dir.iterdir():
-        if len(args.basenames) != 0 and infile.name not in args.basenames:
-            continue
-        if infile.suffix != ".txt" and infile.name != "tags":
-            print(f"Ignoring {infile}")
-            continue
-        content = infile.read_text()
-        print(f"Processing {infile}...")
-        html = h2h.to_html(infile.name, content)
-        if args.out_dir is not None:
-            with (args.out_dir / f"{infile.name}.html").open("w") as f:
-                f.write(prelude)
-                f.write(html)
+    for in_dir in args.in_dir:
+        if not args.no_tags and (tags_file := in_dir / "tags").is_file():
+            print("Processing tags file...")
+            h2h = VimH2H(mode=mode, project=args.project, tags=tags_file.read_text())
+            faq = in_dir / "vim_faq.txt"
+            if faq.is_file():
+                print("Processing FAQ tags...")
+                h2h.add_tags(faq.name, faq.read_text())
+        else:
+            print("Initializing tags...")
+            h2h = VimH2H(mode=mode, project=args.project)
+            for infile in in_dir.iterdir():
+                if infile.suffix == ".txt":
+                    h2h.add_tags(infile.name, infile.read_text())
+
+    for in_dir in args.in_dir:
+        for infile in in_dir.iterdir():
+            if len(args.basenames) != 0 and infile.name not in args.basenames:
+                continue
+            if infile.suffix != ".txt" and infile.name != "tags":
+                print(f"Ignoring {infile}")
+                continue
+            content = infile.read_text()
+            print(f"Processing {infile}...")
+            html = h2h.to_html(infile.name, content)
+            if args.out_dir is not None:
+                with (args.out_dir / f"{infile.name}.html").open("w") as f:
+                    f.write(prelude)
+                    f.write(html)
 
     if args.out_dir is not None:
         print("Symlinking static files...")
