@@ -46,11 +46,11 @@ PAT_PIPEWORD = r"(?<!\\)\|([#-)!+-{}~]+)\|"
 PAT_STARWORD = r"\*([#-)!+-~]+)\*(?:(?=\s)|$)"
 PAT_COMMAND = r"`([^` \t]+)`"
 PAT_OPTWORD = r"('(?:[a-z]{2,}|t_..)')"
-PAT_CTRL = r"((?:CTRL(?:-SHIFT)?|META|ALT)-(?:W_)?(?:\{char\}|<[A-Za-z]+?>|.)?)"
+PAT_CTRL = r"((?:CTRL(?:-SHIFT)?|META|ALT)-(?:W_)?(?:\{char\}|<[A-Za-z]+?>|Break|PageUp|PageDown|Insert|Del|.)?)"
 PAT_SPECIAL = (
     r"(<(?:[-a-zA-Z0-9_]+|[SCM]-.)>|\{.+?}|"
     r"\[(?:range|line|count|offset|\+?cmd|[-+]?num|\+\+opt|"
-    r"arg|arguments|ident|addr|group)]|"
+    r"arg|arguments|ident|addr|group)]|vim9\[cmd]|"
     r"(?<=\s)\[[-a-z^A-Z0-9_]{2,}])"
 )
 PAT_TITLE = r"(Vim version [0-9.a-z]+|N?VIM REFERENCE.*)"
@@ -90,8 +90,8 @@ RE_HEADING = re.compile(
 RE_EG_START = re.compile(r"(.* )?>(?:vim|lua)?$")
 RE_EG_END = re.compile(r"[^ \t]")
 RE_SECTION = re.compile(
-    r"(?!NOTE$|UTF-8.$|VALID.$|OLE.$|CTRL-|\.\.\.$)"
-    r"([A-Z.][-A-Z0-9 .,()_?]*?)\s*(?:\s\*|$)"
+    r"(?!NOTE$|UTF-8\.$|VALID\.$|OLE\.$|CTRL-|\.\.\.$)"
+    r"([A-Z.][-A-Z0-9 .,()_?']*?)\s*(?:\s\*|$)"
 )
 RE_STARTAG = re.compile(r'\*([^ \t"*]+)\*(?:\s|$)')
 RE_LOCAL_ADD = re.compile(r"LOCAL ADDITIONS:\s+\*local-additions\*$")
