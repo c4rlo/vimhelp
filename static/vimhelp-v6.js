@@ -1,5 +1,6 @@
 "use strict";
 
+
 // "Go to keyword" entry
 
 new TomSelect("#vh-select-tag", {
@@ -25,6 +26,7 @@ new TomSelect("#vh-select-tag", {
     }
 });
 
+
 // Theme switcher
 
 for (let theme of ["theme-native", "theme-light", "theme-dark"]) {
@@ -41,7 +43,7 @@ for (let theme of ["theme-native", "theme-light", "theme-dark"]) {
         const cookieDomain = location.hostname.replace(/^neo\./, "");
         const cookieExpiry = theme === "theme-native"
             ? "Tue, 01 Jan 1970 00:00:00 GMT"   // delete cookie
-            : "Tue, 19 Jan 2038 04:14:07 GMT";  // set "permanent" cookie
+            : "Fri, 31 Dec 9999 23:59:59 GMT";  // set "permanent" cookie
         document.cookie =
             `theme=${className}; Secure; Domain=${cookieDomain}; SameSite=Lax; Path=/; Expires=${cookieExpiry}`;
     });
@@ -66,7 +68,9 @@ document.getElementsByTagName("body")[0].addEventListener("click", (e) => {
 document.getElementById("theme-native").title = "Switch to native theme" +
     (matchMedia("(prefers-color-scheme: dark)").matches ? " (which is dark)" : " (which is light)");
 
-// hide sidebar when it wraps
+
+// Hide sidebar when it wraps
+
 const onResize = (e) => {
     const sidebar = document.getElementById("vh-sidebar");
     const sidebarTop = sidebar.getBoundingClientRect().top;
@@ -82,3 +86,27 @@ const onResize = (e) => {
 };
 addEventListener("resize", onResize);
 onResize();
+
+
+// Keyboard shortcuts
+// https://github.com/c4rlo/vimhelp/issues/28
+
+const onKeyDown = (e) => {
+    if (e.isComposing || e.keyCode === 229) {
+        // https://developer.mozilla.org/en-US/docs/Web/API/Element/keydown_event
+        return;
+    }
+    const a = document.activeElement;
+    if (a && (a.isContentEditable || a.tagName === "INPUT" || a.tagName === "SELECT")) {
+        return;
+    }
+    if (e.key === "k") {
+        e.preventDefault();
+        document.getElementById("vh-select-tag-ts-control").focus();
+    }
+    else if (e.key === "s") {
+        e.preventDefault();
+        document.getElementById("vh-srch-input").focus();
+    }
+};
+addEventListener("keydown", onKeyDown);
