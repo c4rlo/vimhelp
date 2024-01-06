@@ -30,11 +30,19 @@ class NeovimProject:
 VimProject.other = NeovimProject
 NeovimProject.other = VimProject
 
+NeovimProject.local_additions = """\
+<a href="matchit.txt.html#matchit.txt" class="l">matchit.txt</a>       Extended "%" matching
+"""
+
+# fmt: off
+VimProject.local_additions = NeovimProject.local_additions + """\
+<a href="editorconfig.txt.html#editorconfig.txt" class="l">editorconfig.txt</a>  EditorConfig plugin for vim.
+<a href="vim_faq.txt.html#vim_faq.txt" class="l">vim_faq.txt</a>       Frequently Asked Questions
+"""
+# fmt: on
+
 
 PROJECTS = {"vim": VimProject, "neovim": NeovimProject}
-
-FAQ_LINE = '<a href="vim_faq.txt.html#vim_faq.txt" class="l">vim_faq.txt</a>\tFrequently Asked Questions\n'
-MATCHIT_LINE = '<a href="matchit.txt.html#matchit.txt" class="l">matchit.txt</a>\tExtended "%" matching\n'
 
 RE_TAGLINE = re.compile(r"(\S+)\s+(\S+)")
 
@@ -94,7 +102,7 @@ RE_SECTION = re.compile(
     r"([A-Z.][-A-Z0-9 .,()_?']*?)\s*(?:\s\*|$)"
 )
 RE_STARTAG = re.compile(r'\*([^ \t"*]+)\*(?:\s|$)')
-RE_LOCAL_ADD = re.compile(r"LOCAL ADDITIONS:\s+\*local-additions\*$")
+RE_LOCAL_ADD = re.compile(r".*\s\*local-additions\*$")
 
 
 class Link:
@@ -351,9 +359,8 @@ class VimH2H:
                 out.append("</span>")
             out.append("\n")
 
-            if is_local_additions and self._project is VimProject:
-                out.append(MATCHIT_LINE)
-                out.append(FAQ_LINE)
+            if is_local_additions:
+                out.append(self._project.local_additions)
 
         static_dir = "/" if self._mode == "online" else ""
         helptxt = "./" if self._mode == "online" else "help.txt.html"

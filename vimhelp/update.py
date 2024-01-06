@@ -49,6 +49,8 @@ TAGS_NAME = "tags"
 HELP_NAME = "help.txt"
 FAQ_NAME = "vim_faq.txt"
 MATCHIT_NAME = "matchit.txt"
+EDITORCONFIG_NAME = "editorconfig.txt"
+EXTRA_NAMES = TAGS_NAME, MATCHIT_NAME, EDITORCONFIG_NAME
 
 DOC_ITEM_RE = re.compile(r"(?:[-\w]+\.txt|tags)$")
 VERSION_TAG_RE = re.compile(r"v?(\d[\w.+-]+)$")
@@ -77,25 +79,25 @@ GITHUB_GRAPHQL_QUERIES = {
         """,
     "GetDirs": """
         query GetDirs($org: String!, $repo: String!,
-                      $expr1: String!, $expr2: String!) {
+                      $expr1: String!, $expr2: String!, $expr3: String!) {
           repository(owner: $org, name: $repo) {
             dir1: object(expression: $expr1) {
-              ... on Tree {
-                entries {
-                  type
-                  name
-                  oid
-                }
-              }
+              ...treeEntries
             }
             dir2: object(expression: $expr2) {
-              ... on Tree {
-                entries {
-                  type
-                  name
-                  oid
-                }
-              }
+              ...treeEntries
+            }
+            dir3: object(expression: $expr3) {
+              ...treeEntries
+            }
+          }
+        }
+        fragment treeEntries on GitObject {
+          ...on Tree {
+            entries {
+              type
+              name
+              oid
             }
           }
         }
@@ -193,9 +195,7 @@ class UpdateHandler(flask.views.MethodView):
             gevent.joinall(greenlets)
 
         if not g:
-            g = GlobalInfo(
-                id=self._project, last_update_time=datetime.datetime.utcnow()
-            )
+            g = GlobalInfo(id=self._project, last_update_time=utcnow())
 
         gs = ", ".join(
             f"{n} = {getattr(g, n)}" for n in g._properties.keys()  # noqa: SIM118
@@ -255,37 +255,36 @@ class UpdateHandler(flask.views.MethodView):
             faq_result = None
             faq_greenlet = self._spawn(self._get_file, FAQ_NAME, "db")
 
-        # Get these files from GitHub or datastore, depending on whether they were
+        # Get extra files from GitHub or datastore, depending on whether they were
         # changed
-        content_needed_greenlets = {}
-        for name in (TAGS_NAME, MATCHIT_NAME):
+        extra_greenlets = {}
+        for name in EXTRA_NAMES:
             if name in updated_file_names:
                 updated_file_names.remove(name)
                 sources = "http,db"
             else:
                 sources = "db"
-            content_needed_greenlets[name] = self._spawn(self._get_file, name, sources)
+            extra_greenlets[name] = self._spawn(self._get_file, name, sources)
 
-        if faq_result is None:
-            faq_result = faq_greenlet.get()
-
-        tags_result = content_needed_greenlets[TAGS_NAME].get()
-        matchit_result = content_needed_greenlets[MATCHIT_NAME].get()
+        extra_results = {name: extra_greenlets[name].get() for name in EXTRA_NAMES}
+        extra_results[FAQ_NAME] = faq_result or faq_greenlet.get()
+        tags_result = extra_results[TAGS_NAME]
 
         logging.info("Beginning vimhelp-to-HTML translations")
 
-        self._g.last_update_time = datetime.datetime.utcnow()
+        self._g.last_update_time = utcnow()
 
         # Construct the vimhelp-to-html translator, providing it the tags file content,
-        # and adding on the FAQ and matchit.txt for extra tags
+        # and adding on the extra files from which to source more tags
         self._h2h = vimh2h.VimH2H(
             mode="online",
             project="vim",
             version=version_from_tag(self._g.vim_version_tag),
             tags=tags_result.content.decode(),
         )
-        self._h2h.add_tags(FAQ_NAME, faq_result.content.decode())
-        self._h2h.add_tags(MATCHIT_NAME, matchit_result.content.decode())
+        for name, result in extra_results.items():
+            if name != TAGS_NAME:
+                self._h2h.add_tags(name, result.content.decode())
 
         greenlets = []
 
@@ -293,21 +292,14 @@ class UpdateHandler(flask.views.MethodView):
             greenlets.append(self._spawn(f, *args, **kwargs))
 
         # Save tags JSON if we may have updated tags
-        if tags_result.is_modified or faq_result.is_modified:
+        if any(result.is_modified for result in extra_results.values()):
             track_spawn(self._save_tags_json)
 
-        # Translate tags file if it was modified
-        if tags_result.is_modified:
-            track_spawn(self._translate, TAGS_NAME, tags_result.content)
-
-        # Translate FAQ if it was modified, or if tags file was modified (because it
-        # could lead to a different set of links in the FAQ)
-        if faq_result.is_modified or tags_result.is_modified:
-            track_spawn(self._translate, FAQ_NAME, faq_result.content)
-
-        # Likewise for matchit.txt
-        if matchit_result.is_modified or tags_result.is_modified:
-            track_spawn(self._translate, MATCHIT_NAME, matchit_result.content)
+        # Translate each extra file if either it, or the tags file, was modified
+        # (a changed tags file can lead to different outgoing links)
+        for name, result in extra_results.items():
+            if result.is_modified or tags_result.is_modified:
+                track_spawn(self._translate, name, result.content)
 
         # If we found a new vim version, ensure we translate help.txt, since we're
         # displaying the current vim version in the rendered help.txt.html
@@ -348,7 +340,7 @@ class UpdateHandler(flask.views.MethodView):
         # Put all RawFileInfo entities into a map
         self._rfi_map = rfi_greenlet.get()
 
-        self._g.last_update_time = datetime.datetime.utcnow()
+        self._g.last_update_time = utcnow()
 
         self._h2h = vimh2h.VimH2H(
             mode="online",
@@ -456,8 +448,8 @@ class UpdateHandler(flask.views.MethodView):
         """
         Generator that yields '(name: str, is_modified: bool)' pairs on iteration,
         representing the set of filenames in the 'runtime/doc' and
-        'runtime/pack/dist/opt/matchit/doc' directories of the current
-        project, and whether each one is new/modified or not.
+        'runtime/pack/dist/opt/{matchit,editorconfig}/doc' directories (if they exist)
+        of the current project, and whether each one is new/modified or not.
         'git_ref' is the Git ref to use when looking up the directory.
         This function both reads and writes 'self._rfi_map'.
         """
@@ -468,6 +460,7 @@ class UpdateHandler(flask.views.MethodView):
                 "repo": self._project,
                 "expr1": git_ref + ":runtime/doc",
                 "expr2": git_ref + ":runtime/pack/dist/opt/matchit/doc",
+                "expr3": git_ref + ":runtime/pack/dist/opt/editorconfig/doc",
             },
             etag=self._g.docdir_etag,
         )
@@ -480,8 +473,9 @@ class UpdateHandler(flask.views.MethodView):
         self._g.docdir_etag = etag.encode() if etag is not None else None
         logging.info("%s doc dir modified, new etag is %s", self._project, etag)
         resp = json.loads(response.body)["data"]["repository"]
-        done = set()  # "tags" filename exists in both dirs, only want first one
-        for item in itertools.chain(resp["dir1"]["entries"], resp["dir2"]["entries"]):
+        done = set()  # "tags" filename exists in multiple dirs, only want first one
+        entries = [(resp[d] or {}).get("entries", []) for d in ("dir1", "dir2", "dir3")]
+        for item in itertools.chain(*entries):
             name = item["name"]
             if item["type"] != "blob" or not DOC_ITEM_RE.match(name) or name in done:
                 continue
@@ -600,6 +594,9 @@ class UpdateHandler(flask.views.MethodView):
         base = f"{GITHUB_DOWNLOAD_URL_BASE}{self._project}/{self._project}/{ref}"
         if name == MATCHIT_NAME:
             return f"{base}/runtime/pack/dist/opt/matchit/doc/{name}"
+        elif name == EDITORCONFIG_NAME and self._project == "vim":
+            # neovim has this file in its main doc dir
+            return f"{base}/runtime/pack/dist/opt/editorconfig/doc/{name}"
         else:
             return f"{base}/runtime/doc/{name}"
 
@@ -682,7 +679,7 @@ def to_html(project, name, content, h2h):
 def save_raw_file(rfi, content):
     rfi_id = rfi.key.id()
     project, name = rfi_id.split(":")
-    if project == "neovim" or name in (HELP_NAME, FAQ_NAME, TAGS_NAME, MATCHIT_NAME):
+    if project == "neovim" or name in (HELP_NAME, FAQ_NAME, *EXTRA_NAMES):
         logging.info("Saving raw file '%s' (info and content) to Datastore", rfi_id)
         rfc = RawFileContent(
             id=rfi_id, project=project, data=content, encoding=b"UTF-8"
@@ -716,12 +713,17 @@ def sha1(content):
     return digest.digest()
 
 
+def utcnow():
+    # datetime.datetime.utcnow() is deprecated; the following does the same thing
+    return datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+
+
 def handle_enqueue_update():
     req = flask.request
 
-    is_cron = req.headers.get("X-AppEngine-Cron") == "true"
+    is_cron = req.headers.get("X-Appengine-Cron") == "true"
 
-    # https://cloud.google.com/appengine/docs/standard/python3/scheduling-jobs-with-cron-yaml?hl=en_GB#validating_cron_requests
+    # https://cloud.google.com/appengine/docs/standard/scheduling-jobs-with-cron-yaml#securing_urls_for_cron
     if (
         not is_cron
         and os.environ.get("VIMHELP_ENV") != "dev"
