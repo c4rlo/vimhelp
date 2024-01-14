@@ -18,21 +18,24 @@ those are the only ones that get rendered dynamically with each request. #}
 </head>
 <body>
 
-{% set theme_switcher %}
-<div id="theme-switcher">
-  <button id="theme-current" title="Switch theme">Theme</button>
-  <div id="theme-dropdown"><ul>
-    <li><button id="theme-native" title="Switch to native theme">Native</button></li>
-    <li><button id="theme-light" title="Switch to light theme">Light</button></li>
-    <li><button id="theme-dark" title="Switch to dark theme">Dark</button></li>
-  </ul></div>
+{% set site_settings %}
+<div id="site-settings">
+  <div id="theme-selector" class="closed">
+    <button id="theme-current" title="Switch theme">Theme</button>
+    <div id="theme-dropdown"><ul>
+      <li><button id="theme-native" title="Switch to native theme">Native</button></li>
+      <li><button id="theme-light" title="Switch to light theme">Light</button></li>
+      <li><button id="theme-dark" title="Switch to dark theme">Dark</button></li>
+    </ul></div>
+  </div>
+  <button id="vhhelp-btn" title="Show keyboard shortcut help">?</button>
 </div>
 {% endset %}
 
 {% if mode != "offline" and filename == "help.txt" %}
 <div id="title-cont">
 <h1>{{project.name}} help files</h1>
-{{theme_switcher}}
+{{site_settings}}
 </div>
 <p>This is an HTML version of the <a href="{{project.url}}" target="_blank" rel="noopener noreferrer">{{project.name}}</a> help pages{% if version %}, current as of {{project.name}} {{version}}{% endif %}.
 They are kept up-to-date <a href="https://github.com/c4rlo/vimhelp" target="_blank" rel="noopener noreferrer" class="d">automatically</a>
@@ -69,9 +72,17 @@ Quick links:
     <input type="search" name="q" id="vh-srch-input" placeholder="Site search">
   </form>
   {% if filename != "help.txt" %}
-  {{theme_switcher}}
+  {{site_settings}}
   {% endif %}
 </div>
+<dialog id="vhhelp-dlg">
+  <h2>Keyboard shortcuts</h2>
+  <dl>
+    <div><dt>k</dt><dd>Go to keyword</dd></div>
+    <div><dt>s</dt><dd>Site search</dd></div>
+    <div><dt>?</dt><dd>Show this help</dd></div>
+  </dl>
+</dialog>
 {% else %}
 <p>{{sitenavi}}</p>
 {% endif %}

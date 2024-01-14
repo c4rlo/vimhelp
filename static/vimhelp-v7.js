@@ -49,7 +49,6 @@ srchInput.addEventListener("blur", (e) => {
 
 for (let theme of ["theme-native", "theme-light", "theme-dark"]) {
     document.getElementById(theme).addEventListener("click", (e) => {
-        console.log("selected theme:", theme);
         const [className, meta] = {
             "theme-native": [ "",      "light dark" ],
             "theme-light":  [ "light", "only light" ],
@@ -68,23 +67,33 @@ for (let theme of ["theme-native", "theme-light", "theme-dark"]) {
 }
 
 document.getElementById("theme-current").addEventListener("click", (e) => {
-    const themeDropdown = document.getElementById("theme-dropdown");
-    if (!themeDropdown.style.display) {
+    const selector = document.getElementById("theme-selector");
+    if (selector.className == "closed") {
         // if currently hidden, show it...
-        themeDropdown.style.display = "revert";
+        selector.className = "open";
         // ...and prevent the handler on <body> from running, which would hide it again.
         e.stopPropagation();
     }
 });
 
 document.getElementsByTagName("body")[0].addEventListener("click", (e) => {
-    // hide theme dropdown (vimhelp.css has it as "display: none")
-    document.getElementById("theme-dropdown").style.display = null;
+    // hide theme dropdown
+    document.getElementById("theme-selector").className = "closed";
+    // close help dialog, if open
+    document.getElementById("vhhelp-dlg").close();
 });
 
 // tweak native theme button tooltip
 document.getElementById("theme-native").title = "Switch to native theme" +
     (matchMedia("(prefers-color-scheme: dark)").matches ? " (which is dark)" : " (which is light)");
+
+
+// Help dialog
+document.getElementById("vhhelp-btn").addEventListener("click", (e) => {
+    document.getElementById("vhhelp-dlg").showModal();
+    // ...and prevent the handler on <body> from running, which would hide it again.
+    e.stopPropagation();
+});
 
 
 // Hide sidebar when it wraps
@@ -125,6 +134,16 @@ const onKeyDown = (e) => {
     else if (e.key === "s") {
         e.preventDefault();
         document.getElementById("vh-srch-input").focus();
+    }
+    else if (e.key === "?") {
+        e.preventDefault();
+        const dialog = document.getElementById("vhhelp-dlg");
+        if (dialog.open) {
+            dialog.close();
+        }
+        else {
+            dialog.showModal();
+        }
     }
 };
 addEventListener("keydown", onKeyDown);
