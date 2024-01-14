@@ -183,7 +183,7 @@ button#theme-current { font-weight: bold; }
 }
 
 /* Site search */
-.srch { flex: 20 20 25ch; max-width: 45ch; }
+.srch { flex: 20 20 25ch; max-width: 45ch; position: relative; }
 #vh-srch-input {
   background-color: var(--bg1);
   color: var(--fg1);
@@ -204,6 +204,29 @@ button#theme-current { font-weight: bold; }
 #vh-srch-input::placeholder {
   color: var(--fg4);
   opacity: 1;
+}
+
+.inlay-hint {
+  position: absolute;
+  display: flex;
+  z-index: 2;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  cursor: text;
+  opacity: 0.7;
+}
+.inlay-hint > kbd {
+  align-self: center;
+  margin-right: 4px;
+  padding: 2px 4px;
+  font-family: var(--font-mono);
+  font-size: 0.7em;
+  font-weight: bold;
+  background-color: #fff3;
+  border: 1px solid var(--bg2);
+  border-radius: 3px;
+  box-shadow: 0 2px 1px #0004, 0 1px #fff3 inset;
 }
 
 /* main = sidebar + content */

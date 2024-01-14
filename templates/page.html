@@ -61,12 +61,14 @@ Quick links:
 {% if mode != "offline" %}
 <div class="bar">
   <div class="ql">{{sitenavi}}</div>
-  <div class="srch" id="go-to-tag">
+  <div class="srch" id="go-to-tag" title="Keyboard shortcut 'k' to focus here">
     <select id="vh-select-tag"></select>
+    <div id="tag-kbd-hint" class="inlay-hint"><kbd>k</kbd></div>
   </div>
-  <form class="srch" action="https://duckduckgo.com" method="get" target="_blank" rel="noopener noreferrer">
+  <form class="srch" action="https://duckduckgo.com" method="get" target="_blank" rel="noopener noreferrer" title="Keyboard shortcut 's' to focus here">
     <input type="hidden" name="sites" value="{{project.vimdoc_site}}">
     <input type="search" name="q" id="vh-srch-input" placeholder="Site search">
+    <div id="ss-kbd-hint" class="inlay-hint"><kbd>s</kbd></div>
   </form>
   {% if filename != "help.txt" %}
   {{theme_switcher}}

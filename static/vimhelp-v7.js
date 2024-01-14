@@ -1,9 +1,15 @@
 "use strict";
 
 
+// "Go to keyword" & "Site search" keyboard hints
+
+const tagKbdHint = document.getElementById("tag-kbd-hint");
+const ssKbdHint = document.getElementById("ss-kbd-hint");
+
+
 // "Go to keyword" entry
 
-new TomSelect("#vh-select-tag", {
+const tagTS = new TomSelect("#vh-select-tag", {
     maxItems: 1,
     loadThrottle: 250,
     placeholder: "Go to keyword",
@@ -14,11 +20,13 @@ new TomSelect("#vh-select-tag", {
         ts.clearOptions();
         ts.settings.placeholder = "Go to keyword (type for autocomplete)";
         ts.inputState();
+        tagKbdHint.style.opacity = 0.2;
     },
     onBlur: () => {
         const ts = document.getElementById("vh-select-tag").tomselect;
         ts.settings.placeholder = "Go to keyword";
         ts.inputState();
+        tagKbdHint.style.opacity = 0.7;
     },
     shouldLoad: (query) => query.length >= 1,
     load: async (query, callback) => {
@@ -33,15 +41,25 @@ new TomSelect("#vh-select-tag", {
     }
 });
 
+tagKbdHint.addEventListener("click", (e) => {
+    tagTS.focus();
+});
+
 
 // "Site search" entry
 
 const srchInput = document.getElementById("vh-srch-input");
 srchInput.addEventListener("focus", (e) => {
     srchInput.placeholder = "Site search (opens new DuckDuckGo tab)";
+    ssKbdHint.style.opacity = 0.2;
 });
 srchInput.addEventListener("blur", (e) => {
     srchInput.placeholder = "Site search";
+    ssKbdHint.style.opacity = 0.7;
+});
+
+ssKbdHint.addEventListener("click", (e) => {
+    srchInput.focus();
 });
 
 
@@ -49,7 +67,6 @@ srchInput.addEventListener("blur", (e) => {
 
 for (let theme of ["theme-native", "theme-light", "theme-dark"]) {
     document.getElementById(theme).addEventListener("click", (e) => {
-        console.log("selected theme:", theme);
         const [className, meta] = {
             "theme-native": [ "",      "light dark" ],
             "theme-light":  [ "light", "only light" ],
