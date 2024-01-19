@@ -1,32 +1,16 @@
 "use strict";
 
 
-// "Go to keyword" & "Site search" keyboard hints
-
-const tagKbdHint = document.getElementById("tag-kbd-hint");
-const ssKbdHint = document.getElementById("ss-kbd-hint");
-
-
 // "Go to keyword" entry
 
 const tagTS = new TomSelect("#vh-select-tag", {
     maxItems: 1,
     loadThrottle: 250,
-    placeholder: "Go to keyword",
     valueField: "href",
     onFocus: () => {
         const ts = document.getElementById("vh-select-tag").tomselect;
         ts.clear();
         ts.clearOptions();
-        ts.settings.placeholder = "Go to keyword (type for autocomplete)";
-        ts.inputState();
-        tagKbdHint.style.opacity = 0.2;
-    },
-    onBlur: () => {
-        const ts = document.getElementById("vh-select-tag").tomselect;
-        ts.settings.placeholder = "Go to keyword";
-        ts.inputState();
-        tagKbdHint.style.opacity = 0.7;
     },
     shouldLoad: (query) => query.length >= 1,
     load: async (query, callback) => {
@@ -38,10 +22,16 @@ const tagTS = new TomSelect("#vh-select-tag", {
         if (value) {
             window.location = value;
         }
+    },
+    onType: (str) => {
+        const ts = document.getElementById("vh-select-tag").tomselect;
+        for (let p of document.querySelectorAll(".tag.srch .placeholder")) {
+            p.style.display = ts.query != "" ? "none" : null;
+        }
     }
 });
 
-tagKbdHint.addEventListener("click", (e) => {
+document.querySelector(".tag.srch .placeholder.blur").addEventListener("click", (e) => {
     tagTS.focus();
 });
 
@@ -49,16 +39,15 @@ tagKbdHint.addEventListener("click", (e) => {
 // "Site search" entry
 
 const srchInput = document.getElementById("vh-srch-input");
-srchInput.addEventListener("focus", (e) => {
-    srchInput.placeholder = "Site search (opens new DuckDuckGo tab)";
-    ssKbdHint.style.opacity = 0.2;
-});
-srchInput.addEventListener("blur", (e) => {
-    srchInput.placeholder = "Site search";
-    ssKbdHint.style.opacity = 0.7;
-});
+const onSsInput = (e) => {
+    for (let p of document.querySelectorAll(".site.srch .placeholder")) {
+        p.style.display = srchInput.value != "" ? "none" : null;
+    }
+};
+srchInput.addEventListener("keydown", onSsInput);
+srchInput.addEventListener("input", onSsInput);
 
-ssKbdHint.addEventListener("click", (e) => {
+document.querySelector(".site.srch .placeholder.blur").addEventListener("click", (e) => {
     srchInput.focus();
 });
 
