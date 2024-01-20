@@ -25,9 +25,7 @@ const tagTS = new TomSelect("#vh-select-tag", {
     },
     onType: (str) => {
         const ts = document.getElementById("vh-select-tag").tomselect;
-        for (let p of document.querySelectorAll(".tag.srch .placeholder")) {
-            p.style.display = ts.query != "" ? "none" : null;
-        }
+        document.querySelector(".tag.srch").classList.toggle("has-input", ts.query != "");
     }
 });
 
@@ -40,9 +38,7 @@ document.querySelector(".tag.srch .placeholder.blur").addEventListener("click", 
 
 const srchInput = document.getElementById("vh-srch-input");
 const onSsInput = (e) => {
-    for (let p of document.querySelectorAll(".site.srch .placeholder")) {
-        p.style.display = srchInput.value != "" ? "none" : null;
-    }
+    document.querySelector(".site.srch").classList.toggle("has-input", srchInput.value != "");
 };
 srchInput.addEventListener("keydown", onSsInput);
 srchInput.addEventListener("input", onSsInput);

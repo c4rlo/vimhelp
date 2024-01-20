@@ -98,6 +98,10 @@
   :root.light #theme-dark { background-image: url("theme-dark-light.svg"); }
 }
 
+@media (pointer: none), (pointer: coarse) {
+  .not-mobile { display: none; }
+}
+
 html {
   line-height: 1.15;
   font-family: var(--font-serif);
@@ -182,8 +186,9 @@ button#theme-current { font-weight: bold; }
   position: relative;
   flex: 20 20 25ch;
   max-width: 45ch;
-  overflow: hidden;
+  overflow-x: hidden;
 }
+.srch ::placeholder { opacity: 0; }
 #vh-srch-input {
   background-color: var(--bg1);
   color: var(--fg1);
@@ -213,7 +218,7 @@ button#theme-current { font-weight: bold; }
   cursor: text;
   color: var(--fg4);
 }
-.placeholder > kbd {
+.placeholder kbd {
   margin-right: 1px;
   padding: 2px 4px;
   font-family: var(--font-mono);
@@ -232,6 +237,9 @@ button#theme-current { font-weight: bold; }
 }
 .srch:focus-within .placeholder.blur {
   display: none;
+}
+.srch.has-input .placeholder {
+  display: none !important;
 }
 
 /* main = sidebar + content */

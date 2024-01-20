@@ -1,1 +1,2 @@
-#theme-switcher, .tag.srch { display: none; }
+#theme-switcher, .tag.srch, .placeholder { display: none !important; }
+.site.srch ::placeholder { opacity: revert; }

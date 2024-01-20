@@ -61,15 +61,15 @@ Quick links:
 {% if mode != "offline" %}
 <div class="bar">
   <div class="ql">{{sitenavi}}</div>
-  <div class="tag srch" title="Keyboard shortcut 'k' to focus here">
+  <div class="tag srch">
     <select id="vh-select-tag"></select>
-    <div class="placeholder blur">Go&nbsp;to&nbsp;keyword&nbsp;(shortcut:&nbsp;<kbd>k</kbd>)</div>
+    <div class="placeholder blur">Go&nbsp;to&nbsp;keyword<span class="not-mobile">&nbsp;(shortcut:&nbsp;<kbd>k</kbd>)</span></div>
     <div class="placeholder focus">Go&nbsp;to&nbsp;keyword&nbsp;(type&nbsp;for&nbsp;autocomplete)</div>
   </div>
-  <form class="site srch" action="https://duckduckgo.com" method="get" target="_blank" rel="noopener noreferrer" title="Keyboard shortcut 's' to focus here">
+  <form class="site srch" action="https://duckduckgo.com" method="get" target="_blank" rel="noopener noreferrer">
     <input type="hidden" name="sites" value="{{project.vimdoc_site}}">
-    <input type="search" name="q" id="vh-srch-input">
-    <div class="placeholder blur">Site&nbsp;search&nbsp;(shortcut:&nbsp;<kbd>s</kbd>)</div>
+    <input type="search" name="q" id="vh-srch-input" placeholder="Site search">
+    <div class="placeholder blur">Site&nbsp;search<span class="not-mobile">&nbsp;(shortcut:&nbsp;<kbd>s</kbd>)</span></div>
     <div class="placeholder focus">Site&nbsp;search&nbsp;(opens&nbsp;new&nbsp;DuckDuckGo&nbsp;tab)</div>
   </form>
   {% if filename != "help.txt" %}

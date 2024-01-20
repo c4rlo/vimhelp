@@ -11,3 +11,4 @@
 /tasks.py
 /gunicorn.conf.dev.py
 __pycache__/
+html/
