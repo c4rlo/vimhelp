@@ -14,20 +14,33 @@ const tagTS = new TomSelect("#vh-select-tag", {
     },
     shouldLoad: (query) => query.length >= 1,
     load: async (query, callback) => {
-        const url = "/api/tagsearch?q=" + encodeURIComponent(query);
+        let url = "/api/tagsearch?q=" + encodeURIComponent(query);
+        if (document.location.protocol === "file:") {
+            url = "http://127.0.0.1:5000" + url;
+        }
         const resp = await fetch(url);
-        callback((await resp.json()).results);
+        const respJson = await resp.json();
+        callback(respJson.results);
     },
     onChange: (value) => {
         if (value) {
             window.location = value;
         }
-    },
-    onType: (str) => {
-        const ts = document.getElementById("vh-select-tag").tomselect;
-        document.querySelector(".tag.srch").classList.toggle("has-input", ts.query != "");
     }
 });
+
+const tagInput = document.getElementById("vh-select-tag-ts-control");
+const onTagInput = (e) => {
+    console.log(`${e.type}: value='${tagInput.value}'`);
+    const hasInput = tagInput.value != "";
+    document.querySelector(".tag.srch").classList.toggle("has-input", hasInput);
+    if (!hasInput) {
+        console.log("closing dropdown");
+        tagTS.close();
+    }
+};
+tagInput.addEventListener("input", onTagInput);
+tagInput.addEventListener("blur", onTagInput);
 
 document.querySelector(".tag.srch .placeholder.blur").addEventListener("click", (e) => {
     tagTS.focus();
@@ -40,7 +53,6 @@ const srchInput = document.getElementById("vh-srch-input");
 const onSsInput = (e) => {
     document.querySelector(".site.srch").classList.toggle("has-input", srchInput.value != "");
 };
-srchInput.addEventListener("keydown", onSsInput);
 srchInput.addEventListener("input", onSsInput);
 
 document.querySelector(".site.srch .placeholder.blur").addEventListener("click", (e) => {
@@ -57,7 +69,7 @@ for (let theme of ["theme-native", "theme-light", "theme-dark"]) {
             "theme-light":  [ "light", "only light" ],
             "theme-dark":   [ "dark",  "only dark" ]
         }[theme];
-        document.getElementsByTagName("html")[0].className = className;
+        document.documentElement.className = className;
         document.querySelector('meta[name="color-scheme"]').content = meta;
 
         const cookieDomain = location.hostname.replace(/^neo\./, "");
@@ -79,7 +91,7 @@ document.getElementById("theme-current").addEventListener("click", (e) => {
     }
 });
 
-document.getElementsByTagName("body")[0].addEventListener("click", (e) => {
+document.body.addEventListener("click", (e) => {
     // hide theme dropdown (vimhelp.css has it as "display: none")
     document.getElementById("theme-dropdown").style.display = null;
 });

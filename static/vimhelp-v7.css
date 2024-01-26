@@ -186,9 +186,13 @@ button#theme-current { font-weight: bold; }
   position: relative;
   flex: 20 20 25ch;
   max-width: 45ch;
-  overflow-x: hidden;
+  overflow: hidden;
 }
-.srch ::placeholder { opacity: 0; }
+.srch.has-input { overflow: revert; }
+.srch ::placeholder {
+  color: var(--fg4);
+  opacity: 0;
+}
 #vh-srch-input {
   background-color: var(--bg1);
   color: var(--fg1);
@@ -197,6 +201,7 @@ button#theme-current { font-weight: bold; }
   height: 28px;
   width: 100%;
   line-height: 28px;
+  padding-top: 3px;
   padding-left: 8px;
   padding-right: 20px;
   font-family: var(--font-serif);
@@ -212,11 +217,12 @@ button#theme-current { font-weight: bold; }
   display: flex;
   align-items: center;
   z-index: 2;
-  left: 7px;
+  left: 9px;
   top: 2px;
   bottom: 0;
   cursor: text;
   color: var(--fg4);
+  white-space: nowrap;
 }
 .placeholder kbd {
   margin-right: 1px;

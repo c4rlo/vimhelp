@@ -37,6 +37,8 @@ _URL_PREFIX_REDIRECTS = (
 
 _WARMUP_PATH = "/_ah/warmup"
 
+g_is_dev = False
+
 
 def create_app():
     from . import cache
@@ -62,8 +64,9 @@ def create_app():
     app.jinja_options["trim_blocks"] = True
     app.jinja_options["lstrip_blocks"] = True
 
-    is_dev = os.environ.get("VIMHELP_ENV") == "dev"
-    if not is_dev:
+    global g_is_dev
+    g_is_dev = os.environ.get("VIMHELP_ENV") == "dev"
+    if not g_is_dev:
         app.config["PREFERRED_URL_SCHEME"] = "https"
 
     @app.before_request
@@ -124,7 +127,7 @@ def create_app():
 
     app.register_blueprint(bp, name="vim")
 
-    if is_dev:
+    if g_is_dev:
         app.register_blueprint(bp, name="neovim", url_prefix="/neovim")
 
     app.after_request(_add_default_headers)
@@ -142,5 +145,6 @@ def _add_default_headers(response: flask.Response) -> flask.Response:
     # The following is needed for local dev scenarios where one is accessing an HTML
     # file on disk ('file://' protocol) and wants it to be able to consume the tagsearch
     # API.
-    # h.setdefault("Access-Control-Allow-Origin", "*")
+    if g_is_dev:
+        h.setdefault("Access-Control-Allow-Origin", "*")
     return response
