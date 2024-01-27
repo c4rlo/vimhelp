@@ -7,6 +7,7 @@ const tagTS = new TomSelect("#vh-select-tag", {
     maxItems: 1,
     loadThrottle: 250,
     valueField: "href",
+    placeholder: "Go to keyword (type for autocomplete)",
     onFocus: () => {
         const ts = document.getElementById("vh-select-tag").tomselect;
         ts.clear();
@@ -29,20 +30,7 @@ const tagTS = new TomSelect("#vh-select-tag", {
     }
 });
 
-const tagInput = document.getElementById("vh-select-tag-ts-control");
-const onTagInput = (e) => {
-    console.log(`${e.type}: value='${tagInput.value}'`);
-    const hasInput = tagInput.value != "";
-    document.querySelector(".tag.srch").classList.toggle("has-input", hasInput);
-    if (!hasInput) {
-        console.log("closing dropdown");
-        tagTS.close();
-    }
-};
-tagInput.addEventListener("input", onTagInput);
-tagInput.addEventListener("blur", onTagInput);
-
-document.querySelector(".tag.srch .placeholder.blur").addEventListener("click", (e) => {
+document.querySelector(".tag.srch .placeholder").addEventListener("click", (e) => {
     tagTS.focus();
 });
 
@@ -50,12 +38,11 @@ document.querySelector(".tag.srch .placeholder.blur").addEventListener("click", 
 // "Site search" entry
 
 const srchInput = document.getElementById("vh-srch-input");
-const onSsInput = (e) => {
-    document.querySelector(".site.srch").classList.toggle("has-input", srchInput.value != "");
-};
-srchInput.addEventListener("input", onSsInput);
-
-document.querySelector(".site.srch .placeholder.blur").addEventListener("click", (e) => {
+srchInput.placeholder = "Site search (opens new DuckDuckGo tab)";
+srchInput.addEventListener("blur", (e) => {
+    srchInput.value = "";
+});
+document.querySelector(".site.srch .placeholder").addEventListener("click", (e) => {
     srchInput.focus();
 });
 

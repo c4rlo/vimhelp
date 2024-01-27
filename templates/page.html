@@ -63,14 +63,12 @@ Quick links:
   <div class="ql">{{sitenavi}}</div>
   <div class="tag srch need-js">
     <select id="vh-select-tag"></select>
-    <div class="placeholder blur">Go to keyword<span class="not-mobile">&nbsp;(shortcut: <kbd>k</kbd>)</span></div>
-    <div class="placeholder focus">Go to keyword (type for autocomplete)</div>
+    <div class="placeholder">Go to keyword<span class="not-mobile">&nbsp;(shortcut: <kbd>k</kbd>)</span></div>
   </div>
   <form class="site srch" action="https://duckduckgo.com" method="get" target="_blank" rel="noopener noreferrer">
     <input type="hidden" name="sites" value="{{project.vimdoc_site}}">
     <input type="search" name="q" id="vh-srch-input" placeholder="Site search">
-    <div class="placeholder blur need-js">Site search<span class="not-mobile">&nbsp;(shortcut: <kbd>s</kbd>)</span></div>
-    <div class="placeholder focus">Site search (opens new DuckDuckGo tab)</div>
+    <div class="placeholder need-js">Site search<span class="not-mobile">&nbsp;(shortcut: <kbd>s</kbd>)</span></div>
   </form>
   {% if filename != "help.txt" %}
   {{theme_switcher}}

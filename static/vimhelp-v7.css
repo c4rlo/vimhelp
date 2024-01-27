@@ -188,10 +188,14 @@ button#theme-current { font-weight: bold; }
   max-width: 45ch;
   overflow: hidden;
 }
-.srch.has-input { overflow: revert; }
+.srch:focus-within { overflow: revert; }
 .srch ::placeholder {
   color: var(--fg4);
+  font-family: var(--font-serif);
   opacity: 0;
+}
+.srch input:focus::placeholder {
+  opacity: 1;
 }
 #vh-srch-input {
   background-color: var(--bg1);
@@ -225,6 +229,8 @@ button#theme-current { font-weight: bold; }
   white-space: nowrap;
 }
 .placeholder kbd {
+  position: relative;
+  top: -1px;
   margin-right: 1px;
   padding: 2px 4px;
   font-family: var(--font-mono);
@@ -235,17 +241,8 @@ button#theme-current { font-weight: bold; }
   border-radius: 3px;
   box-shadow: 0 2px 1px #0004, 0 1px #fff3 inset;
 }
-.placeholder.focus {
+.srch:focus-within .placeholder {
   display: none;
-}
-.srch:focus-within .placeholder.focus {
-  display: flex;
-}
-.srch:focus-within .placeholder.blur {
-  display: none;
-}
-.srch.has-input .placeholder {
-  display: none !important;
 }
 
 /* main = sidebar + content */
