@@ -69,12 +69,11 @@ def main():
     app = flask.Flask(
         __name__,
         root_path=pathlib.Path(__file__).resolve().parent,
-        static_url_path="",
-        static_folder="../static",
-        template_folder="../templates",
+        template_folder="../vimhelp/templates",
     )
     app.jinja_options["trim_blocks"] = True
     app.jinja_options["lstrip_blocks"] = True
+    app.jinja_env.filters["static_path"] = lambda p: p
 
     with app.app_context():
         if args.profile:
@@ -129,19 +128,16 @@ def run(args):
                 f.write(html)
 
     if args.out_dir is not None:
-        print("Symlinking static files...")
-        static_dir_rel = os.path.relpath(root_path / "static", args.out_dir)
-        for target in (root_path / "static").iterdir():
+        print("Symlinking/creating static files...")
+        static_dir = root_path / "vimhelp" / "static"
+        static_dir_rel = os.path.relpath(static_dir, args.out_dir)
+        for target in static_dir.iterdir():
             target_name = target.name
-            if target_name == f"favicon-{args.project}.ico":
-                src_name = "favicon.ico"
-            elif target_name.startswith("favicon-"):
-                continue
-            else:
-                src_name = target_name
-            src = pathlib.Path(args.out_dir / src_name)
+            src = args.out_dir / target_name
             src.unlink(missing_ok=True)
             src.symlink_to(f"{static_dir_rel}/{target_name}")
+        css = flask.render_template("vimhelp.css")
+        (args.out_dir / "vimhelp.css").write_text(css)
 
     print("Done.")
 

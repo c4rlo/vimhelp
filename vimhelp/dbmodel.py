@@ -36,8 +36,8 @@ class GlobalInfo(ndb.Model):
 # Tags, for use with the "go to tag" feature; key name is "vim" or "neovim".
 class TagsInfo(ndb.Model):
     tags = ndb.JsonProperty(json_type=list)
-    # Map from vimhelp tag to (site-relative) link. Looks like this:
-    # [ ["t": "motion.txt#t"], ["perl": "if_perl.txt#perl"], ... ]
+    # Pairs of vimhelp tag and (site-relative) link. Looks like this:
+    # [ ["t", "motion.txt#t"], ["perl", "if_perl.txt#perl"], ... ]
 
 
 # Info related to an unprocessed documentation file from the repository; key name is
@@ -89,8 +89,12 @@ class ProcessedFileHead(ndb.Model):
     data0 = ndb.BlobProperty(required=True)
     # Contents of the first (and possibly only) part
 
+    used_assets = ndb.JsonProperty(json_type=list, indexed=True)
+    # Names and hashes of assets used by this HTML file. List elements match the
+    # key names of "Asset" entities.
 
-# Part of a processed file; keyname is "{project}:{basename}:{partnum}", e.g.
+
+# Part of a processed file; key name is "{project}:{basename}:{partnum}", e.g.
 # "neovim:help.txt:1".
 # This chunking is necessary because the maximum entity size in the Datastore is 1 MB:
 # see https://cloud.google.com/datastore/docs/concepts/limits
@@ -105,3 +109,15 @@ class ProcessedFilePart(ndb.Model):
     # Same value as corresponding 'ProcessedFileHead.etag'. Used when retrieving the
     # 'ProcessedFileHead' and all its 'ProcessedFilePart's to ensure that they were
     # retrieved consistently.
+
+
+# Versioned static asset; key name is "{basename}:{hash}", e.g. "vimhelp.js:d34db33f".
+class Asset(ndb.Model):
+    data = ndb.BlobProperty(required=True)
+    # Contents
+
+    create_time = ndb.DateTimeProperty(required=True, indexed=False, auto_now_add=True)
+    # Time this entity was created
+
+    unused_time = ndb.DateTimeProperty(indexed=False)
+    # Time as of which this entity is no longer in use

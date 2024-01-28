@@ -32,8 +32,10 @@ from .dbmodel import (
     ndb_context,
 )
 from .http import HttpClient, HttpResponse
+from . import assets
 from . import secret
 from . import vimh2h
+
 
 # Once we have consumed about ten minutes of CPU time, Google will throw us a
 # DeadlineExceededError and our script terminates. Therefore, we must be careful with
@@ -145,6 +147,8 @@ class UpdateHandler(flask.views.MethodView):
         logging.info(
             "Starting %supdate for %s", "forced " if is_force else "", self._project
         )
+
+        assets.ensure_curr_assets_in_db()
 
         self._app = flask.current_app._get_current_object()
         self._http_client = HttpClient(CONCURRENCY)
@@ -657,7 +661,11 @@ def to_html(project, name, content, h2h):
     etag = base64.b64encode(sha1(html))
     datalen = len(html)
     phead = ProcessedFileHead(
-        id=f"{project}:{name}", project=project, encoding=b"UTF-8", etag=etag
+        id=f"{project}:{name}",
+        project=project,
+        encoding=b"UTF-8",
+        etag=etag,
+        used_assets=assets.curr_asset_ids(),
     )
     pparts = []
     if datalen > PFD_MAX_PART_LEN:

@@ -15,6 +15,7 @@ class VimProject:
     url = "https://www.vim.org/"
     vimdoc_site = "vimhelp.org"
     doc_src_url = "https://github.com/vim/vim/tree/master/runtime/doc"
+    favicon = "favicon-vim.ico"
     favicon_notice = "favicon is based on http://amnoid.de/tmp/vim_solidbright_512.png and is used with permission by its author"
 
 
@@ -24,6 +25,7 @@ class NeovimProject:
     url = "https://neovim.io/"
     vimdoc_site = "neo.vimhelp.org"
     doc_src_url = "https://github.com/neovim/neovim/tree/master/runtime/doc"
+    favicon = "favicon-neovim.ico"
     favicon_notice = "favicon taken from https://neovim.io/favicon.ico, which is licensed under CC-BY-3.0: https://creativecommons.org/licenses/by/3.0/"
 
 
@@ -113,7 +115,7 @@ class Link:
             self._tag_quoted = None
         else:
             self._tag_quoted = urllib.parse.quote_plus(tag)
-        self._tag_escaped = html_escape(tag)
+        self._tag_escaped = _html_escape(tag)
         self._cssclass = "d"
         if m := RE_LINKWORD.match(tag):
             opt, ctrl, special = m.groups()
@@ -211,9 +213,9 @@ class VimH2H:
             is_same_doc = links.filename == curr_filename
             return links.html(is_pipe, is_same_doc)
         elif css_class is not None:
-            return f'<span class="{css_class}">{html_escape(tag)}</span>'
+            return f'<span class="{css_class}">{_html_escape(tag)}</span>'
         else:
-            return html_escape(tag)
+            return _html_escape(tag)
 
     def synthesize_tag(self, curr_filename, text):
         def xform(c):
@@ -257,11 +259,11 @@ class VimH2H:
                     if line[0] == "<":
                         line = line[1:]
                 else:
-                    out.extend(('<span class="e">', html_escape(line), "</span>\n"))
+                    out.extend(('<span class="e">', _html_escape(line), "</span>\n"))
                     continue
 
             if RE_HRULE.match(line):
-                out.extend(('<span class="h">', html_escape(line), "</span>\n"))
+                out.extend(('<span class="h">', _html_escape(line), "</span>\n"))
                 continue
 
             if m := RE_EG_START.match(line):
@@ -293,7 +295,7 @@ class VimH2H:
                 tag_escaped = urllib.parse.quote_plus(tag)
                 sidebar_headings.append(
                     markupsafe.Markup(
-                        f'<a href="#{tag_escaped}">{html_escape(heading)}</a>'
+                        f'<a href="#{tag_escaped}">{_html_escape(heading)}</a>'
                     )
                 )
 
@@ -308,7 +310,7 @@ class VimH2H:
             for match in RE_TAGWORD.finditer(line):
                 pos = match.start()
                 if pos > lastpos:
-                    out.append(html_escape(tab_fixer.fix_tabs(line[lastpos:pos])))
+                    out.append(_html_escape(tab_fixer.fix_tabs(line[lastpos:pos])))
                 lastpos = match.end()
                 # fmt: off
                 (header, graphic, pipeword, starword, command, opt, ctrl, special,
@@ -323,13 +325,13 @@ class VimH2H:
                             '<span id="',
                             urllib.parse.quote_plus(starword),
                             '" class="t">',
-                            html_escape(starword),
+                            _html_escape(starword),
                             "</span>",
                         )
                     )
                     tab_fixer.incr_concealed_chars(2)
                 elif command is not None:
-                    out.extend(('<span class="e">', html_escape(command), "</span>"))
+                    out.extend(('<span class="e">', _html_escape(command), "</span>"))
                     tab_fixer.incr_concealed_chars(2)
                 elif opt is not None:
                     out.append(self.maplink(opt, filename, "o"))
@@ -338,23 +340,23 @@ class VimH2H:
                 elif special is not None:
                     out.append(self.maplink(special, filename, "s"))
                 elif title is not None:
-                    out.extend(('<span class="i">', html_escape(title), "</span>"))
+                    out.extend(('<span class="i">', _html_escape(title), "</span>"))
                 elif note is not None:
-                    out.extend(('<span class="n">', html_escape(note), "</span>"))
+                    out.extend(('<span class="n">', _html_escape(note), "</span>"))
                 elif header is not None:
                     out.extend(
-                        ('<span class="h">', html_escape(header[:-1]), "</span>")
+                        ('<span class="h">', _html_escape(header[:-1]), "</span>")
                     )
                 elif graphic is not None:
-                    out.append(html_escape(graphic[:-2]))
+                    out.append(_html_escape(graphic[:-2]))
                 elif url is not None:
                     out.extend(
-                        ('<a class="u" href="', url, '">', html_escape(url), "</a>")
+                        ('<a class="u" href="', url, '">', _html_escape(url), "</a>")
                     )
                 elif word is not None:
                     out.append(self.maplink(word, filename))
             if lastpos < len(line):
-                out.append(html_escape(tab_fixer.fix_tabs(line[lastpos:])))
+                out.append(_html_escape(tab_fixer.fix_tabs(line[lastpos:])))
             if span_opened:
                 out.append("</span>")
             out.append("\n")
@@ -362,7 +364,6 @@ class VimH2H:
             if is_local_additions:
                 out.append(self._project.local_additions)
 
-        static_dir = "/" if self._mode == "online" else ""
         helptxt = "./" if self._mode == "online" else "help.txt.html"
 
         return flask.render_template(
@@ -371,7 +372,6 @@ class VimH2H:
             project=self._project,
             version=self._version,
             filename=filename,
-            static_dir=static_dir,
             helptxt=helptxt,
             content=markupsafe.Markup("".join(out)),
             sidebar_headings=sidebar_headings,
@@ -379,5 +379,5 @@ class VimH2H:
 
 
 @functools.cache
-def html_escape(s):
+def _html_escape(s):
     return html.escape(s, quote=False)

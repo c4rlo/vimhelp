@@ -3,21 +3,25 @@
 
 // "Go to keyword" entry
 
-new TomSelect("#vh-select-tag", {
+const tagTS = new TomSelect("#vh-select-tag", {
     maxItems: 1,
     loadThrottle: 250,
-    placeholder: "Go to keyword",
     valueField: "href",
+    placeholder: "Go to keyword (type for autocomplete)",
     onFocus: () => {
-        const self = document.getElementById("vh-select-tag").tomselect;
-        self.clear();
-        self.clearOptions();
+        const ts = document.getElementById("vh-select-tag").tomselect;
+        ts.clear();
+        ts.clearOptions();
     },
     shouldLoad: (query) => query.length >= 1,
     load: async (query, callback) => {
-        const url = "/api/tagsearch?q=" + encodeURIComponent(query);
+        let url = "/api/tagsearch?q=" + encodeURIComponent(query);
+        if (document.location.protocol === "file:") {
+            url = "http://127.0.0.1:5000" + url;
+        }
         const resp = await fetch(url);
-        callback((await resp.json()).results);
+        const respJson = await resp.json();
+        callback(respJson.results);
     },
     onChange: (value) => {
         if (value) {
@@ -26,18 +30,33 @@ new TomSelect("#vh-select-tag", {
     }
 });
 
+document.querySelector(".tag.srch .placeholder").addEventListener("click", (e) => {
+    tagTS.focus();
+});
+
+
+// "Site search" entry
+
+const srchInput = document.getElementById("vh-srch-input");
+srchInput.placeholder = "Site search (opens new DuckDuckGo tab)";
+srchInput.addEventListener("blur", (e) => {
+    srchInput.value = "";
+});
+document.querySelector(".site.srch .placeholder").addEventListener("click", (e) => {
+    srchInput.focus();
+});
+
 
 // Theme switcher
 
 for (let theme of ["theme-native", "theme-light", "theme-dark"]) {
     document.getElementById(theme).addEventListener("click", (e) => {
-        console.log("selected theme:", theme);
         const [className, meta] = {
             "theme-native": [ "",      "light dark" ],
             "theme-light":  [ "light", "only light" ],
             "theme-dark":   [ "dark",  "only dark" ]
         }[theme];
-        document.getElementsByTagName("html")[0].className = className;
+        document.documentElement.className = className;
         document.querySelector('meta[name="color-scheme"]').content = meta;
 
         const cookieDomain = location.hostname.replace(/^neo\./, "");
@@ -59,7 +78,7 @@ document.getElementById("theme-current").addEventListener("click", (e) => {
     }
 });
 
-document.getElementsByTagName("body")[0].addEventListener("click", (e) => {
+document.body.addEventListener("click", (e) => {
     // hide theme dropdown (vimhelp.css has it as "display: none")
     document.getElementById("theme-dropdown").style.display = null;
 });

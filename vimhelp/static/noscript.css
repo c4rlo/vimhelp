@@ -1,0 +1,4 @@
+.need-js { display: none !important; }
+.site.srch ::placeholder {
+  opacity: 1 !important;
+}

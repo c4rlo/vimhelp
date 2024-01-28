@@ -25,10 +25,13 @@ handlers:
 - url: /(?:robots|sitemap)\.txt
   script: auto
   secure: always
+- url: /s/.+
+  script: auto
+  secure: always
 - url: /favicon\.ico
   script: auto
   secure: always
-- url: /(?:enqueue_)?update
+- url: /(?:enqueue_)?(?:update|clean_assets)
   script: auto
   secure: always
 - url: /_ah/warmup

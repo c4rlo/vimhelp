@@ -41,6 +41,7 @@ g_is_dev = False
 
 
 def create_app():
+    from . import assets
     from . import cache
     from . import robots
     from . import tagsearch
@@ -53,21 +54,18 @@ def create_app():
 
     cache = cache.Cache()
 
-    app = flask.Flask(
-        "vimhelp",
-        root_path=package_path,
-        static_url_path="",
-        static_folder="../static",
-        template_folder="../templates",
-    )
+    app = flask.Flask("vimhelp", root_path=package_path, static_folder=None)
 
     app.jinja_options["trim_blocks"] = True
     app.jinja_options["lstrip_blocks"] = True
+    app.jinja_env.filters["static_path"] = assets.static_path
 
     global g_is_dev
     g_is_dev = os.environ.get("VIMHELP_ENV") == "dev"
     if not g_is_dev:
         app.config["PREFERRED_URL_SCHEME"] = "https"
+
+    assets.init(app)
 
     @app.before_request
     def before():
@@ -105,6 +103,13 @@ def create_app():
             do_warmup(project)
         return flask.Response()
 
+    app.add_url_rule(
+        "/clean_assets", view_func=assets.CleanAssetsHandler.as_view("clean_assets")
+    )
+    app.add_url_rule(
+        "/enqueue_clean_assets", view_func=assets.handle_enqueue_clean_assets
+    )
+
     bp = flask.Blueprint("bp", "vimhelp", root_path=package_path)
 
     @bp.route("/<filename>.html")
@@ -112,13 +117,19 @@ def create_app():
     def vimhelp_filename(filename):
         return vimhelp.handle_vimhelp(filename, cache)
 
+    @bp.route("/s/<hash_>/<filename>")
+    def static_filename(hash_, filename):
+        return assets.handle_static(filename, hash_)
+
     @bp.route("/api/tagsearch")
     def vimhelp_tagsearch():
         return tagsearch.handle_tagsearch(cache)
 
     @bp.route("/favicon.ico")
     def favicon():
-        return app.send_static_file(f"favicon-{flask.g.project}.ico")
+        return assets.handle_static(
+            f"favicon-{flask.g.project}.ico", None, immutable=False
+        )
 
     bp.add_url_rule("/robots.txt", view_func=robots.handle_robots_txt)
     bp.add_url_rule("/sitemap.txt", view_func=robots.handle_sitemap_txt)

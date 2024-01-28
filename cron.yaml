@@ -5,3 +5,6 @@ cron:
 - description: fetch and process neovim docs
   url: /enqueue_update?project=neovim
   schedule: every 32 minutes
+- description: clean up old static asset versions
+  url: /enqueue_clean_assets
+  schedule: every 33 minutes

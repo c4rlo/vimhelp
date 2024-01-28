@@ -10,7 +10,7 @@
   --fg1: #3c3836;
   --fg4: #7c6f64;
   --blue: #076678;
-  --blue_lighter: #288799; /* 13% lighter than blue above */
+  --blue-lighter: #288799; /* 13% lighter than blue above */
   --green: #79740e;
   --aqua: #427b58;
   --orange: #af3a03;
@@ -22,10 +22,10 @@
   --font-mono: monospace, monospace;
 }
 
-#theme-current { background-image: url("theme-native-light.svg"); }
-#theme-native { background-image: url("theme-native-light.svg"); }
-#theme-light { background-image: url("theme-light-light.svg"); }
-#theme-dark { background-image: url("theme-dark-light.svg"); }
+#theme-current { background-image: url({{"theme-native-light.svg"|static_path}}); }
+#theme-native { background-image: url({{"theme-native-light.svg"|static_path}}); }
+#theme-light { background-image: url({{"theme-light-light.svg"|static_path}}); }
+#theme-dark { background-image: url({{"theme-dark-light.svg"|static_path}}); }
 
 :root.dark {
   /* gruvbox-dark-hard colours */
@@ -37,7 +37,7 @@
   --fg1: #ebdbb2;
   --fg4: #a89984;
   --blue: #83a598;
-  --blue_lighter: #a4c6b9; /* 13% lighter than blue above */
+  --blue-lighter: #a4c6b9; /* 13% lighter than blue above */
   --green: #b8bb26;
   --aqua: #8ec07c;
   --orange: #fe8019;
@@ -46,10 +46,10 @@
   --red: #fb4934;
 }
 
-:root.dark #theme-current { background-image: url("theme-dark-dark.svg"); }
-:root.dark #theme-native { background-image: url("theme-native-dark.svg"); }
-:root.dark #theme-light { background-image: url("theme-light-dark.svg"); }
-:root.dark #theme-dark { background-image: url("theme-dark-dark.svg"); }
+:root.dark #theme-current { background-image: url({{"theme-dark-dark.svg"|static_path}}); }
+:root.dark #theme-native { background-image: url({{"theme-native-dark.svg"|static_path}}); }
+:root.dark #theme-light { background-image: url({{"theme-light-dark.svg"|static_path}}); }
+:root.dark #theme-dark { background-image: url({{"theme-dark-dark.svg"|static_path}}); }
 
 @media (prefers-color-scheme: dark) {
   :root {
@@ -62,7 +62,7 @@
     --fg1: #ebdbb2;
     --fg4: #a89984;
     --blue: #83a598;
-    --blue_lighter: #a4c6b9; /* 13% lighter than blue above */
+    --blue-lighter: #a4c6b9; /* 13% lighter than blue above */
     --green: #b8bb26;
     --aqua: #8ec07c;
     --orange: #fe8019;
@@ -70,10 +70,10 @@
     --yellow: #fabd2f;
     --red: #fb4934;
   }
-  #theme-current { background-image: url("theme-native-dark.svg"); }
-  #theme-native { background-image: url("theme-native-dark.svg"); }
-  #theme-light { background-image: url("theme-light-dark.svg"); }
-  #theme-dark { background-image: url("theme-dark-dark.svg"); }
+  #theme-current { background-image: url({{"theme-native-dark.svg"|static_path}}); }
+  #theme-native { background-image: url({{"theme-native-dark.svg"|static_path}}); }
+  #theme-light { background-image: url({{"theme-light-dark.svg"|static_path}}); }
+  #theme-dark { background-image: url({{"theme-dark-dark.svg"|static_path}}); }
   :root.light {
     /* gruvbox-light-hard colours */
     --bg0: #f9f5d7;
@@ -84,7 +84,7 @@
     --fg1: #3c3836;
     --fg4: #7c6f64;
     --blue: #076678;
-    --blue_lighter: #288799; /* 13% lighter than blue above */
+    --blue-lighter: #288799; /* 13% lighter than blue above */
     --green: #79740e;
     --aqua: #427b58;
     --orange: #af3a03;
@@ -92,10 +92,14 @@
     --yellow: #b57614;
     --red: #9d0006;
   }
-  :root.light #theme-current { background-image: url("theme-light-light.svg"); }
-  :root.light #theme-native { background-image: url("theme-native-light.svg"); }
-  :root.light #theme-light { background-image: url("theme-light-light.svg"); }
-  :root.light #theme-dark { background-image: url("theme-dark-light.svg"); }
+  :root.light #theme-current { background-image: url({{"theme-light-light.svg"|static_path}}); }
+  :root.light #theme-native { background-image: url({{"theme-native-light.svg"|static_path}}); }
+  :root.light #theme-light { background-image: url({{"theme-light-light.svg"|static_path}}); }
+  :root.light #theme-dark { background-image: url({{"theme-dark-light.svg"|static_path}}); }
+}
+
+@media (pointer: none), (pointer: coarse) {
+  .not-mobile { display: none; }
 }
 
 html {
@@ -142,6 +146,7 @@ button#theme-current { font-weight: bold; }
   font-family: var(--font-mono);
   font-size: 1em;
   line-height: 28px;
+  cursor: revert !important;
   padding-top: 0px;
   padding-left: 8px;
   padding-right: 20px;
@@ -157,11 +162,7 @@ button#theme-current { font-weight: bold; }
   color: var(--fg1);
   font-size: 1em;
   font-family: var(--font-mono);
-}
-.ts-control > input::placeholder {
-  color: var(--fg4);
-  opacity: 1;
-  font-family: var(--font-serif);
+  cursor: revert !important;
 }
 .ts-dropdown {
   font-family: var(--font-mono);
@@ -181,7 +182,21 @@ button#theme-current { font-weight: bold; }
 }
 
 /* Site search */
-.srch { flex: 20 20 25ch; max-width: 45ch; }
+.srch {
+  position: relative;
+  flex: 20 20 25ch;
+  max-width: 45ch;
+  overflow: hidden;
+}
+.srch:focus-within { overflow: revert; }
+.srch ::placeholder {
+  color: var(--fg4);
+  font-family: var(--font-serif);
+  opacity: 0;
+}
+.srch input:focus::placeholder {
+  opacity: 1;
+}
 #vh-srch-input {
   background-color: var(--bg1);
   color: var(--fg1);
@@ -190,6 +205,7 @@ button#theme-current { font-weight: bold; }
   height: 28px;
   width: 100%;
   line-height: 28px;
+  padding-top: 3px;
   padding-left: 8px;
   padding-right: 20px;
   font-family: var(--font-serif);
@@ -199,9 +215,34 @@ button#theme-current { font-weight: bold; }
   border: 1px solid var(--bg4);
   outline: none;
 }
-#vh-srch-input::placeholder {
+
+.placeholder {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  z-index: 2;
+  left: 9px;
+  top: 2px;
+  bottom: 0;
+  cursor: text;
   color: var(--fg4);
-  opacity: 1;
+  white-space: nowrap;
+}
+.placeholder kbd {
+  position: relative;
+  top: -1px;
+  margin-right: 1px;
+  padding: 2px 4px;
+  font-family: var(--font-mono);
+  font-size: 0.7em;
+  font-weight: bold;
+  background-color: #fff3;
+  border: 1px solid var(--bg2);
+  border-radius: 3px;
+  box-shadow: 0 2px 1px #0004, 0 1px #fff3 inset;
+}
+.srch:focus-within .placeholder {
+  display: none;
 }
 
 /* main = sidebar + content */
@@ -248,7 +289,7 @@ main {
 
 /* standard links (also includes <a class="l">) */
 a:where(:link, :visited) { color: var(--blue); }
-a:where(:active, :hover) { color: var(--blue_lighter); }
+a:where(:active, :hover) { color: var(--blue-lighter); }
 
 /* de-emphasized links */
 a.d { color: var(--fg1); }
