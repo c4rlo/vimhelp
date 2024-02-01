@@ -1,6 +1,27 @@
 "use strict";
 
 
+// Hide sidebar when it wraps
+
+const onResize = (e) => {
+    const sidebar = document.getElementById("vh-sidebar");
+    const sidebarTop = sidebar.getBoundingClientRect().top;
+    const contentBottom = document.getElementById("vh-content").getBoundingClientRect().bottom;
+    if (sidebarTop >= contentBottom - 4) {
+        sidebar.style.visibility = "hidden";
+        sidebar.style.height = "0px";
+    }
+    else {
+        sidebar.style.visibility = null;
+        sidebar.style.height = null;
+    }
+};
+addEventListener("resize", onResize);
+onResize();
+
+
+{% if mode != "offline" %}
+
 // "Go to keyword" entry
 
 const tagTS = new TomSelect("#vh-select-tag", {
@@ -88,25 +109,6 @@ document.getElementById("theme-native").title = "Switch to native theme" +
     (matchMedia("(prefers-color-scheme: dark)").matches ? " (which is dark)" : " (which is light)");
 
 
-// Hide sidebar when it wraps
-
-const onResize = (e) => {
-    const sidebar = document.getElementById("vh-sidebar");
-    const sidebarTop = sidebar.getBoundingClientRect().top;
-    const contentBottom = document.getElementById("vh-content").getBoundingClientRect().bottom;
-    if (sidebarTop >= contentBottom - 4) {
-        sidebar.style.visibility = "hidden";
-        sidebar.style.height = "0px";
-    }
-    else {
-        sidebar.style.visibility = null;
-        sidebar.style.height = null;
-    }
-};
-addEventListener("resize", onResize);
-onResize();
-
-
 // Keyboard shortcuts
 // https://github.com/c4rlo/vimhelp/issues/28
 
@@ -129,3 +131,5 @@ const onKeyDown = (e) => {
     }
 };
 addEventListener("keydown", onKeyDown);
+
+{% endif %}

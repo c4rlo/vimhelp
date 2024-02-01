@@ -136,8 +136,9 @@ def run(args):
             src = args.out_dir / target_name
             src.unlink(missing_ok=True)
             src.symlink_to(f"{static_dir_rel}/{target_name}")
-        css = flask.render_template("vimhelp.css")
-        (args.out_dir / "vimhelp.css").write_text(css)
+        for name in "vimhelp.css", "vimhelp.js":
+            content = flask.render_template(name, mode=mode)
+            (args.out_dir / name).write_text(content)
 
     print("Done.")
 

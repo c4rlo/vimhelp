@@ -29,10 +29,10 @@ def init(app):
     for asset in _asset_resources().iterdir():
         _add_curr_asset(asset.name, asset.read_bytes())
 
-    css_name = "vimhelp.css"
     with app.app_context():
-        css_content = flask.render_template(css_name).encode()
-    _add_curr_asset(css_name, css_content)
+        for name in "vimhelp.css", "vimhelp.js":
+            content = flask.render_template(name, mode="online").encode()
+            _add_curr_asset(name, content)
 
 
 def handle_static(name, hash_, immutable=True):
