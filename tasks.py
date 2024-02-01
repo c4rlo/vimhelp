@@ -95,11 +95,12 @@ def show_routes(c):
     help={
         # fmt: off
         "target": "Target environment: 'staging' (default), 'prod', "
-                  "'all' (= staging + prod)"
+                  "'all' (= staging + prod)",
+        "cron":   "Deploy cron.yaml instead of main app"
         # fmt: on
     },
 )
-def deploy(c, target="staging"):
+def deploy(c, target="staging", cron=False):
     """Deploy app."""
     _ensure_private_mount(c)
     if target == "all":
@@ -113,6 +114,8 @@ def deploy(c, target="staging"):
             cmd = f"gcloud app deploy --project={PROJECT_PROD}"
         else:
             sys.exit(f"Invalid target name: '{t}'")
+        if cron:
+            cmd += " cron.yaml"
         c.run(cmd, pty=True)
 
 
