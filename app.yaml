@@ -10,34 +10,10 @@ automatic_scaling:
 
 entrypoint: gunicorn -b :$PORT -k gevent -w 1 'vimhelp.webapp:create_app()'
 
-default_expiration: "1h"
-
 inbound_services:
 - warmup
 
 handlers:
-- url: /(?:.*\.html)?
+- url: /.*
   script: auto
-  secure: always
-- url: /api/.+
-  script: auto
-  secure: always
-- url: /(?:robots|sitemap)\.txt
-  script: auto
-  secure: always
-- url: /s/.+
-  script: auto
-  secure: always
-- url: /favicon\.ico
-  script: auto
-  secure: always
-- url: /(?:enqueue_)?(?:update|clean_assets)
-  script: auto
-  secure: always
-- url: /_ah/warmup
-  script: auto
-  secure: always
-- url: /(.+)
-  static_files: static/\1
-  upload: static/(.*)
   secure: always
