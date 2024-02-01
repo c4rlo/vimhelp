@@ -107,7 +107,7 @@ def _get_asset(name, hash_):
             return curr_content
     with dbmodel.ndb_context():
         if asset := dbmodel.Asset.get_by_id(f"{name}:{hash_}"):
-            return asset.content
+            return asset.data
     return None
 
 
