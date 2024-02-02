@@ -1,8 +1,5 @@
 # Regularly scheduled update: check which files need updating and translate them
 
-# Ugh, the GitHub GraphQL API does not seem to support ETag:
-# https://github.com/github-community/community/discussions/10799
-
 import base64
 import datetime
 import hashlib
@@ -47,6 +44,10 @@ from . import vimh2h
 # there is risk of running out of memory on our puny worker node.
 CONCURRENCY = 5
 
+# Max size in bytes of processed file part to store in a single entity in the datastore.
+# Note that datastore entities have a maximum size of just under 1 MiB.
+MAX_DB_PART_LEN = 995000
+
 TAGS_NAME = "tags"
 HELP_NAME = "help.txt"
 FAQ_NAME = "vim_faq.txt"
@@ -59,6 +60,8 @@ VERSION_TAG_RE = re.compile(r"v?(\d[\w.+-]+)$")
 
 GITHUB_DOWNLOAD_URL_BASE = "https://raw.githubusercontent.com/"
 GITHUB_GRAPHQL_API_URL = "https://api.github.com/graphql"
+
+FAQ_BASE_URL = "https://raw.githubusercontent.com/chrisbra/vim_faq/master/doc/"
 
 GITHUB_GRAPHQL_QUERIES = {
     "GetRefs": """
@@ -106,10 +109,6 @@ GITHUB_GRAPHQL_QUERIES = {
         """,
 }
 
-FAQ_BASE_URL = "https://raw.githubusercontent.com/chrisbra/vim_faq/master/doc/"
-
-PFD_MAX_PART_LEN = 995000
-
 
 class UpdateHandler(flask.views.MethodView):
     def post(self):
@@ -147,8 +146,6 @@ class UpdateHandler(flask.views.MethodView):
         logging.info(
             "Starting %supdate for %s", "forced " if is_force else "", self._project
         )
-
-        assets.ensure_curr_assets_in_db()
 
         self._app = flask.current_app._get_current_object()
         self._http_client = HttpClient(CONCURRENCY)
@@ -259,6 +256,9 @@ class UpdateHandler(flask.views.MethodView):
             faq_result = None
             faq_greenlet = self._spawn(self._get_file, FAQ_NAME, "db")
 
+        # Write current versions of static assets (vimhelp.js etc) to datastore
+        assets_greenlet = self._spawn(assets.ensure_curr_assets_in_db)
+
         # Get extra files from GitHub or datastore, depending on whether they were
         # changed
         extra_greenlets = {}
@@ -289,6 +289,9 @@ class UpdateHandler(flask.views.MethodView):
         for name, result in extra_results.items():
             if name != TAGS_NAME:
                 self._h2h.add_tags(name, result.content.decode())
+
+        # Ensure all assets are in the datastore by now
+        assets_greenlet.get()
 
         greenlets = []
 
@@ -334,6 +337,9 @@ class UpdateHandler(flask.views.MethodView):
             logging.info("Nothing to do")
             return
 
+        # Write current versions of static assets (vimhelp.js etc) to datastore
+        assets_greenlet = self._spawn(assets.ensure_curr_assets_in_db)
+
         # Kick off retrieval of all RawFileInfo entities from the Datastore
         rfi_greenlet = self._spawn(self._get_all_rfi, no_rfi)
 
@@ -368,6 +374,9 @@ class UpdateHandler(flask.views.MethodView):
         # Save tags JSON
         greenlets = [self._spawn(self._save_tags_json)]
 
+        # Ensure all assets are in the datastore by now
+        assets_greenlet.get()
+
         logging.info("Beginning vimhelp-to-HTML conversions")
 
         # Kick off processing of all files, reading file contents from the Datastore,
@@ -389,6 +398,8 @@ class UpdateHandler(flask.views.MethodView):
         Populate 'master_sha', 'vim_version_tag, 'refs_etag' members of 'self._g'
         (GlobalInfo)
         """
+        # Hmm, the GitHub GraphQL API does not seem to actually support ETag:
+        # https://github.com/github-community/community/discussions/10799
         r = self._github_graphql_request(
             "GetRefs",
             variables={"org": self._project, "repo": self._project},
@@ -668,10 +679,10 @@ def to_html(project, name, content, h2h):
         used_assets=assets.curr_asset_ids(),
     )
     pparts = []
-    if datalen > PFD_MAX_PART_LEN:
+    if datalen > MAX_DB_PART_LEN:
         phead.numparts = 0
-        for i in range(0, datalen, PFD_MAX_PART_LEN):
-            part = html[i : (i + PFD_MAX_PART_LEN)]
+        for i in range(0, datalen, MAX_DB_PART_LEN):
+            part = html[i : (i + MAX_DB_PART_LEN)]
             if i == 0:
                 phead.data0 = part
             else:

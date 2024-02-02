@@ -61,6 +61,7 @@ def curr_asset_ids():
 
 
 def ensure_curr_assets_in_db():
+    # Caller must already be in an ndb context
     if not _do_ensure_curr_assets_in_db():
         logging.info("No new assets to write to datastore")
 
@@ -76,7 +77,6 @@ def clean_unused_assets():
         unused_asset_ids = all_asset_ids - used_asset_ids
         unused_asset_keys = [google.cloud.ndb.Key("Asset", i) for i in unused_asset_ids]
         unused_assets = google.cloud.ndb.get_multi(unused_asset_keys)
-        logging.info("Raw unused assets keys: %s", [a.key for a in unused_assets])
         to_delete = []
         to_put = []
         for asset in unused_assets:
@@ -123,18 +123,17 @@ def _do_ensure_curr_assets_in_db():
             return False
         _assets_written = True
 
-    with dbmodel.ndb_context():
-        existing_ids = {key.id() for key in dbmodel.Asset.query().iter(keys_only=True)}
-        new_assets = [
-            dbmodel.Asset(id=f"{name}:{hash_}", data=content)
-            for name, (hash_, content) in _curr_assets.items()
-            if f"{name}:{hash_}" not in existing_ids
-        ]
-        if len(new_assets) > 0:
-            logging.info("Writing %d current assets to datastore", len(new_assets))
-            google.cloud.ndb.put_multi(new_assets)
-            return True
-        return False
+    existing_ids = {key.id() for key in dbmodel.Asset.query().iter(keys_only=True)}
+    new_assets = [
+        dbmodel.Asset(id=f"{name}:{hash_}", data=content)
+        for name, (hash_, content) in _curr_assets.items()
+        if f"{name}:{hash_}" not in existing_ids
+    ]
+    if len(new_assets) > 0:
+        logging.info("Writing %d current asset(s) to datastore", len(new_assets))
+        google.cloud.ndb.put_multi(new_assets)
+        return True
+    return False
 
 
 def _curr_asset_hash(name):

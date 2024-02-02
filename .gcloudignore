@@ -2,7 +2,6 @@
 /.gitignore
 /.gcloudignore
 /.venv
-/.flake8
 /.ruff_cache
 /scripts
 /README.md
