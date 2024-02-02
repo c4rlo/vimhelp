@@ -127,6 +127,15 @@ def clean(c):
             c.run(f"rm -rf {d}")
 
 
+@task()
+def sh(c):
+    """Interactive shell with virtualenv and datastore available."""
+    _ensure_private_mount(c)
+    with c.prefix(f". {VENV_DIR}/bin/activate"):
+        c.run(os.getenv("SHELL", "bash"), env=DEV_ENV, pty=True)
+    print("Exited vimhelp shell")
+
+
 def _ensure_private_mount(c):
     if PRIV_DIR.stat().st_dev == PRIV_DIR.parent.stat().st_dev:
         c.run(f"sudo systemctl start {PRIV_DIR}", pty=True)
