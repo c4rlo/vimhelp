@@ -131,7 +131,7 @@ class UpdateHandler(flask.views.MethodView):
         if (
             "X-AppEngine-QueueName" not in req.headers
             and os.environ.get("VIMHELP_ENV") != "dev"
-            and secret.UPDATE_PASSWORD not in request_data
+            and secret.admin_password().encode() not in request_data
         ):
             raise werkzeug.exceptions.Forbidden()
 
@@ -506,7 +506,7 @@ class UpdateHandler(flask.views.MethodView):
         """
         logging.info("Making %s GitHub GraphQL query: %s", self._project, query_name)
         headers = {
-            "Authorization": "token " + secret.GITHUB_ACCESS_TOKEN,
+            "Authorization": "token " + secret.github_token(),
         }
         if etag is not None:
             headers["If-None-Match"] = etag.decode()
@@ -735,7 +735,7 @@ def handle_enqueue_update():
     if (
         not is_cron
         and os.environ.get("VIMHELP_ENV") != "dev"
-        and secret.UPDATE_PASSWORD not in req.query_string
+        and secret.admin_password().encode() not in req.query_string
     ):
         raise werkzeug.exceptions.Forbidden()
 

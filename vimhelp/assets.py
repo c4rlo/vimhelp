@@ -149,7 +149,7 @@ class CleanAssetsHandler(flask.views.MethodView):
     def get(self):
         if (
             os.environ.get("VIMHELP_ENV") != "dev"
-            and secret.UPDATE_PASSWORD not in flask.request.query_string
+            and secret.admin_password().encode() not in flask.request.query_string
         ):
             raise werkzeug.exceptions.Forbidden()
         clean_unused_assets()
@@ -172,7 +172,7 @@ def handle_enqueue_clean_assets():
     if (
         not is_cron
         and os.environ.get("VIMHELP_ENV") != "dev"
-        and secret.UPDATE_PASSWORD not in req.query_string
+        and secret.admin_password().encode() not in req.query_string
     ):
         raise werkzeug.exceptions.Forbidden()
 
