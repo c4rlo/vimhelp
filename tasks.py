@@ -21,14 +21,7 @@ PROJECT_PROD = "vimhelp-hrd"
 
 DEV_ENV = {
     "PYTHONDEVMODE": "1",
-    "PYTHONWARNINGS": (
-        "default,"
-        "ignore:unclosed:ResourceWarning:sys,"
-        "ignore:pkg_resources is deprecated as an API:DeprecationWarning:google.cloud.ndb,"  # noqa: E501
-        "ignore:Deprecated call to `pkg_resources.:DeprecationWarning:pkg_resources,"
-        "ignore:Deprecated call to `pkg_resources.:DeprecationWarning:google.rpc,"
-        "ignore:ssl.match_hostname():DeprecationWarning:geventhttpclient.connectionpool"
-    ),
+    "PYTHONWARNINGS": "default,ignore:unclosed:ResourceWarning:sys",
     "VIMHELP_ENV": "dev",
     "FLASK_DEBUG": "1",
     "GOOGLE_CLOUD_PROJECT": PROJECT_STAGING,
