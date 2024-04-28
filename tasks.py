@@ -21,7 +21,12 @@ PROJECT_PROD = "vimhelp-hrd"
 
 DEV_ENV = {
     "PYTHONDEVMODE": "1",
-    "PYTHONWARNINGS": "default,ignore:unclosed:ResourceWarning:sys",
+    "PYTHONWARNINGS": (
+        "default,"
+        "ignore:unclosed:ResourceWarning:sys,"
+        "ignore:Type google._upb._message:DeprecationWarning:importlib._bootstrap,"
+        "ignore:This process (pid=:DeprecationWarning:gevent.os"
+    ),
     "VIMHELP_ENV": "dev",
     "FLASK_DEBUG": "1",
     "GOOGLE_CLOUD_PROJECT": PROJECT_STAGING,
