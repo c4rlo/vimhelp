@@ -16,10 +16,11 @@ import os  # noqa: E402
 import pathlib  # noqa: E402
 
 
-_CSP = "default-src 'self'"
+_CSP = "default-src 'self'"  # Content Security Policy
 
 _URL_PREFIX_REDIRECTS = (
     (
+        # From
         (
             "http://www.vimhelp.org/",
             "https://www.vimhelp.org/",
@@ -27,10 +28,13 @@ _URL_PREFIX_REDIRECTS = (
             "https://vimhelp.appspot.com/",
             "http://vimhelp.org/",
         ),
+        # To
         "https://vimhelp.org",
     ),
     (
+        # From
         ("http://neo.vimhelp.org/",),
+        # To
         "https://neo.vimhelp.org",
     ),
 )
@@ -40,7 +44,7 @@ _WARMUP_PATH = "/_ah/warmup"
 g_is_dev = False
 
 
-def create_app():
+def create_app() -> flask.Flask:
     from . import assets
     from . import cache
     from . import robots
@@ -66,42 +70,6 @@ def create_app():
         app.config["PREFERRED_URL_SCHEME"] = "https"
 
     assets.init(app)
-
-    @app.before_request
-    def before():
-        req = flask.request
-
-        # Redirect away from legacy / non-HTTPS URL prefixes
-        if req.path not in (_WARMUP_PATH, "/update"):
-            for redir_from, redir_to in _URL_PREFIX_REDIRECTS:
-                if req.url_root in redir_from:
-                    path = req.full_path if req.query_string else req.path
-                    new_url = redir_to + req.root_path + path
-                    logging.info("redirecting %s to %s", req.url, new_url)
-                    return flask.redirect(new_url, HTTPStatus.MOVED_PERMANENTLY)
-
-        # Flask's subdomain/host matching doesn't seem compatible with having multiple
-        # valid server names (in particular, App Engine calls the /enqueue_update
-        # endpoint with something other than vimhelp.org), so we do it this way.
-        flask.g.project = (
-            "neovim"
-            if req.blueprint == "neovim" or req.host.startswith("neo.")
-            else "vim"
-        )
-
-    def do_warmup(project):
-        logging.info("doing warmup request for %s", project)
-        with app.test_request_context():
-            flask.g.project = project
-            vimhelp.handle_vimhelp("", cache)
-            vimhelp.handle_vimhelp("options.txt", cache)
-            tagsearch.handle_tagsearch(cache)
-
-    @app.route(_WARMUP_PATH)
-    def warmup():
-        for project in ("vim", "neovim"):
-            do_warmup(project)
-        return flask.Response()
 
     app.add_url_rule(
         "/clean_assets", view_func=assets.CleanAssetsHandler.as_view("clean_assets")
@@ -140,6 +108,44 @@ def create_app():
 
     if g_is_dev:
         app.register_blueprint(bp, name="neovim", url_prefix="/neovim")
+    # On production, neovim uses its own "neovim." subdomain, which is handled below in
+    # the before_request handler.
+
+    def do_warmup(project):
+        logging.info("doing warmup request for %s", project)
+        with app.test_request_context():
+            flask.g.project = project
+            vimhelp.handle_vimhelp("", cache)
+            vimhelp.handle_vimhelp("options.txt", cache)
+            tagsearch.handle_tagsearch(cache)
+
+    @app.route(_WARMUP_PATH)
+    def warmup():
+        for project in ("vim", "neovim"):
+            do_warmup(project)
+        return flask.Response()
+
+    @app.before_request
+    def before():
+        req = flask.request
+
+        # Redirect away from legacy / non-HTTPS URL prefixes
+        if req.path not in (_WARMUP_PATH, "/update"):
+            for redir_from, redir_to in _URL_PREFIX_REDIRECTS:
+                if req.url_root in redir_from:
+                    path = req.full_path if req.query_string else req.path
+                    new_url = redir_to + req.root_path + path
+                    logging.info("redirecting %s to %s", req.url, new_url)
+                    return flask.redirect(new_url, HTTPStatus.MOVED_PERMANENTLY)
+
+        # Flask's subdomain/host matching doesn't seem compatible with having multiple
+        # valid server names (in particular, App Engine calls the /enqueue_update
+        # endpoint with something other than vimhelp.org), so we do it this way.
+        flask.g.project = (
+            "neovim"
+            if req.blueprint == "neovim" or req.host.startswith("neo.")
+            else "vim"
+        )
 
     app.after_request(_add_default_headers)
 
