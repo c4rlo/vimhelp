@@ -48,7 +48,7 @@ PROJECTS = {"vim": VimProject, "neovim": NeovimProject}
 
 RE_TAGLINE = re.compile(r"(\S+)\s+(\S+)")
 
-PAT_WORDCHAR = "[!#-)+-{}~\xC0-\xFF]"
+PAT_WORDCHAR = "[!#-)+-{}~\xc0-\xff]"
 
 PAT_HEADER = r"(^.*~$)"
 PAT_GRAPHIC = r"(^.* `$)"

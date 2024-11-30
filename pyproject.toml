@@ -12,6 +12,9 @@ build-backend = "setuptools.build_meta"
 # otherwise we'd just specify them directly in here.
 dependencies = { file = "requirements.txt" }
 
+[tool.ruff]
+extend-exclude = [".pyre"]
+
 [tool.ruff.lint]
 select = ["E", "F", "W", "I002", "N", "UP", "S", "B", "A", "C4", "DTZ", "SIM", "PTH", "PLE", "PLW", "RUF"]
 ignore = ["DTZ003", "PLW0603", "SIM102", "SIM108", "UP007"]

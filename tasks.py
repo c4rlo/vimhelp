@@ -55,9 +55,9 @@ venv_lazy = call(venv, lazy=True)
 
 @task
 def lint(c):
-    """Run linters (ruff, black)."""
+    """Run linter/formatter (ruff)."""
     c.run("ruff check .")
-    c.run("black --check .")
+    c.run("ruff format --check")
 
 
 @task(
@@ -91,13 +91,11 @@ def show_routes(c):
 @task(
     pre=[lint],
     help={
-        # fmt: off
         "target": "Target environment: 'staging' (default), 'prod', "
                   "'all' (= staging + prod)",
         "cron":   "Deploy cron.yaml instead of main app"
-        # fmt: on
     },
-)
+)  # fmt: skip
 def deploy(c, target="staging", cron=False):
     """Deploy app."""
     _ensure_private_mount(c)
