@@ -56,7 +56,7 @@ def create_app() -> flask.Flask:
 
     logging.basicConfig(level=logging.INFO)
 
-    cache = cache.Cache()
+    cache_ = cache.Cache()
 
     app = flask.Flask("vimhelp", root_path=package_path, static_folder=None)
 
@@ -83,7 +83,7 @@ def create_app() -> flask.Flask:
     @bp.route("/<filename>.html")
     @bp.route("/", defaults={"filename": ""})
     def vimhelp_filename(filename):
-        return vimhelp.handle_vimhelp(filename, cache)
+        return vimhelp.handle_vimhelp(filename, cache_)
 
     @bp.route("/s/<hash_>/<filename>")
     def static_filename(hash_, filename):
@@ -91,7 +91,7 @@ def create_app() -> flask.Flask:
 
     @bp.route("/api/tagsearch")
     def vimhelp_tagsearch():
-        return tagsearch.handle_tagsearch(cache)
+        return tagsearch.handle_tagsearch(cache_)
 
     @bp.route("/favicon.ico")
     def favicon():
@@ -115,9 +115,9 @@ def create_app() -> flask.Flask:
         logging.info("doing warmup request for %s", project)
         with app.test_request_context():
             flask.g.project = project
-            vimhelp.handle_vimhelp("", cache)
-            vimhelp.handle_vimhelp("options.txt", cache)
-            tagsearch.handle_tagsearch(cache)
+            vimhelp.handle_vimhelp("", cache_)
+            vimhelp.handle_vimhelp("options.txt", cache_)
+            tagsearch.handle_tagsearch(cache_)
 
     @app.route(_WARMUP_PATH)
     def warmup():
@@ -149,7 +149,7 @@ def create_app() -> flask.Flask:
 
     app.after_request(_add_default_headers)
 
-    gevent.spawn(cache.start_refresh_loop, do_warmup)
+    gevent.spawn(cache_.start_refresh_loop, do_warmup)
 
     logging.info("app initialised")
 
