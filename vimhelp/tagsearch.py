@@ -28,8 +28,8 @@ class TagItem:
 
 def handle_tagsearch(cache):
     project = flask.g.project
-    items = cache.get(project, CACHE_KEY_ID)
     query = flask.request.args.get("q", "")
+    items = cache.get(project, CACHE_KEY_ID)
     if not items:
         with dbmodel.ndb_context():
             entity = dbmodel.TagsInfo.get_by_id(project)

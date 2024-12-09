@@ -28,13 +28,13 @@ class Cache:
             if c := self._cache.get(project):
                 c.clear()
 
-    def start_refresh_loop(self, warmup_callback):
+    def start_refresh_loop(self, refresh_callback):
         update_times = Cache._get_update_times()
         gevent.spawn_later(
-            _REFRESH_INTERVAL_SEC, self._refresh, update_times, warmup_callback
+            _REFRESH_INTERVAL_SEC, self._refresh, update_times, refresh_callback
         )
 
-    def _refresh(self, old_update_times, warmup_callback):
+    def _refresh(self, old_update_times, refresh_callback):
         update_times = Cache._get_update_times()
         for project, update_time in update_times.items():
             old_update_time = old_update_times.get(project)
@@ -46,13 +46,13 @@ class Cache:
                     update_time,
                 )
                 self.clear(project)
-                warmup_callback(project)
+                refresh_callback(project)
             else:
                 logging.info(
                     "project %s was not updated, not refreshing cache", project
                 )
         gevent.spawn_later(
-            _REFRESH_INTERVAL_SEC, self._refresh, update_times, warmup_callback
+            _REFRESH_INTERVAL_SEC, self._refresh, update_times, refresh_callback
         )
 
     @staticmethod
