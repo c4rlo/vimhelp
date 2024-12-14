@@ -37,7 +37,7 @@ class GlobalInfo(ndb.Model):
 class TagsInfo(ndb.Model):
     tags = ndb.JsonProperty(json_type=list)
     # Pairs of vimhelp tag and (site-relative) link. Looks like this:
-    # [ ["t", "motion.txt#t"], ["perl", "if_perl.txt#perl"], ... ]
+    # [ ["t", "motion.txt.html#t"], ["perl", "if_perl.txt.html#perl"], ... ]
 
 
 # Info related to an unprocessed documentation file from the repository; key name is

@@ -172,7 +172,8 @@ class VimH2H:
                 if m := RE_TAGLINE.match(line):
                     tag, filename = m.group(1, 2)
                     self.do_add_tag(filename, tag)
-        self._urls["help-tags"] = Link("tags", "tags.html", "help-tags")
+        if self._project == VimProject:
+            self._urls["help-tags"] = Link("tags", "tags.html", "help-tags")
 
     def __del__(self):
         Link.href.cache_clear()
@@ -193,11 +194,7 @@ class VimH2H:
                 in_example = True
 
     def do_add_tag(self, filename, tag):
-        if self._mode == "online" and filename == "help.txt":
-            htmlfilename = "/"
-        else:
-            htmlfilename = filename + ".html"
-        self._urls[tag] = Link(filename, htmlfilename, tag)
+        self._urls[tag] = Link(filename, self.htmlfilename(filename), tag)
 
     def sorted_tag_href_pairs(self):
         result = [
@@ -235,6 +232,12 @@ class VimH2H:
                 return tag
             tag = f"{base_tag}_{i}"
             i += 1
+
+    def htmlfilename(self, name):
+        if name == "help.txt" and self._mode == "online":
+            return "./"
+        else:
+            return name + ".html"
 
     @staticmethod
     def prelude(theme):
@@ -364,15 +367,13 @@ class VimH2H:
             if is_local_additions:
                 out.append(self._project.local_additions)
 
-        helptxt = "./" if self._mode == "online" else "help.txt.html"
-
         return flask.render_template(
             "page.html",
             mode=self._mode,
             project=self._project,
             version=self._version,
             filename=filename,
-            helptxt=helptxt,
+            helptxt=self.htmlfilename("help.txt"),
             content=markupsafe.Markup("".join(out)),
             sidebar_headings=sidebar_headings,
         )
