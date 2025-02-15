@@ -21,3 +21,6 @@ ignore = ["DTZ003", "PLW0603", "SIM102", "SIM108", "UP007"]
 
 [tool.ruff.lint.per-file-ignores]
 "vimhelp/vimh2h.py" = ["E501", "PLW2901"]
+
+[tool.ruff.lint.flake8-builtins]
+builtins-allowed-modules = ["http"]
