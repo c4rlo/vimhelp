@@ -147,7 +147,7 @@ class UpdateHandler(flask.views.MethodView):
             "Starting %supdate for %s", "forced " if is_force else "", self._project
         )
 
-        self._app = flask.current_app._get_current_object()
+        self._app = flask.current_app._get_current_object()  # ty:ignore[unresolved-attribute]
         self._http_client = HttpClient(CONCURRENCY)
 
         try:
@@ -198,7 +198,7 @@ class UpdateHandler(flask.views.MethodView):
         if not g:
             g = GlobalInfo(id=self._project, last_update_time=utcnow())
 
-        gs = ", ".join(f"{n} = {getattr(g, n)}" for n in g._properties.keys())  # noqa: SIM118
+        gs = ", ".join(f"{n} = {getattr(g, n)}" for n in g._properties.keys())  # noqa: SIM118  # ty:ignore[possibly-missing-attribute]
         logging.info("%s global info: %s", self._project, gs)
 
         return g
@@ -764,7 +764,7 @@ def handle_enqueue_update():
             "body": body,
         }
     }
-    response = client.create_task(parent=queue_name, task=task)
+    response = client.create_task(parent=queue_name, task=task)  # ty:ignore[invalid-argument-type]
     logging.info("Task %s enqueued, ETA %s", response.name, response.schedule_time)
 
     if is_cron:

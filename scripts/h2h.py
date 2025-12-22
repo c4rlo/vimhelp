@@ -68,7 +68,7 @@ def main():
 
     app = flask.Flask(
         __name__,
-        root_path=pathlib.Path(__file__).resolve().parent,
+        root_path=str(pathlib.Path(__file__).resolve().parent),
         template_folder="../vimhelp/templates",
     )
     app.jinja_options["trim_blocks"] = True

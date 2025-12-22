@@ -9,7 +9,7 @@ import gevent.ssl
 class HttpClient:
     def __init__(self, concurrency):
         self._pool = geventhttpclient.client.HTTPClientPool(
-            ssl_context_factory=gevent.ssl.create_default_context,
+            ssl_context_factory=gevent.ssl.create_default_context,  # ty:ignore[unresolved-attribute]
             concurrency=concurrency,
         )
 

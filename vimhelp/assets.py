@@ -11,6 +11,7 @@ import threading
 import flask
 import flask.views
 import google.cloud.ndb
+import google.cloud.tasks
 import werkzeug.exceptions
 
 from . import dbmodel
@@ -187,7 +188,7 @@ def handle_enqueue_clean_assets():
             "relative_uri": "/clean_assets",
         }
     }
-    response = client.create_task(parent=queue_name, task=task)
+    response = client.create_task(parent=queue_name, task=task)  # ty:ignore[invalid-argument-type]
     logging.info("Task %s enqueued, ETA %s", response.name, response.schedule_time)
 
     if is_cron:

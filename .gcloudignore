@@ -11,4 +11,5 @@
 /tasks.py
 /gunicorn.conf.dev.py
 __pycache__/
+*.egg-info/
 html/

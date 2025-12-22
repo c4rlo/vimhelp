@@ -1,6 +1,6 @@
 # Use with https://www.pyinvoke.org/
 
-from invoke import call, task
+from invoke import task  # ty:ignore[unresolved-import]
 
 import os
 import pathlib
@@ -9,9 +9,6 @@ import sys
 
 os.chdir(pathlib.Path(__file__).parent)
 
-
-VENV_DIR = pathlib.Path(".venv")
-REQ_TXT = pathlib.Path("requirements.txt")
 
 PRIV_DIR = pathlib.Path("~/private").expanduser()
 STAGING_CREDENTIALS = PRIV_DIR / "gcloud-creds/vimhelp-staging-owner.json"
@@ -34,34 +31,16 @@ DEV_ENV = {
 }
 
 
-@task(help={"lazy": "Only update venv if out-of-date wrt requirements.txt"})
-def venv(c, lazy=False):
-    """Populate virtualenv."""
-    if not VENV_DIR.exists():
-        c.run(f"python -m venv --upgrade-deps {VENV_DIR}")
-        c.run(f"{VENV_DIR}/bin/pip install -U wheel")
-        print("Created venv.")
-        lazy = False
-    if not lazy or REQ_TXT.stat().st_mtime > VENV_DIR.stat().st_mtime:
-        c.run(f"{VENV_DIR}/bin/pip install -U --upgrade-strategy eager -r {REQ_TXT}")
-        c.run(f"touch {VENV_DIR}")
-        print("Updated venv.")
-    else:
-        print("venv was already up-to-date.")
-
-
-venv_lazy = call(venv, lazy=True)
-
-
 @task
 def lint(c):
-    """Run linter/formatter (ruff)."""
-    c.run("ruff check .")
-    c.run("ruff format --check")
+    """Run linters."""
+    c.run("uv sync --locked")
+    c.run("ruff check .", pty=True)
+    c.run("ruff format --check", pty=True)
+    c.run("ty check", pty=True)
 
 
 @task(
-    pre=[venv_lazy],
     help={
         "gunicorn": "Run using gunicorn instead of 'flask run'",
         "tracemalloc": "Run with tracemalloc enabled",
@@ -71,21 +50,21 @@ def run(c, gunicorn=False, tracemalloc=False):
     """Run app locally against staging database."""
     _ensure_private_mount(c)
     if gunicorn:
-        cmd = f"{VENV_DIR}/bin/gunicorn -c gunicorn.conf.dev.py"
+        cmd = "uv run gunicorn -c gunicorn.conf.dev.py"
     else:
-        cmd = f"{VENV_DIR}/bin/flask --app vimhelp.webapp --debug run"
+        cmd = "uv run flask --app vimhelp.webapp --debug run"
     if tracemalloc:
         env = DEV_ENV | {"PYTHONTRACEMALLOC": "1"}
     else:
         env = DEV_ENV
-    c.run(cmd, env=env)
+    c.run(cmd, env=env, pty=True)
 
 
-@task(pre=[venv_lazy])
+@task
 def show_routes(c):
     """Show Flask routes."""
     _ensure_private_mount(c)
-    c.run(f"{VENV_DIR}/bin/flask --app vimhelp.webapp --debug routes", env=DEV_ENV)
+    c.run("uv run flask --app vimhelp.webapp --debug routes", env=DEV_ENV, pty=True)
 
 
 @task(
@@ -98,6 +77,7 @@ def show_routes(c):
 )  # fmt: skip
 def deploy(c, target="staging", cron=False):
     """Deploy app."""
+    c.run("uv export -q --locked --no-emit-project -o requirements.txt")
     _ensure_private_mount(c)
     if target == "all":
         targets = "staging", "prod"
@@ -118,7 +98,15 @@ def deploy(c, target="staging", cron=False):
 @task
 def clean(c):
     """Clean up build artefacts."""
-    for d in VENV_DIR, "__pycache__", "vimhelp/__pycache__", ".ruff_cache":
+    to_remove = (
+        ".ruff_cache",
+        ".venv",
+        "__pycache__",
+        "requirements.txt",
+        "vimhelp/__pycache__",
+        "vimhelp.egg-info",
+    )
+    for d in to_remove:
         if pathlib.Path(d).exists():
             c.run(f"rm -rf {d}")
 
@@ -127,7 +115,7 @@ def clean(c):
 def sh(c):
     """Interactive shell with virtualenv and datastore available."""
     _ensure_private_mount(c)
-    with c.prefix(f". {VENV_DIR}/bin/activate"):
+    with c.prefix(". .venv/bin/activate"):
         c.run(os.getenv("SHELL", "bash"), env=DEV_ENV, pty=True)
     print("Exited vimhelp shell")
 

@@ -52,13 +52,18 @@ def create_app() -> flask.Flask:
     from . import vimhelp
     from . import update
 
-    package_path = pathlib.Path(__file__).resolve().parent
+    package_path = str(pathlib.Path(__file__).resolve().parent)
 
     logging.basicConfig(level=logging.INFO)
 
     cache_ = cache.Cache()
 
-    app = flask.Flask("vimhelp", root_path=package_path, static_folder=None)
+    app = flask.Flask(
+        "vimhelp",
+        root_path=package_path,
+        instance_path=package_path,
+        static_folder=None,
+    )
 
     app.jinja_options["trim_blocks"] = True
     app.jinja_options["lstrip_blocks"] = True

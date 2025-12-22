@@ -17,6 +17,8 @@ class VimProject:
     doc_src_url = "https://github.com/vim/vim/tree/master/runtime/doc"
     favicon = "favicon-vim.ico"
     favicon_notice = "favicon is based on http://amnoid.de/tmp/vim_solidbright_512.png and is used with permission by its author"
+    local_additions = None
+    other = None
 
 
 class NeovimProject:
@@ -27,6 +29,8 @@ class NeovimProject:
     doc_src_url = "https://github.com/neovim/neovim/tree/master/runtime/doc"
     favicon = "favicon-neovim.ico"
     favicon_notice = "favicon taken from https://neovim.io/favicon.ico, which is licensed under CC-BY-3.0: https://creativecommons.org/licenses/by/3.0/"
+    local_additions = None
+    other = None
 
 
 VimProject.other = NeovimProject

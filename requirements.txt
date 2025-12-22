@@ -1,7 +1,0 @@
-Flask ~= 3.1
-gevent ~= 25.8
-geventhttpclient ~= 2.3
-google-cloud-ndb ~= 2.3
-google-cloud-secret-manager ~= 2.24
-google-cloud-tasks ~= 2.19
-gunicorn ~= 23.0
