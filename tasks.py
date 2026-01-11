@@ -78,20 +78,30 @@ def deploy(c, target="staging", cron=False):
     """Deploy app."""
     c.run("uv export -q --locked --no-emit-project -o requirements.txt")
     _ensure_private_mount(c)
-    if target == "all":
-        targets = "staging", "prod"
-    else:
-        targets = (target,)
-    for t in targets:
-        if t == "staging":
-            cmd = f"gcloud app deploy --quiet --project={PROJECT_STAGING}"
-        elif t == "prod":
-            cmd = f"gcloud app deploy --project={PROJECT_PROD}"
-        else:
-            sys.exit(f"Invalid target name: '{t}'")
+    target_map = {
+        "all": (PROJECT_STAGING, PROJECT_PROD),
+        "staging": (PROJECT_STAGING,),
+        "prod": (PROJECT_PROD,),
+    }
+    projects = target_map.get(target)
+    if projects is None:
+        sys.exit(f"Invalid target name: '{target}'")
+    for p in projects:  # ty:ignore[not-iterable]
+        cmd = f"gcloud app deploy --project={p} --quiet"
         if cron:
             cmd += " cron.yaml"
         c.run(cmd, pty=True)
+
+        old_vers = c.run(
+            f"gcloud app versions list --project={p} --format='value(id)' "
+            "--filter='traffic_split=0'"
+        ).stdout.split()
+        if len(old_vers) > 0:
+            print("Deleting old version(s):", ", ".join(old_vers))
+            c.run(
+                f"gcloud app versions delete --project={p} --quiet "
+                + " ".join(old_vers)
+            )
 
 
 @task
