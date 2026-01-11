@@ -3,3 +3,4 @@ TODO
 /.venv/
 __pycache__/
 *.egg-info/
+html/

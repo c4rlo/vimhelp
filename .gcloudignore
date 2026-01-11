@@ -4,6 +4,8 @@
 /.gcloudignore
 /.venv
 /.ruff_cache
+/pyproject.toml
+/uv.lock
 /scripts
 /README.md
 /LICENSE

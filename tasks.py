@@ -21,7 +21,6 @@ DEV_ENV = {
     "PYTHONWARNINGS": (
         "default,"
         "ignore:unclosed:ResourceWarning:sys,"
-        "ignore:Type google._upb._message:DeprecationWarning:importlib._bootstrap,"
         "ignore:This process (pid=:DeprecationWarning:gevent.os"
     ),
     "VIMHELP_ENV": "dev",
