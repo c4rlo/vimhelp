@@ -1,6 +1,6 @@
 # Use with https://www.pyinvoke.org/
 
-from invoke import task  # ty:ignore[unresolved-import]
+from invoke import task
 
 import os
 import pathlib
@@ -86,7 +86,7 @@ def deploy(c, target="staging", cron=False):
     projects = target_map.get(target)
     if projects is None:
         sys.exit(f"Invalid target name: '{target}'")
-    for p in projects:  # ty:ignore[not-iterable]
+    for p in projects:
         cmd = f"gcloud app deploy --project={p} --quiet"
         if cron:
             cmd += " cron.yaml"
