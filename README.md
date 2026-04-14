@@ -11,16 +11,12 @@ spirit to _Make_).
 
 To generate static HTML pages instead of running on Google App Engine:
 
-- Create a virtualenv. If you have _Invoke_ installed, this is as easy as
-  `inv venv`. Alternatively:
-  ```
-  python3 -m venv --upgrade-deps .venv
-  .venv/bin/pip install -r requirements.txt
-  ```
+- Make sure you have [uv](https://docs.astral.sh/uv/), and run `uv sync`
+  to create/update a virtualenv in `.venv`.
 - Run the following (replace the `-i` parameter with the Vim documentation
   location on your computer):
   ```
-  scripts/h2h.py -i /usr/share/vim/vim90/doc/ -o html/
+  scripts/h2h.py -i /usr/share/vim/vim92/doc/ -o html/
   ```
   The script offers a few options; run with `-h` to see what is available.
 
