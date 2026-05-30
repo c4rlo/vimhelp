@@ -368,7 +368,7 @@ class VimH2H:
                 out.append("</span>")
             out.append("\n")
 
-            if is_local_additions:
+            if is_local_additions and self._project.local_additions is not None:
                 out.append(self._project.local_additions)
 
         return flask.render_template(

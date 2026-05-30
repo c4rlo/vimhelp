@@ -198,7 +198,7 @@ class UpdateHandler(flask.views.MethodView):
         if not g:
             g = GlobalInfo(id=self._project, last_update_time=utcnow())
 
-        gs = ", ".join(f"{n} = {getattr(g, n)}" for n in g._properties.keys())  # noqa: SIM118  # ty:ignore[possibly-missing-attribute]
+        gs = ", ".join(f"{n} = {v}" for n, v in g.to_dict().items())
         logging.info("%s global info: %s", self._project, gs)
 
         return g
