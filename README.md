@@ -3,9 +3,9 @@
 This is the code behind the https://vimhelp.org website. It runs on
 [Google App Engine](https://cloud.google.com/appengine/).
 
-To make testing and deploying easier, a `tasks.py` file exists for use
-with the [_Invoke_](https://www.pyinvoke.org/) tool (which is similar in
-spirit to _Make_).
+To make testing and deploying easier, common project tasks are defined in
+`justfile` for use with [_just_](https://just.systems/). Run `just --list`
+to see the available recipes.
 
 ## Generating static pages
 
