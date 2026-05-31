@@ -67,7 +67,10 @@ PAT_SPECIAL = (
     r"arg|arguments|ident|addr|group)]|vim9\[cmd]|"
     r"(?<=\s)\[[-a-z^A-Z0-9_]{2,}])"
 )
-PAT_TITLE = r"(Vim version [0-9.a-z]+|N?VIM REFERENCE.*)"
+PAT_TITLE = (
+    r"(\bVim version [0-9][0-9.a-z]*|"
+    r"^\s*(?:N?VIM REFERENCE.*|N?VIM USER MANUAL.*|N?VIM - main help file|NVIM - help))"
+)
 PAT_NOTE = (
     r"((?<!" + PAT_WORDCHAR + r")(?:note|NOTE|Notes?):?(?!" + PAT_WORDCHAR + r"))"
 )
