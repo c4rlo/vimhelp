@@ -18,6 +18,13 @@ lint:
     ruff format --check
     ty check
 
+# Update Python and vendored frontend dependencies.
+bump-deps:
+    uv lock --upgrade
+    base=https://cdn.jsdelivr.net/npm/tom-select@latest/dist && curl -fL \
+        -o vimhelp/static/tom-select.base.min.js $base/js/tom-select.base.min.js \
+        -o vimhelp/static/tom-select.min.css $base/css/tom-select.min.css
+
 # Run the app locally against staging.
 [arg("gunicorn", long="gunicorn", value="1")]
 [arg("tracemalloc", long="tracemalloc", value="1")]
