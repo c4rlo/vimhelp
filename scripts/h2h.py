@@ -50,7 +50,7 @@ def main():
         "--theme",
         "-t",
         choices=("light", "dark"),
-        help="Color theme (default: OS-native)",
+        help="Color theme for generated files (default: OS-native)",
     )
     parser.add_argument(
         "--no-tags",
@@ -92,7 +92,14 @@ def run(args):
     if not args.in_dir.is_dir():
         raise RuntimeError(f"{args.in_dir} is not a directory")
 
-    prelude = VimH2H.prelude(theme=args.theme)
+    prelude = VimH2H.prelude()
+    if args.theme is not None:
+        prelude = prelude.replace(
+            '<html lang="en">', f'<html lang="en" class="{args.theme}">'
+        ).replace(
+            '<meta name="color-scheme" content="light dark">',
+            f'<meta name="color-scheme" content="only {args.theme}">',
+        )
 
     mode = "hybrid" if args.web_version else "offline"
 

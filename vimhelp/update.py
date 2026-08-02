@@ -666,7 +666,7 @@ class GetFileResult:
 
 def to_html(project, name, content, h2h):
     content_str = content.decode()
-    html = h2h.to_html(name, content_str).encode()
+    html = (vimh2h.VimH2H.prelude() + h2h.to_html(name, content_str)).encode()
     etag = base64.b64encode(sha1(html))
     datalen = len(html)
     phead = ProcessedFileHead(

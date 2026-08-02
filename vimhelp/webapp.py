@@ -88,6 +88,10 @@ def create_app() -> flask.Flask:
     @bp.route("/<filename>.html")
     @bp.route("/", defaults={"filename": ""})
     def vimhelp_filename(filename):
+        req = flask.request
+        if req.method in ("GET", "HEAD") and req.query_string:
+            logging.info("redirecting %s to query-free documentation URL", req.url)
+            return flask.redirect(req.path, HTTPStatus.MOVED_PERMANENTLY)
         return vimhelp.handle_vimhelp(filename, cache_)
 
     @bp.route("/s/<hash_>/<filename>")
@@ -113,8 +117,8 @@ def create_app() -> flask.Flask:
 
     if g_is_dev:
         app.register_blueprint(bp, name="neovim", url_prefix="/neovim")
-    # On production, neovim uses its own "neovim." subdomain, which is handled below in
-    # the before_request handler.
+    # Outside local development, Neovim uses dedicated hostnames, which are handled
+    # below in the before_request handler.
 
     def do_warmup(project):
         logging.info("doing warmup request for %s", project)
@@ -148,7 +152,8 @@ def create_app() -> flask.Flask:
         # endpoint with something other than vimhelp.org), so we do it this way.
         flask.g.project = (
             "neovim"
-            if req.blueprint == "neovim" or req.host.startswith("neo.")
+            if req.blueprint == "neovim"
+            or req.host.startswith(("neo.", "staging-neo."))
             else "vim"
         )
 

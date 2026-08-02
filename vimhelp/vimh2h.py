@@ -247,8 +247,8 @@ class VimH2H:
             return name + ".html"
 
     @staticmethod
-    def prelude(theme):
-        return flask.render_template("prelude.html", theme=theme)
+    def prelude():
+        return flask.render_template("prelude.html")
 
     def to_html(self, filename, contents):
         is_help_txt = filename == "help.txt"

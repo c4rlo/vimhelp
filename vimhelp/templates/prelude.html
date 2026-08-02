@@ -1,17 +1,12 @@
-{# This "prelude" is the initial portion of each page. It gets rendered
-dynamically in response to each request, based on user preferences (currently
-only the color theme). #}
+{# This prefix is prepended when new complete documents are stored and, for
+compatibility, at request time when an older stored body starts partway through
+<head>. Nothing about theme-init.js otherwise requires it to differ from the
+other hashed assets embedded when documents are generated. Once legacy records
+no longer need request-time support, this can be merged into page.html. #}
 <!DOCTYPE html>
-{% if theme %}
-<html lang="en" class="{{theme}}">
-{% else %}
 <html lang="en">
-{% endif %}
 <head>
 <meta charset="UTF-8">
-{% if theme %}
-<meta name="color-scheme" content="only {{theme}}">
-{% else %}
 <meta name="color-scheme" content="light dark">
-{% endif %}
+<script src="{{'theme-init.js'|static_path}}"></script>
 {# rest of the page is in page.html #}

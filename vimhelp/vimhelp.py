@@ -25,15 +25,11 @@ def handle_vimhelp(filename, cache):
     if not filename.endswith(".txt") and filename != "tags":
         return redirect(f"{filename}.txt.html")
 
-    theme = req.cookies.get("theme")
-    if theme not in ("light", "dark"):
-        theme = None
-
     if entry := cache.get(project, filename):
         logging.info("serving '%s:%s' from inproc cache", project, filename)
         head, parts = entry
-        resp = prepare_response(req, head, theme)
-        return complete_response(resp, head, parts, theme)
+        resp = prepare_response(req, head)
+        return complete_response(resp, head, parts)
 
     with dbmodel.ndb_context():
         logging.info("serving '%s:%s' from datastore", project, filename)
@@ -41,34 +37,41 @@ def handle_vimhelp(filename, cache):
         if head is None:
             logging.warning("%s:%s not found in datastore", project, filename)
             raise werkzeug.exceptions.NotFound()
-        resp = prepare_response(req, head, theme)
+        resp = prepare_response(req, head)
         parts = []
         if resp.status_code != HTTPStatus.NOT_MODIFIED:
             parts = get_parts(head)
-            complete_response(resp, head, parts, theme)
+            complete_response(resp, head, parts)
         if head.numparts == 1 or parts:
             cache.put(project, filename, (head, parts))
         return resp
 
 
-def prepare_response(req, head, theme):
+def prepare_response(req, head):
     resp = flask.Response(mimetype="text/html")
     resp.last_modified = head.modified
     resp.cache_control.max_age = 15 * 60
-    resp.vary.add("Cookie")
-    resp.set_etag(head.etag.decode() + (theme or ""))
+    # The ETag identifies the generated document byte-for-byte. Prevent intermediary
+    # HTML rewriting (for example, Cloudflare Email Address Obfuscation) from changing
+    # that representation or removing its validator.
+    resp.cache_control.no_transform = True
+    resp.set_etag(head.etag.decode())
     return resp.make_conditional(req)
 
 
-def complete_response(resp, head, parts, theme):
+def complete_response(resp, head, parts):
     if resp.status_code != HTTPStatus.NOT_MODIFIED:
         logging.info(
             "writing %d-part response, modified %s",
             1 + len(parts),
             resp.last_modified,
         )
-        prelude = vimh2h.VimH2H.prelude(theme=theme).encode()
-        resp.data = b"".join((prelude, head.data0, *(p.data for p in parts)))
+        stored_data = (head.data0, *(p.data for p in parts))
+        if head.data0.startswith(b"<!DOCTYPE html>"):
+            resp.data = b"".join(stored_data)
+        else:
+            prelude = vimh2h.VimH2H.prelude().encode()
+            resp.data = b"".join((prelude, *stored_data))
     return resp
 
 

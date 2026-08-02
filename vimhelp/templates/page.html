@@ -1,6 +1,7 @@
-{# This is the main content of each page; it gets rendered ahead of time. The
-first few lines of HTML that are missing from here are are in prelude.html;
-those are the only ones that get rendered dynamically with each request. #}
+{# This is the main generated portion of each page. The updater now prepends
+prelude.html before storing it, while the request handler supplies that prefix
+for legacy records. Once all stored documents use the complete format, the
+templates can be merged and request-time prefixing removed. #}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{{project.name}} help pages, always up-to-date">
 <title>{{project.name}}: {{filename}}</title>
