@@ -72,15 +72,18 @@ def clean_unused_assets():
     now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
     recent = now - _DELETE_GRACE_PERIOD
     with dbmodel.ndb_context():
-        all_asset_ids = {key.id() for key in dbmodel.Asset.query().iter(keys_only=True)}
+        all_assets = dbmodel.Asset.query()
         pfh_query = dbmodel.ProcessedFileHead.query(projection=["used_assets"])
         used_asset_ids = set(itertools.chain(*(pfh.used_assets for pfh in pfh_query)))
-        unused_asset_ids = all_asset_ids - used_asset_ids
-        unused_asset_keys = [google.cloud.ndb.Key("Asset", i) for i in unused_asset_ids]
-        unused_assets = google.cloud.ndb.get_multi(unused_asset_keys)
         to_delete = []
-        to_put = []
-        for asset in unused_assets:
+        to_mark_unused = []
+        to_mark_used = []
+        for asset in all_assets:
+            if asset.key.id() in used_asset_ids:
+                if asset.unused_time is not None:
+                    asset.unused_time = None
+                    to_mark_used.append(asset)
+                continue
             if asset.create_time >= recent:
                 continue
             if asset.unused_time is not None:
@@ -88,14 +91,16 @@ def clean_unused_assets():
                     to_delete.append(asset.key)
             else:
                 asset.unused_time = now
-                to_put.append(asset)
+                to_mark_unused.append(asset)
+        to_put = [*to_mark_unused, *to_mark_used]
         if len(to_delete) == 0 and len(to_put) == 0:
             logging.info("No assets need cleaning")
             return
         logging.info(
-            "Deleting %d old asset(s) and marking %d asset(s) as unused",
+            "Deleting %d old asset(s), marking %d as unused, and marking %d as used",
             len(to_delete),
-            len(to_put),
+            len(to_mark_unused),
+            len(to_mark_used),
         )
         google.cloud.ndb.delete_multi(to_delete)
         google.cloud.ndb.put_multi(to_put)

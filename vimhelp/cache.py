@@ -29,31 +29,46 @@ class Cache:
                 c.clear()
 
     def start_refresh_loop(self, refresh_callback):
-        update_times = Cache._get_update_times()
+        try:
+            update_times = Cache._get_update_times()
+        except Exception:
+            logging.exception("failed to get initial cache update times")
+            update_times = {}
         gevent.spawn_later(
             _REFRESH_INTERVAL_SEC, self._refresh, update_times, refresh_callback
         )
 
     def _refresh(self, old_update_times, refresh_callback):
-        update_times = Cache._get_update_times()
-        for project, update_time in update_times.items():
-            old_update_time = old_update_times.get(project)
-            if old_update_time is None or update_time > old_update_time:
-                logging.info(
-                    "project %s was updated (%s < %s), refreshing cache",
-                    project,
-                    old_update_time,
-                    update_time,
-                )
-                self.clear(project)
-                refresh_callback(project)
-            else:
-                logging.info(
-                    "project %s was not updated, not refreshing cache", project
-                )
-        gevent.spawn_later(
-            _REFRESH_INTERVAL_SEC, self._refresh, update_times, refresh_callback
-        )
+        # Only advance a project's checkpoint after its refresh has succeeded. Otherwise
+        # a transient warmup failure would suppress all retries for that update.
+        next_update_times = old_update_times.copy()
+        try:
+            update_times = Cache._get_update_times()
+            for project, update_time in update_times.items():
+                old_update_time = old_update_times.get(project)
+                if old_update_time is None or update_time > old_update_time:
+                    logging.info(
+                        "project %s was updated (%s < %s), refreshing cache",
+                        project,
+                        old_update_time,
+                        update_time,
+                    )
+                    self.clear(project)
+                    refresh_callback(project)
+                else:
+                    logging.info(
+                        "project %s was not updated, not refreshing cache", project
+                    )
+                next_update_times[project] = update_time
+        except Exception:
+            logging.exception("cache refresh failed; will retry")
+        finally:
+            gevent.spawn_later(
+                _REFRESH_INTERVAL_SEC,
+                self._refresh,
+                next_update_times,
+                refresh_callback,
+            )
 
     @staticmethod
     def _get_update_times():
