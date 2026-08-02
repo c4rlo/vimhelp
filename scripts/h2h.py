@@ -92,15 +92,6 @@ def run(args):
     if not args.in_dir.is_dir():
         raise RuntimeError(f"{args.in_dir} is not a directory")
 
-    prelude = VimH2H.prelude()
-    if args.theme is not None:
-        prelude = prelude.replace(
-            '<html lang="en">', f'<html lang="en" class="{args.theme}">'
-        ).replace(
-            '<meta name="color-scheme" content="light dark">',
-            f'<meta name="color-scheme" content="only {args.theme}">',
-        )
-
     mode = "hybrid" if args.web_version else "offline"
 
     if not args.no_tags and (tags_file := args.in_dir / "tags").is_file():
@@ -128,10 +119,9 @@ def run(args):
             continue
         content = infile.read_text()
         print(f"Processing {infile}...")
-        html = h2h.to_html(infile.name, content)
+        html = h2h.to_html(infile.name, content, theme=args.theme)
         if args.out_dir is not None:
             with (args.out_dir / f"{infile.name}.html").open("w") as f:
-                f.write(prelude)
                 f.write(html)
 
     if args.out_dir is not None:

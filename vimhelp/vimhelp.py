@@ -9,7 +9,6 @@ import werkzeug.exceptions
 from google.cloud import ndb
 
 from . import dbmodel
-from . import vimh2h
 
 
 def handle_vimhelp(filename, cache):
@@ -66,12 +65,7 @@ def complete_response(resp, head, parts):
             1 + len(parts),
             resp.last_modified,
         )
-        stored_data = (head.data0, *(p.data for p in parts))
-        if head.data0.startswith(b"<!DOCTYPE html>"):
-            resp.data = b"".join(stored_data)
-        else:
-            prelude = vimh2h.VimH2H.prelude().encode()
-            resp.data = b"".join((prelude, *stored_data))
+        resp.data = b"".join((head.data0, *(p.data for p in parts)))
     return resp
 
 

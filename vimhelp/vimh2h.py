@@ -246,11 +246,7 @@ class VimH2H:
         else:
             return name + ".html"
 
-    @staticmethod
-    def prelude():
-        return flask.render_template("prelude.html")
-
-    def to_html(self, filename, contents):
+    def to_html(self, filename, contents, theme=None):
         is_help_txt = filename == "help.txt"
         lines = [line.rstrip("\r\n") for line in RE_NEWLINE.split(contents)]
 
@@ -383,6 +379,7 @@ class VimH2H:
             helptxt=self.htmlfilename("help.txt"),
             content=markupsafe.Markup("".join(out)),
             sidebar_headings=sidebar_headings,
+            theme=theme,
         )
 
 

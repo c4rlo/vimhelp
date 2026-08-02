@@ -1,7 +1,19 @@
-{# This is the main generated portion of each page. The updater now prepends
-prelude.html before storing it, while the request handler supplies that prefix
-for legacy records. Once all stored documents use the complete format, the
-templates can be merged and request-time prefixing removed. #}
+<!DOCTYPE html>
+{% if theme %}
+<html lang="en" class="{{theme}}">
+{% else %}
+<html lang="en">
+{% endif %}
+<head>
+<meta charset="UTF-8">
+{% if theme %}
+<meta name="color-scheme" content="only {{theme}}">
+{% else %}
+<meta name="color-scheme" content="light dark">
+{% endif %}
+{% if not theme or mode != "offline" %}
+<script src="{{'theme-init.js'|static_path}}"></script>
+{% endif %}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="{{project.name}} help pages, always up-to-date">
 <title>{{project.name}}: {{filename}}</title>
