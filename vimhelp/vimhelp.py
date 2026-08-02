@@ -50,10 +50,6 @@ def prepare_response(req, head):
     resp = flask.Response(mimetype="text/html")
     resp.last_modified = head.modified
     resp.cache_control.max_age = 15 * 60
-    # The ETag identifies the generated document byte-for-byte. Prevent intermediary
-    # HTML rewriting (for example, Cloudflare Email Address Obfuscation) from changing
-    # that representation or removing its validator.
-    resp.cache_control.no_transform = True
     resp.set_etag(head.etag.decode())
     return resp.make_conditional(req)
 
