@@ -1,3 +1,4 @@
+set default-list
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
 project_staging := "vimhelp-staging"
@@ -26,8 +27,8 @@ bump-deps:
         -o vimhelp/static/tom-select.min.css $base/css/tom-select.min.css
 
 # Run the app locally against staging.
-[arg("gunicorn", long="gunicorn", value="1")]
-[arg("tracemalloc", long="tracemalloc", value="1")]
+[arg("gunicorn", long, value="1")]
+[arg("tracemalloc", long, value="1")]
 run gunicorn="" tracemalloc="": ensure-private-mount
     #!/usr/bin/env bash
     set -euo pipefail
@@ -56,8 +57,8 @@ show-routes: ensure-private-mount
     exec uv run flask --app vimhelp.webapp --debug routes
 
 # Deploy the app, or cron.yaml with --cron.
-[arg("target", pattern="^(staging|prod|all)$")]
-[arg("cron", long="cron", value="1")]
+[arg("target", pattern="staging|prod|all")]
+[arg("cron", long, value="1")]
 deploy target="staging" cron="": lint ensure-private-mount
     #!/usr/bin/env bash
     set -euo pipefail
