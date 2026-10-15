@@ -16,12 +16,15 @@ dependencies = [
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.package-data]
+vimhelp = ["templates/*", "static/*"]
+
 [tool.ruff.lint]
 select = ["E", "F", "W", "I002", "N", "UP", "S", "B", "A", "C4", "DTZ", "SIM", "PTH", "PLE", "PLW", "RUF"]
 ignore = ["DTZ003", "PLW0603", "SIM102", "SIM108", "UP007"]
 
 [tool.ruff.lint.per-file-ignores]
-"vimhelp/vimh2h.py" = ["E501", "PLW2901", "S704"]
+"src/vimhelp/vimh2h.py" = ["E501", "PLW2901", "S704"]
 
 [tool.ruff.lint.flake8-builtins]
 builtins-allowed-modules = ["http"]

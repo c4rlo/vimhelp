@@ -7,15 +7,12 @@
 import argparse
 import os.path
 import pathlib
-import sys
 
 import flask
 
-root_path = pathlib.Path(__file__).parent.parent
+from vimhelp import vimh2h
 
-sys.path.append(str(root_path))
-
-from vimhelp.vimh2h import VimH2H  # noqa: E402
+root_path = pathlib.Path(vimh2h.__file__).resolve().parent
 
 
 def main():
@@ -68,8 +65,7 @@ def main():
 
     app = flask.Flask(
         __name__,
-        root_path=str(pathlib.Path(__file__).resolve().parent),
-        template_folder="../vimhelp/templates",
+        root_path=str(root_path),
     )
     app.jinja_options["trim_blocks"] = True
     app.jinja_options["lstrip_blocks"] = True
@@ -96,14 +92,14 @@ def run(args):
 
     if not args.no_tags and (tags_file := args.in_dir / "tags").is_file():
         print("Processing tags file...")
-        h2h = VimH2H(mode=mode, project=args.project, tags=tags_file.read_text())
+        h2h = vimh2h.VimH2H(mode=mode, project=args.project, tags=tags_file.read_text())
         faq = args.in_dir / "vim_faq.txt"
         if faq.is_file():
             print("Processing FAQ tags...")
             h2h.add_tags(faq.name, faq.read_text())
     else:
         print("Initializing tags...")
-        h2h = VimH2H(mode=mode, project=args.project)
+        h2h = vimh2h.VimH2H(mode=mode, project=args.project)
         for infile in args.in_dir.iterdir():
             if infile.suffix == ".txt":
                 h2h.add_tags(infile.name, infile.read_text())
@@ -126,7 +122,7 @@ def run(args):
 
     if args.out_dir is not None:
         print("Symlinking/creating static files...")
-        static_dir = root_path / "vimhelp" / "static"
+        static_dir = root_path / "static"
         static_dir_rel = os.path.relpath(static_dir, args.out_dir)
         for target in static_dir.iterdir():
             target_name = target.name

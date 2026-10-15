@@ -23,8 +23,8 @@ lint:
 bump-deps:
     uv lock --upgrade
     base=https://cdn.jsdelivr.net/npm/tom-select@latest/dist && curl -fL \
-        -o vimhelp/static/tom-select.base.min.js $base/js/tom-select.base.min.js \
-        -o vimhelp/static/tom-select.min.css $base/css/tom-select.min.css
+        -o src/vimhelp/static/tom-select.base.min.js $base/js/tom-select.base.min.js \
+        -o src/vimhelp/static/tom-select.min.css $base/css/tom-select.min.css
 
 # Run the app locally against staging.
 [arg("gunicorn", long, value="1")]
@@ -63,7 +63,7 @@ deploy target="staging" cron="": lint ensure-private-mount
     #!/usr/bin/env bash
     set -euo pipefail
 
-    uv export -q --locked --no-emit-project -o requirements.txt
+    uv export -q --locked -o requirements.txt
 
     case "{{ target }}" in
         all)
@@ -99,7 +99,7 @@ deploy target="staging" cron="": lint ensure-private-mount
 
 # Clean up build artefacts.
 clean:
-    rm -rf .ruff_cache .venv __pycache__ requirements.txt vimhelp/__pycache__ vimhelp.egg-info
+    rm -rf .ruff_cache .venv __pycache__ requirements.txt src/vimhelp/__pycache__ src/vimhelp.egg-info
 
 # Interactive shell with virtualenv and datastore available.
 sh: ensure-private-mount
