@@ -50,6 +50,7 @@ def create_app() -> flask.Flask:
     from . import robots
     from . import tagsearch
     from . import vimhelp
+    from . import vimh2h
     from . import update
 
     package_path = str(pathlib.Path(__file__).resolve().parent)
@@ -107,6 +108,20 @@ def create_app() -> flask.Flask:
     @bp.route("/go")
     def vimhelp_go():
         return tagsearch.handle_go(cache_)
+
+    @bp.route("/opensearch.xml")
+    def opensearch():
+        project = vimh2h.PROJECTS[flask.g.project]
+        return flask.Response(
+            flask.render_template(
+                "opensearch.xml",
+                project=project,
+                search_url=flask.url_for(".vimhelp_go", _external=True),
+                self_url=flask.url_for(".opensearch", _external=True),
+                image_url=flask.url_for(".favicon", _external=True),
+            ),
+            mimetype="application/opensearchdescription+xml",
+        )
 
     @bp.route("/favicon.ico")
     def favicon():

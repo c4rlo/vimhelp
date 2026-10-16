@@ -21,6 +21,7 @@
 <!-- {{project.favicon_notice}} -->
 
 {% if mode != "offline" %}
+<link rel="search" type="application/opensearchdescription+xml" title="{{project.name}} help" href="opensearch.xml">
 <link rel="stylesheet" href="{{'tom-select.min.css'|static_path}}">
 <script defer src="{{'tom-select.base.min.js'|static_path}}"></script>
 {% endif %}

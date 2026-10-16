@@ -1,0 +1,8 @@
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+  <ShortName>{{project.name}} help</ShortName>
+  <Description>Jump to {{project.name}} help tag</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <Image width="16" height="16" type="image/x-icon">{{image_url}}</Image>
+  <Url type="text/html" template="{{search_url}}?q={searchTerms}"/>
+  <Url type="application/opensearchdescription+xml" rel="self" template="{{self_url}}"/>
+</OpenSearchDescription>
