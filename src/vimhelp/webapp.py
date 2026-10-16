@@ -102,6 +102,12 @@ def create_app() -> flask.Flask:
     def vimhelp_tagsearch():
         return tagsearch.handle_tagsearch(cache_)
 
+    # Use a query parameter because help topics can start with '/', which Flask's
+    # standard path converter rejects even when URL-encoded.
+    @bp.route("/go")
+    def vimhelp_go():
+        return tagsearch.handle_go(cache_)
+
     @bp.route("/favicon.ico")
     def favicon():
         return assets.handle_static(

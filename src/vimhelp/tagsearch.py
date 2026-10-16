@@ -1,4 +1,5 @@
 import bisect
+from http import HTTPStatus
 
 import flask
 import werkzeug.exceptions
@@ -27,8 +28,24 @@ class TagItem:
 
 
 def handle_tagsearch(cache):
-    project = flask.g.project
     query = flask.request.args.get("q", "")
+    results = do_handle_tagsearch(get_tag_items(cache), query)
+    return {"results": results}
+
+
+def handle_go(cache):
+    query = flask.request.args.get("q", "")
+    if not query:
+        return flask.redirect("./", HTTPStatus.FOUND)
+
+    results = do_handle_tagsearch(get_tag_items(cache), query)
+    if not results:
+        raise werkzeug.exceptions.NotFound(f"No help tag matches {query!r}.")
+    return flask.redirect(results[0]["href"], HTTPStatus.FOUND)
+
+
+def get_tag_items(cache):
+    project = flask.g.project
     items = cache.get(project, CACHE_KEY_ID)
     if not items:
         with dbmodel.ndb_context():
@@ -38,8 +55,7 @@ def handle_tagsearch(cache):
             items = [TagItem(*tag) for tag in entity.tags]
             cache.put(project, CACHE_KEY_ID, items)
 
-    results = do_handle_tagsearch(items, query)
-    return flask.jsonify({"results": results})
+    return items
 
 
 def do_handle_tagsearch(items, query):
