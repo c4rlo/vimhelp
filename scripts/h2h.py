@@ -1,8 +1,7 @@
-#!/usr/bin/env .venv/bin/python3
+#!/usr/bin/env -S uv run
 
 # This script is meant to be run from the top-level directory of the
-# repository, as 'scripts/h2h.py'. The virtualenv must already exist
-# (use "uv sync" to create it).
+# repository, as 'scripts/h2h.py'. uv manages the project environment.
 
 import argparse
 import os.path

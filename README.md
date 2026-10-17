@@ -11,14 +11,14 @@ to see the available recipes.
 
 To generate static HTML pages instead of running on Google App Engine:
 
-- Make sure you have [uv](https://docs.astral.sh/uv/), and run `uv sync`
-  to create/update a virtualenv in `.venv`.
-- Run the following (replace the `-i` parameter with the Vim documentation
-  location on your computer):
-  ```
-  scripts/h2h.py -i /usr/share/vim/vim92/doc/ -o html/
-  ```
-  The script offers a few options; run with `-h` to see what is available.
+1. Make sure you have [uv](https://docs.astral.sh/uv/).
+2. Run the following from the repository root (replace the `-i` parameter
+   with the Vim documentation location on your computer):
+   ```
+   scripts/h2h.py -i /usr/share/vim/vim92/doc/ -o html/
+   ```
+   uv creates or updates the project environment automatically.
+   The script offers a few options; run with `-h` to see what is available.
 
 ## License
 
