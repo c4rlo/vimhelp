@@ -10,6 +10,7 @@ grpc.experimental.gevent.init_gevent()
 
 from http import HTTPStatus  # noqa: E402
 import flask  # noqa: E402
+import werkzeug.exceptions  # noqa: E402
 
 import logging  # noqa: E402
 import os  # noqa: E402
@@ -140,6 +141,29 @@ def create_app() -> flask.Flask:
         app.register_blueprint(bp, name="neovim", url_prefix="/neovim")
     # Outside local development, Neovim uses dedicated hostnames, which are handled
     # below in the before_request handler.
+
+    @app.errorhandler(werkzeug.exceptions.HTTPException)
+    def http_error(error):
+        blueprint = flask.request.blueprint or "vim"
+        message = error.description
+        if (
+            error.code == HTTPStatus.NOT_FOUND
+            and message == werkzeug.exceptions.NotFound.description
+        ):
+            message = (
+                "The requested page could not be found. "
+                "Check the address or use the quick links above."
+            )
+        response = error.get_response()
+        response.data = flask.render_template(
+            "error.html",
+            error=error,
+            message=message,
+            project=vimh2h.PROJECTS[flask.g.project],
+            home_url=flask.url_for(f"{blueprint}.vimhelp_filename"),
+        )
+        response.content_type = "text/html; charset=utf-8"
+        return response
 
     def do_warmup(project):
         logging.info("doing warmup request for %s", project)

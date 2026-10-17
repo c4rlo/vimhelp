@@ -321,3 +321,24 @@ a.d:active, a.d:hover { text-decoration: underline var(--fg1); }
 .c { color: var(--red); }
 
 footer { font-size: 85%; padding: 1em 0; }
+
+/* HTTP error pages */
+.http-error-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr auto 2fr;
+  min-height: 100svh;
+  margin: 0;
+  padding: 8px;
+}
+.http-error-page > .bar { align-self: start; margin-bottom: 0; }
+.http-error-page > footer { align-self: end; }
+.http-error {
+  display: block;
+  width: 100%;
+  max-width: 80ch;
+  margin: 4em auto;
+  line-height: 1.5;
+}
+.http-error-site { margin: 0; font-size: 1.125em; color: var(--fg4); }
+.http-error h1 { margin-top: 0.25em; font-family: var(--font-mono); font-size: 1.5em; }
