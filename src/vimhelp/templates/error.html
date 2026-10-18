@@ -8,6 +8,7 @@
 <meta name="robots" content="noindex">
 <title>{{project.name}}: {{error.code}} {{error.name}}</title>
 <link rel="shortcut icon" href="{{project.favicon|static_path}}">
+<link rel="search" type="application/opensearchdescription+xml" title="{{project.name}} help" href="/opensearch.xml">
 <link rel="stylesheet" href="{{'vimhelp.css'|static_path}}">
 </head>
 <body class="http-error-page">
@@ -28,6 +29,6 @@
   <h1>{{error.code}} {{error.name}}</h1>
   <p>{{message}}</p>
 </main>
-<footer>This site is maintained by Carlo Teubner (<i>(my first name) at cteubner dot net</i>).</footer>
+{% include "footer.html" %}
 </body>
 </html>

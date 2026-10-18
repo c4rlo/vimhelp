@@ -321,6 +321,10 @@ a.d:active, a.d:hover { text-decoration: underline var(--fg1); }
 .c { color: var(--red); }
 
 footer { font-size: 85%; padding: 1em 0; }
+.browser-search { margin: 0 0 1em; }
+.browser-search summary { display: inline list-item; list-style-position: inside; cursor: pointer; }
+.browser-search:not([open]) > span { display: none; }
+.browser-search[open]::details-content { display: inline; }
 
 /* HTTP error pages */
 .http-error-page {
