@@ -31,12 +31,11 @@ bump-deps:
 [arg("gunicorn", long, short, value="1")]
 [arg("tracemalloc", long, value="1")]
 run gunicorn="" tracemalloc="": ensure-private-mount
+    port=8000
     if [[ "{{ gunicorn }}" == 1 ]]; then
         cmd=(gunicorn -c gunicorn.conf.dev.py)
-        port=8000
     else
-        cmd=(flask --app vimhelp.webapp --debug run)
-        port=5000
+        cmd=(flask --app vimhelp.webapp --debug run --port "$port")
     fi
 
     if [[ "{{ tracemalloc }}" == 1 ]]; then
