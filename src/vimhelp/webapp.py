@@ -144,7 +144,6 @@ def create_app() -> flask.Flask:
             error=error,
             message=message,
             project=vimh2h.PROJECTS[flask.g.project],
-            home_url=flask.url_for("vimhelp_filename"),
         )
         response.content_type = "text/html; charset=utf-8"
         return response
