@@ -58,7 +58,8 @@ show-routes: ensure-private-mount
 [arg("target", pattern="staging|prod|all")]
 [arg("cron", long, value="1")]
 deploy target="staging" cron="": lint ensure-private-mount
-    uv export -q --locked -o requirements.txt
+    # pip cannot hash the editable local project included in the export.
+    uv export -q --locked --no-hashes -o requirements.txt
 
     case "{{ target }}" in
         all)
