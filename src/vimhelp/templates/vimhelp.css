@@ -109,6 +109,14 @@ html {
   color: var(--fg1);
 }
 
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  margin: 0;
+  padding: 8px;
+}
+
 /* title + theme switcher */
 #title-cont { display: flex; align-items: start; justify-content: space-between; }
 #title-cont > #theme-switcher { margin-top: 8pt; margin-right: 8pt; }
@@ -247,6 +255,7 @@ button#theme-current { font-weight: bold; }
 
 /* main = sidebar + content */
 main {
+  flex-grow: 1;
   display: flex;
   flex-wrap: wrap-reverse;
   align-items: start;
