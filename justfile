@@ -1,5 +1,6 @@
 set default-list
-set shell := ["bash", "-euo", "pipefail", "-c"]
+set default-script
+set script-interpreter := ["bash", "-eu", "-o", "pipefail"]
 
 project_staging := "vimhelp-staging"
 project_prod := "vimhelp-hrd"
@@ -27,16 +28,15 @@ bump-deps:
         -o src/vimhelp/static/tom-select.min.css $base/css/tom-select.min.css
 
 # Run the app locally against staging.
-[arg("gunicorn", long, value="1")]
+[arg("gunicorn", long, short, value="1")]
 [arg("tracemalloc", long, value="1")]
 run gunicorn="" tracemalloc="": ensure-private-mount
-    #!/usr/bin/env bash
-    set -euo pipefail
-
     if [[ "{{ gunicorn }}" == 1 ]]; then
         cmd=(gunicorn -c gunicorn.conf.dev.py)
+        port=8000
     else
         cmd=(flask --app vimhelp.webapp --debug run)
+        port=5000
     fi
 
     if [[ "{{ tracemalloc }}" == 1 ]]; then
@@ -45,13 +45,12 @@ run gunicorn="" tracemalloc="": ensure-private-mount
 
     {{ dev_env }}
 
+    printf 'Vim:    http://localhost:%s/\nNeovim: http://neo.localhost:%s/\n' "$port" "$port"
+
     exec uv run "${cmd[@]}"
 
 # Show Flask routes.
 show-routes: ensure-private-mount
-    #!/usr/bin/env bash
-    set -euo pipefail
-
     {{ dev_env }}
 
     exec uv run flask --app vimhelp.webapp --debug routes
@@ -60,9 +59,6 @@ show-routes: ensure-private-mount
 [arg("target", pattern="staging|prod|all")]
 [arg("cron", long, value="1")]
 deploy target="staging" cron="": lint ensure-private-mount
-    #!/usr/bin/env bash
-    set -euo pipefail
-
     uv export -q --locked -o requirements.txt
 
     case "{{ target }}" in
@@ -103,9 +99,6 @@ clean:
 
 # Interactive shell with virtualenv and datastore available.
 sh: ensure-private-mount
-    #!/usr/bin/env bash
-    set -euo pipefail
-
     {{ dev_env }}
 
     . .venv/bin/activate
@@ -115,9 +108,6 @@ sh: ensure-private-mount
 # Mount ~/private if it is not mounted.
 [private]
 ensure-private-mount:
-    #!/usr/bin/env bash
-    set -euo pipefail
-
     priv_dir="$HOME/private"
     if [[ "$(stat -c %d "$priv_dir")" == "$(stat -c %d "$(dirname "$priv_dir")")" ]]; then
         sudo systemctl start "$priv_dir"

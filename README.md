@@ -7,6 +7,12 @@ To make testing and deploying easier, common project tasks are defined in
 `justfile` for use with [_just_](https://just.systems/). Run `just --list`
 to see the available recipes.
 
+## Local development
+
+Run `just run`, then open <http://localhost:5000/> for Vim or
+<http://neo.localhost:5000/> for Neovim. Both sites use the same routes;
+the hostname selects the documentation project.
+
 ## Generating static pages
 
 To generate static HTML pages instead of running on Google App Engine:

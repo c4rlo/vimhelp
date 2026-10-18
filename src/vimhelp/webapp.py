@@ -1,20 +1,22 @@
+# ruff: noqa: E402
+
 import gevent
 import gevent.monkey
 
 # gevent.config.track_greenlet_tree = False
 gevent.monkey.patch_all()
 
-import grpc.experimental.gevent  # noqa: E402
+import grpc.experimental.gevent
 
 grpc.experimental.gevent.init_gevent()
 
-from http import HTTPStatus  # noqa: E402
-import flask  # noqa: E402
-import werkzeug.exceptions  # noqa: E402
+from http import HTTPStatus
+import flask
+import werkzeug.exceptions
 
-import logging  # noqa: E402
-import os  # noqa: E402
-import pathlib  # noqa: E402
+import logging
+import os
+from pathlib import Path
 
 
 _CSP = "default-src 'self'"  # Content Security Policy
@@ -42,38 +44,30 @@ _URL_PREFIX_REDIRECTS = (
 
 _WARMUP_PATH = "/_ah/warmup"
 
-g_is_dev = False
-
 
 def create_app() -> flask.Flask:
     from . import assets
     from . import cache
     from . import robots
     from . import tagsearch
-    from . import vimhelp
-    from . import vimh2h
     from . import update
-
-    package_path = str(pathlib.Path(__file__).resolve().parent)
+    from . import vimh2h
+    from . import vimhelp
 
     logging.basicConfig(level=logging.INFO)
 
     cache_ = cache.Cache()
 
     app = flask.Flask(
-        "vimhelp",
-        root_path=package_path,
-        instance_path=package_path,
-        static_folder=None,
+        "vimhelp", root_path=str(Path(__file__).resolve().parent), static_folder=None
     )
 
     app.jinja_options["trim_blocks"] = True
     app.jinja_options["lstrip_blocks"] = True
     app.jinja_env.filters["static_path"] = assets.static_path
 
-    global g_is_dev
-    g_is_dev = os.environ.get("VIMHELP_ENV") == "dev"
-    if not g_is_dev:
+    is_dev = os.environ.get("VIMHELP_ENV") == "dev"
+    if not is_dev:
         app.config["PREFERRED_URL_SCHEME"] = "https"
 
     assets.init(app)
@@ -85,10 +79,8 @@ def create_app() -> flask.Flask:
         "/enqueue_clean_assets", view_func=assets.handle_enqueue_clean_assets
     )
 
-    bp = flask.Blueprint("bp", "vimhelp", root_path=package_path)
-
-    @bp.route("/<filename>.html")
-    @bp.route("/", defaults={"filename": ""})
+    @app.route("/<filename>.html")
+    @app.route("/", defaults={"filename": ""})
     def vimhelp_filename(filename):
         req = flask.request
         if req.method in ("GET", "HEAD") and req.query_string:
@@ -96,55 +88,47 @@ def create_app() -> flask.Flask:
             return flask.redirect(req.path, HTTPStatus.MOVED_PERMANENTLY)
         return vimhelp.handle_vimhelp(filename, cache_)
 
-    @bp.route("/s/<hash_>/<filename>")
+    @app.route("/s/<hash_>/<filename>")
     def static_filename(hash_, filename):
         return assets.handle_static(filename, hash_)
 
-    @bp.route("/api/tagsearch")
+    @app.route("/api/tagsearch")
     def vimhelp_tagsearch():
         return tagsearch.handle_tagsearch(cache_)
 
     # Use a query parameter because help topics can start with '/', which Flask's
     # standard path converter rejects even when URL-encoded.
-    @bp.route("/go")
+    @app.route("/go")
     def vimhelp_go():
         return tagsearch.handle_go(cache_)
 
-    @bp.route("/opensearch.xml")
+    @app.route("/opensearch.xml")
     def opensearch():
         project = vimh2h.PROJECTS[flask.g.project]
         return flask.Response(
             flask.render_template(
                 "opensearch.xml",
                 project=project,
-                search_url=flask.url_for(".vimhelp_go", _external=True),
-                self_url=flask.url_for(".opensearch", _external=True),
-                image_url=flask.url_for(".favicon", _external=True),
+                search_url=flask.url_for("vimhelp_go", _external=True),
+                self_url=flask.url_for("opensearch", _external=True),
+                image_url=flask.url_for("favicon", _external=True),
             ),
             mimetype="application/opensearchdescription+xml",
         )
 
-    @bp.route("/favicon.ico")
+    @app.route("/favicon.ico")
     def favicon():
         return assets.handle_static(
             f"favicon-{flask.g.project}.ico", None, immutable=False
         )
 
-    bp.add_url_rule("/robots.txt", view_func=robots.handle_robots_txt)
-    bp.add_url_rule("/sitemap.txt", view_func=robots.handle_sitemap_txt)
-    bp.add_url_rule("/update", view_func=update.UpdateHandler.as_view("update"))
-    bp.add_url_rule("/enqueue_update", view_func=update.handle_enqueue_update)
-
-    app.register_blueprint(bp, name="vim")
-
-    if g_is_dev:
-        app.register_blueprint(bp, name="neovim", url_prefix="/neovim")
-    # Outside local development, Neovim uses dedicated hostnames, which are handled
-    # below in the before_request handler.
+    app.add_url_rule("/robots.txt", view_func=robots.handle_robots_txt)
+    app.add_url_rule("/sitemap.txt", view_func=robots.handle_sitemap_txt)
+    app.add_url_rule("/update", view_func=update.UpdateHandler.as_view("update"))
+    app.add_url_rule("/enqueue_update", view_func=update.handle_enqueue_update)
 
     @app.errorhandler(werkzeug.exceptions.HTTPException)
     def http_error(error):
-        blueprint = flask.request.blueprint or "vim"
         message = error.description
         if (
             error.code == HTTPStatus.NOT_FOUND
@@ -160,7 +144,7 @@ def create_app() -> flask.Flask:
             error=error,
             message=message,
             project=vimh2h.PROJECTS[flask.g.project],
-            home_url=flask.url_for(f"{blueprint}.vimhelp_filename"),
+            home_url=flask.url_for("vimhelp_filename"),
         )
         response.content_type = "text/html; charset=utf-8"
         return response
@@ -180,7 +164,15 @@ def create_app() -> flask.Flask:
         return flask.Response()
 
     @app.before_request
-    def before():
+    def select_project():
+        flask.g.project = (
+            "neovim"
+            if flask.request.host.startswith(("neo.", "staging-neo."))
+            else "vim"
+        )
+
+    @app.before_request
+    def redirect_canonical_url():
         req = flask.request
 
         # Redirect away from legacy / non-HTTPS URL prefixes
@@ -192,31 +184,17 @@ def create_app() -> flask.Flask:
                     logging.info("redirecting %s to %s", req.url, new_url)
                     return flask.redirect(new_url, HTTPStatus.MOVED_PERMANENTLY)
 
-        # Flask's subdomain/host matching doesn't seem compatible with having multiple
-        # valid server names (in particular, App Engine calls the /enqueue_update
-        # endpoint with something other than vimhelp.org), so we do it this way.
-        flask.g.project = (
-            "neovim"
-            if req.blueprint == "neovim"
-            or req.host.startswith(("neo.", "staging-neo."))
-            else "vim"
-        )
-
-    app.after_request(_add_default_headers)
+    @app.after_request
+    def add_default_headers(response: flask.Response) -> flask.Response:
+        h = response.headers
+        h.setdefault("Content-Security-Policy", _CSP)
+        # Allow HTML files opened via file:// to consume the local tagsearch API.
+        if is_dev:
+            h.setdefault("Access-Control-Allow-Origin", "*")
+        return response
 
     gevent.spawn(cache_.start_refresh_loop, do_warmup)
 
     logging.info("app initialised")
 
     return app
-
-
-def _add_default_headers(response: flask.Response) -> flask.Response:
-    h = response.headers
-    h.setdefault("Content-Security-Policy", _CSP)
-    # The following is needed for local dev scenarios where one is accessing an HTML
-    # file on disk ('file://' protocol) and wants it to be able to consume the tagsearch
-    # API.
-    if g_is_dev:
-        h.setdefault("Access-Control-Allow-Origin", "*")
-    return response
