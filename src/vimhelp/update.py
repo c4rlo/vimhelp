@@ -147,7 +147,7 @@ class UpdateHandler(flask.views.MethodView):
             "Starting %supdate for %s", "forced " if is_force else "", self._project
         )
 
-        self._app = flask.current_app._get_current_object()  # ty:ignore[unresolved-attribute]
+        self._app = flask.current_app._get_current_object()  # ty:ignore[missing-attribute]
         self._http_client = HttpClient(CONCURRENCY)
 
         try:
